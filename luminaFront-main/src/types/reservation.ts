@@ -1,3 +1,5 @@
+import type { BadgeInfo } from './gamification'
+
 // Categorías de prioridad de espacios
 export type PriorityCategory =
   | 'escritorio'
@@ -59,6 +61,7 @@ export interface ReservationResponse {
   status: 'confirmada';
   requiere_estacionamiento: boolean;
   parking_spot: { zone_name: string; spot_number: string } | null;
+  newBadges?: BadgeInfo[];
 }
 
 // Valores del formulario de filtros

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, type CSSProperties } from 'react'
 import { useCountUp } from '../../hooks/useCountUp'
 import { Link, useNavigate } from 'react-router-dom'
 import type { UserReservation } from '../../types/reservation'
@@ -21,6 +21,7 @@ import {
   getCheckInAvailability,
   getGreeting,
 } from '../../utils/checkInUtils'
+import { getBadgeImage } from '../../utils/badgeVisual'
 import styles from './DashboardPage.module.css'
 
 function getReservationLabel(reservation: UserReservation): string {
@@ -234,14 +235,23 @@ export function DashboardPage(): JSX.Element {
 
         {/* Badge toast */}
         {badgeToast.length > 0 && (
-          <div className={styles.badgeToast}>
-            {badgeToast.map((b) => (
-              <div key={b.id} className={styles.badgeToastItem}>
-                <span className={styles.badgeToastIcon}>🏅</span>
+          <div className={styles.badgeToast} role="status" aria-live="polite">
+            {badgeToast.map((b, index) => (
+              <div
+                key={b.id}
+                className={styles.badgeToastItem}
+                style={{ '--delay': `${index * 90}ms` } as CSSProperties}
+              >
+                <span className={styles.badgeHalo} aria-hidden="true" />
+                <span className={styles.badgeSparkle} aria-hidden="true">✨</span>
+                <img className={styles.badgeToastIcon} src={getBadgeImage(b.key, true)} alt="" />
                 <div className={styles.badgeToastText}>
                   <span className={styles.badgeToastTitle}>Nuevo logro desbloqueado</span>
                   <span className={styles.badgeToastName}>{b.name}</span>
+                  <span className={styles.badgeToastDescription}>{b.description}</span>
+                  <Link to="/logros" className={styles.badgeToastLink}>Ver logro</Link>
                 </div>
+                <span className={styles.badgeToastProgress} aria-hidden="true" />
               </div>
             ))}
           </div>

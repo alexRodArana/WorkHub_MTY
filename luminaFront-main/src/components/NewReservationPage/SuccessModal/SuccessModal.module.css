@@ -16,6 +16,21 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
+@keyframes badgeUnlockIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes badgeGlow {
+  0%, 100% { opacity: 0.22; transform: scale(0.9); }
+  50% { opacity: 0.58; transform: scale(1.14); }
+}
+
+@keyframes badgeShine {
+  from { transform: translateX(-130%) rotate(18deg); }
+  to { transform: translateX(170%) rotate(18deg); }
+}
+
 /* ── Backdrop ────────────────────────────────────────────────── */
 
 .backdrop {
@@ -139,6 +154,123 @@
   text-align: left;
 }
 
+.badgeUnlockPanel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(161, 0, 255, 0.16);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(161, 0, 255, 0.16), transparent 34%),
+    rgba(246, 243, 255, 0.82);
+  animation: badgeUnlockIn 340ms cubic-bezier(0.16, 1, 0.3, 1) 160ms both;
+}
+
+.badgeUnlockHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+}
+
+.badgeUnlockHeader span {
+  color: #7500c0;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.badgeUnlockHeader strong {
+  min-width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #a100ff, #7500c0);
+  font-size: 0.82rem;
+}
+
+.badgeUnlockList {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.badgeUnlockItem {
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 76px;
+  padding: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(161, 0, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.86);
+  text-align: left;
+  animation: badgeUnlockIn 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.badgeUnlockItem::after {
+  content: '';
+  position: absolute;
+  inset: -70% auto auto -35%;
+  width: 60%;
+  height: 240%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  animation: badgeShine 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.badgeUnlockGlow {
+  position: absolute;
+  left: 15px;
+  top: 14px;
+  width: 62px;
+  height: 62px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(161, 0, 255, 0.28), transparent 68%);
+  animation: badgeGlow 1.9s ease-in-out infinite;
+}
+
+.badgeUnlockItem img {
+  position: relative;
+  z-index: 1;
+  width: 56px;
+  height: 56px;
+  border-radius: 15px;
+  box-shadow: 0 12px 24px rgba(70, 0, 115, 0.16);
+}
+
+.badgeUnlockItem div {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.badgeUnlockItem strong {
+  color: #18151f;
+  font-size: 0.92rem;
+  line-height: 1.15;
+}
+
+.badgeUnlockItem small {
+  color: #6f667a;
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.28;
+}
+
 .row {
   display: flex;
   justify-content: space-between;
@@ -197,6 +329,26 @@
   border-color: rgba(161, 0, 255, 0.14);
 }
 
+:global([data-theme='dark']) .badgeUnlockPanel {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(161, 0, 255, 0.22), transparent 34%),
+    rgba(28, 36, 49, 0.92);
+  border-color: rgba(161, 0, 255, 0.2);
+}
+
+:global([data-theme='dark']) .badgeUnlockItem {
+  background: rgba(35, 47, 61, 0.86);
+  border-color: rgba(161, 0, 255, 0.16);
+}
+
+:global([data-theme='dark']) .badgeUnlockItem strong {
+  color: #f8f5ff;
+}
+
+:global([data-theme='dark']) .badgeUnlockItem small {
+  color: #b9c3d0;
+}
+
 :global([data-theme='dark']) .rowValue {
   color: #f8f5ff;
 }
@@ -242,6 +394,11 @@
     border-radius: 12px;
   }
 
+  .badgeUnlockPanel {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
   .row {
     align-items: flex-start;
     font-size: 0.86rem;
@@ -251,7 +408,11 @@
 @media (prefers-reduced-motion: reduce) {
   .backdrop,
   .modal,
-  .checkCircle {
+  .checkCircle,
+  .badgeUnlockPanel,
+  .badgeUnlockItem,
+  .badgeUnlockItem::after,
+  .badgeUnlockGlow {
     animation: none;
   }
 

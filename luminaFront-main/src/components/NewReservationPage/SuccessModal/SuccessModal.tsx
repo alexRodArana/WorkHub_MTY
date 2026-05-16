@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import type { ReservationResponse, SpaceAvailability, FilterValues } from '../../../types/reservation';
 import { PRIORITY_CATEGORY_LABELS } from '../../../data/floorLayouts';
+import { getBadgeImage } from '../../../utils/badgeVisual';
 import styles from './SuccessModal.module.css';
 
 interface SuccessModalProps {
@@ -68,6 +69,7 @@ export function SuccessModal({
   if (!isOpen) return null;
 
   const categoryLabel = PRIORITY_CATEGORY_LABELS[space.priority_category] ?? space.priority_category;
+  const newBadges = reservation.newBadges ?? [];
 
   return (
     <div
@@ -130,6 +132,27 @@ export function SuccessModal({
             </div>
           )}
         </div>
+
+        {newBadges.length > 0 && (
+          <section className={styles.badgeUnlockPanel} aria-label="Logros desbloqueados">
+            <div className={styles.badgeUnlockHeader}>
+              <span>Logros desbloqueados</span>
+              <strong>{newBadges.length}</strong>
+            </div>
+            <div className={styles.badgeUnlockList}>
+              {newBadges.map((badge) => (
+                <article key={badge.id} className={styles.badgeUnlockItem}>
+                  <span className={styles.badgeUnlockGlow} aria-hidden="true" />
+                  <img src={getBadgeImage(badge.key, true)} alt="" />
+                  <div>
+                    <strong>{badge.name}</strong>
+                    <small>{badge.description}</small>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
 
         <button
           ref={viewBtnRef}
