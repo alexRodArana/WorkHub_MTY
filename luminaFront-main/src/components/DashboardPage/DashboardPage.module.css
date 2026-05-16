@@ -526,66 +526,6 @@
   font-weight: 700;
 }
 
-/* ── Real-time stub ──────────────────────────────────────────── */
-
-.realtimeStub {
-  padding: 18px 20px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(117, 0, 192, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.realtimeFloors {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
-
-.realtimeFloorTile {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 10px;
-  border-radius: 14px;
-  background: rgba(246, 243, 255, 0.7);
-  border: 1px solid rgba(117, 0, 192, 0.08);
-}
-
-.realtimeFloorName {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #460073;
-}
-
-.realtimeSkeleton {
-  display: block;
-  height: 10px;
-  border-radius: 6px;
-  background: rgba(161, 0, 255, 0.08);   /* static base */
-  position: relative;
-  overflow: hidden;
-}
-
-/* Shimmer sweep via transform — compositor only, replaces background-position paint */
-.realtimeSkeleton::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(161, 0, 255, 0.22) 50%, transparent 100%);
-  animation: shimmer 1.6s ease-in-out infinite;
-  will-change: transform;
-}
-
-.realtimeHint {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #9b8fb0;
-  font-style: italic;
-}
-
 /* ── Streak widget — Moment of Impact ────────────────────────── */
 
 .streakCard {
@@ -843,7 +783,6 @@
 :global([data-theme='dark']) .actionSub,
 :global([data-theme='dark']) .recentFloor,
 :global([data-theme='dark']) .recentDate,
-:global([data-theme='dark']) .realtimeHint,
 :global([data-theme='dark']) .noBadgeHint {
   color: #b9c3d0;
 }
@@ -851,16 +790,10 @@
 :global([data-theme='dark']) .todayCard,
 :global([data-theme='dark']) .emptyTodayCard,
 :global([data-theme='dark']) .actionCard,
-:global([data-theme='dark']) .recentItem,
-:global([data-theme='dark']) .realtimeStub {
+:global([data-theme='dark']) .recentItem {
   background: rgba(35, 47, 61, 0.94);
   border-color: rgba(161, 0, 255, 0.14);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
-}
-
-:global([data-theme='dark']) .realtimeFloorTile {
-  background: rgba(161, 0, 255, 0.09);
-  border-color: rgba(161, 0, 255, 0.13);
 }
 
 :global([data-theme='dark']) .actionIcon,
@@ -913,10 +846,6 @@
 
   .quickActionsGrid {
     grid-template-columns: 1fr;
-  }
-
-  .realtimeFloors {
-    grid-template-columns: repeat(2, 1fr);
   }
 
   .todayMain {
@@ -990,8 +919,7 @@
   .badgeSparkle,
   .badgeToastProgress,
   .streakFire,
-  .pulseDot,
-  .realtimeSkeleton::after {
+  .pulseDot {
     animation: none;
   }
 

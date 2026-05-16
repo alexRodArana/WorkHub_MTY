@@ -123,6 +123,7 @@ describe("ReservationService", () => {
       hasOverlappingBlockForSpace: vi.fn().mockResolvedValue(false),
       findByCode: vi.fn().mockResolvedValue(null),
       findById: vi.fn(),
+      findByUserId: vi.fn().mockResolvedValue([]),
       create: vi.fn().mockResolvedValue(makeReservationResult()),
       update: vi.fn(),
       findPendingCheckInCandidates: vi.fn().mockResolvedValue([]),
@@ -136,6 +137,7 @@ describe("ReservationService", () => {
         categories: new Map(),
       }),
       findSpaceDemandScores: vi.fn().mockResolvedValue(new Map()),
+      getAdminOverview: vi.fn(),
     } as unknown as ReservationRepository
 
     parkingRepository = {
@@ -160,7 +162,6 @@ describe("ReservationService", () => {
     delete process.env.AI_PROVIDER
     delete process.env.GEMINI_API_KEY
     delete process.env.GEMINI_MODEL
-    delete process.env.OPENAI_API_KEY
     vi.unstubAllGlobals()
   })
 
@@ -261,6 +262,78 @@ describe("ReservationService", () => {
     expect(result.recommendations[0].confidence).toBeGreaterThan(0.5)
     expect(result.recommendations[0].signals.some((signal) => signal.label === "Colaboración")).toBe(true)
     expect(result.recommendations[0].reasons.join(" ")).toContain("Ana Garcia")
+    expect(String(vi.mocked(globalThis.fetch).mock.calls[0][0])).toContain("generativelanguage.googleapis.com")
+    expect(String(vi.mocked(globalThis.fetch).mock.calls[0][0])).toContain("gemini-2.5-flash-lite")
+  })
+
+  it("does not fall back to local recommendations when Gemini returns invalid space ids", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                predicted_occupancy: 0.2,
+                prediction_label: "baja",
+                recommendations: [{
+                  space_id: 9999,
+                  reason: "ID inexistente que debe descartarse",
+                  score: 99,
+                  confidence: 0.99,
+                }],
+              }),
+            }],
+          },
+        }],
+      }),
+    }))
+
+    const result = await service.getRecommendations({
+      reservation_date: FUTURE_DATE,
+      start_time: "09:00",
+      end_time: "10:00",
+      priority_category: "escritorio",
+    }, 7)
+
+    expect(result.model.name).toContain("Gemini API")
+    expect(result.recommendations).toHaveLength(0)
+  })
+
+  it("answers assistant questions through Gemini using only authorized context", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                answer: "No tienes reservas activas con el contexto disponible.",
+                confidence: 0.83,
+                intent: "general",
+                actions: [{ label: "Ver mis reservas", to: "/mis-reservas" }],
+              }),
+            }],
+          },
+        }],
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const result = await service.answerAssistantQuestion("¿tengo algo reservado?", 7, "employee")
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string) as {
+      systemInstruction: { parts: Array<{ text: string }> }
+      contents: Array<{ parts: Array<{ text: string }> }>
+    }
+    const context = JSON.parse(body.contents[0].parts[0].text) as { user: { id: number; role: string } }
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain("generativelanguage.googleapis.com")
+    expect(String(fetchMock.mock.calls[0][0])).toContain("gemini-2.5-flash-lite")
+    expect(body.systemInstruction.parts[0].text).toContain("Usa SOLO el contexto recibido")
+    expect(context.user).toEqual({ id: 7, role: "employee", is_admin: false, is_guard: false })
+    expect(result.answer).toContain("contexto disponible")
   })
 
   it("spreads AI recommendations across floors when no floor filter is selected", async () => {

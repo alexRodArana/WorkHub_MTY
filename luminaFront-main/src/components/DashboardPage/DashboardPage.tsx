@@ -471,22 +471,6 @@ export function DashboardPage(): JSX.Element {
                 <p className={styles.noBadgeHint}>Realiza tu primera reserva para desbloquear logros.</p>
               )}
             </div>
-
-            {/* ── REAL-TIME STUB ────────────────────────────────── */}
-            <div className={styles.section}>
-              <p className={styles.sectionLabel}>Disponibilidad en tiempo real</p>
-              <div className={styles.realtimeStub}>
-                <div className={styles.realtimeFloors}>
-                  {['Planta Baja', 'Mezzanine', 'Piso 3', 'Piso 9'].map((name) => (
-                    <div key={name} className={styles.realtimeFloorTile}>
-                      <span className={styles.realtimeFloorName}>{name}</span>
-                      <span className={styles.realtimeSkeleton} />
-                    </div>
-                  ))}
-                </div>
-                <p className={styles.realtimeHint}>Monitoreo en tiempo real — próximamente</p>
-              </div>
-            </div>
           </>
         )}
       </div>

@@ -26,8 +26,6 @@ const CHECK_IN_POST_START_MINUTES = 30
 const RECOMMENDATION_MODEL_NAME = "Lumina Workspace AI"
 const RECOMMENDATION_MODEL_VERSION = "local-xai-v1.1"
 const RECOMMENDATION_CACHE_TTL_MS = Number(process.env.RECOMMENDATION_CACHE_TTL_MS ?? 8_000)
-const OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
-const OPENAI_DEFAULT_MODEL = "gpt-4.1-mini"
 const GEMINI_DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 const GEMINI_DEFAULT_MODEL = "gemini-2.5-flash-lite"
 const RECOMMENDATION_FACTORS = [
@@ -38,7 +36,7 @@ const RECOMMENDATION_FACTORS = [
   "demanda histórica por espacio",
 ]
 
-type AiProviderName = "openai" | "gemini"
+type AiProviderName = "gemini"
 
 interface AiProviderMetadata {
   name: AiProviderName
@@ -720,7 +718,7 @@ export class ReservationService {
       end_time: `${String(endHour).padStart(2, "0")}:00`,
       ...(message.includes("piso 9") ? { floor_id: 9 } : {}),
       ...(message.includes("piso 3") ? { floor_id: 3 } : {}),
-      ...(message.includes("planta baja") || message.includes(" pb ") ? { floor_id: 1 } : {}),
+      ...(message.includes("planta baja") || message.includes(" pb ") ? { floor_id: 0 } : {}),
     }
   }
 
@@ -840,40 +838,26 @@ export class ReservationService {
       })
     }
 
-    if (selected.length > 0) return selected
-    return candidates.slice(0, 6)
+    return selected
   }
 
   private getAiProviderMetadata(): AiProviderMetadata {
     const configuredProvider = process.env.AI_PROVIDER?.trim().toLowerCase()
     if (
       configuredProvider &&
-      !["gemini", "google", "openai"].includes(configuredProvider)
+      !["gemini", "google"].includes(configuredProvider)
     ) {
-      throw new ReservationError(503, "AI_NOT_CONFIGURED", "AI_PROVIDER debe ser gemini u openai")
+      throw new ReservationError(503, "AI_NOT_CONFIGURED", "AI_PROVIDER debe ser gemini")
     }
 
-    const provider: AiProviderName =
-      configuredProvider === "gemini" || configuredProvider === "google"
-        ? "gemini"
-        : configuredProvider === "openai"
-          ? "openai"
-          : process.env.GEMINI_API_KEY?.trim()
-            ? "gemini"
-            : "openai"
-
-    if (provider === "gemini") {
-      return {
-        name: "gemini",
-        label: "Gemini API",
-        model: process.env.GEMINI_MODEL?.trim() || GEMINI_DEFAULT_MODEL,
-      }
+    if (!process.env.GEMINI_API_KEY?.trim()) {
+      throw new ReservationError(503, "AI_NOT_CONFIGURED", "Configura GEMINI_API_KEY para usar IA real con Gemini")
     }
 
     return {
-      name: "openai",
-      label: "OpenAI Responses API",
-      model: process.env.OPENAI_MODEL?.trim() || OPENAI_DEFAULT_MODEL,
+      name: "gemini",
+      label: "Gemini API",
+      model: process.env.GEMINI_MODEL?.trim() || GEMINI_DEFAULT_MODEL,
     }
   }
 
@@ -885,11 +869,7 @@ export class ReservationService {
   }): Promise<T> {
     const provider = this.getAiProviderMetadata()
 
-    if (provider.name === "gemini") {
-      return this.callGeminiJson<T>(request, provider.model)
-    }
-
-    return this.callOpenAiJson<T>(request, provider.model)
+    return this.callGeminiJson<T>(request, provider.model)
   }
 
   private async callGeminiJson<T>({
@@ -985,80 +965,6 @@ export class ReservationService {
 
   private shouldTryNextGeminiModel(statusCode: number): boolean {
     return statusCode === 429 || statusCode === 503
-  }
-
-  private async callOpenAiJson<T>({
-    instructions,
-    input,
-    maxOutputTokens,
-  }: {
-    instructions: string
-    input: string
-    maxOutputTokens: number
-    responseSchema?: AiJsonSchema
-  }, model: string): Promise<T> {
-    const apiKey = process.env.OPENAI_API_KEY?.trim()
-    if (!apiKey) {
-      throw new ReservationError(503, "AI_NOT_CONFIGURED", "Configura OPENAI_API_KEY para usar IA real")
-    }
-
-    const baseUrl = (process.env.OPENAI_BASE_URL?.trim() || OPENAI_DEFAULT_BASE_URL).replace(/\/+$/, "")
-    const response = await globalThis.fetch(`${baseUrl}/responses`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        instructions,
-        input,
-        max_output_tokens: maxOutputTokens,
-        store: false,
-        text: { format: { type: "json_object" } },
-      }),
-    })
-
-    const body = await response.json().catch(() => null) as unknown
-    if (!response.ok) {
-      console.error("OpenAI provider error:", body)
-      throw new ReservationError(502, "AI_PROVIDER_ERROR", "No fue posible consultar el proveedor de IA")
-    }
-
-    const text = this.extractOpenAiText(body)
-    if (!text) {
-      throw new ReservationError(502, "AI_PROVIDER_ERROR", "La IA no devolvió texto utilizable")
-    }
-
-    try {
-      return this.parseAiJson<T>(text)
-    } catch (error) {
-      console.error("OpenAI JSON parse error:", error, text)
-      throw new ReservationError(502, "AI_PROVIDER_ERROR", "La IA devolvió JSON inválido")
-    }
-  }
-
-  private extractOpenAiText(body: unknown): string {
-    const response = body as {
-      output_text?: string
-      output?: Array<{
-        content?: Array<{
-          text?: string
-          type?: string
-        }>
-      }>
-    }
-
-    if (typeof response.output_text === "string") {
-      return response.output_text
-    }
-
-    return response.output
-      ?.flatMap((item) => item.content ?? [])
-      .map((content) => content.text)
-      .filter((text): text is string => typeof text === "string")
-      .join("\n")
-      .trim() ?? ""
   }
 
   private extractGeminiText(body: unknown): string {

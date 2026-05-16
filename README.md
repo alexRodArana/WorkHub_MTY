@@ -19,7 +19,7 @@ Repositorio: `https://github.com/alexRodArana/WorkHub_MTY`
 - Popup contextual al hacer hover sobre un espacio con nombre, piso, ocupante, foto y horario ocupado.
 - Modal de ocupación por espacio con horarios, estado y perfil del ocupante.
 - Perfil de usuario con foto cargada desde computadora o móvil.
-- Predicción inteligente de ocupación con proveedor de IA configurable: Gemini API u OpenAI.
+- Predicción inteligente de ocupación con IA real usando Gemini API.
 - Recomendaciones con IA resaltadas directamente en el mapa con brillo visual y explicación breve al hacer hover.
 - Chatbot con IA para recomendaciones, estado de reservas e insights operativos.
 - Recomendaciones distribuidas entre pisos cuando el usuario no filtra un piso específico.
@@ -73,12 +73,6 @@ GEMINI_API_KEY=<gemini-api-key>
 GEMINI_MODEL=gemini-2.5-flash-lite
 GEMINI_FALLBACK_MODELS=gemini-2.5-flash,gemini-2.0-flash-lite
 # GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
-
-# Alternativa OpenAI
-# AI_PROVIDER=openai
-# OPENAI_API_KEY=<openai-api-key>
-OPENAI_MODEL=gpt-4.1-mini
-# OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
 Crear `luminaFront-main/.env` solo si la API no corre en `http://localhost:3000`:
@@ -268,7 +262,7 @@ Guardia:
 
 ## Predicciones y Recomendaciones
 
-El motor inteligente usa dos capas. Primero prepara señales locales auditables con los datos existentes del sistema. Después envía candidatos y contexto al proveedor configurado en `AI_PROVIDER` para que Gemini u OpenAI elija y ordene recomendaciones reales.
+El motor inteligente usa dos capas. Primero prepara señales locales auditables con los datos existentes del sistema. Después envía candidatos y contexto a Gemini para que el modelo elija y ordene recomendaciones reales.
 
 Proveedor recomendado para desarrollo:
 

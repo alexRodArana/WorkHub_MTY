@@ -548,15 +548,16 @@ export function FloorPlanViewer({
   const spacesById = useMemo(() => new Map(spaces.map((space) => [space.id, space])), [spaces])
   const hoveredSpace = hoveredId !== null ? spacesById.get(hoveredId) ?? null : null
   const hoveredIntervals = hoveredId !== null ? occupancyBySpace.get(hoveredId) ?? [] : []
+  const hoveredRecommendation = hoveredId !== null ? aiRecommendedSpaces.get(hoveredId) ?? null : null
   const hoverAnchor = hoveredSpace ? getSpaceAnchor(hoveredSpace, vbW) : null
-  const popupWidth = Math.min(48, Math.max(34, vbW * 0.28))
-  const popupHeight = hoveredIntervals.length > 0 ? Math.min(34, 15 + hoveredIntervals.length * 7) : 17
-  const popupX = hoverAnchor
-    ? Math.max(1, Math.min(vbW - popupWidth - 1, hoverAnchor.x + (hoverAnchor.x > vbW * 0.62 ? -popupWidth - 4 : 4)))
-    : 0
-  const popupY = hoverAnchor
-    ? Math.max(1, Math.min(100 - popupHeight - 1, hoverAnchor.y + (hoverAnchor.y > 58 ? -popupHeight - 4 : 4)))
-    : 0
+  const popupLeft = hoverAnchor ? `${(hoverAnchor.x / vbW) * 100}%` : '0%'
+  const popupTop = hoverAnchor ? `${hoverAnchor.y}%` : '0%'
+  const popupPositionClass = hoverAnchor && hoverAnchor.x > vbW * 0.62
+    ? styles.mapPopupLeft
+    : styles.mapPopupRight
+  const popupVerticalClass = hoverAnchor && hoverAnchor.y > 58
+    ? styles.mapPopupAbove
+    : styles.mapPopupBelow
 
   function getTitle(space: SpaceWithLayout, status: SpaceStatus): string {
     const intervals = occupancyBySpace.get(space.id) ?? []
@@ -683,45 +684,47 @@ export function FloorPlanViewer({
           )
         })}
 
-        {hoveredSpace && hoverAnchor && (
-          <foreignObject
-            x={popupX.toFixed(3)}
-            y={popupY.toFixed(3)}
-            width={popupWidth.toFixed(3)}
-            height={popupHeight.toFixed(3)}
-            className={styles.popupObject}
-          >
-            <div className={styles.hoverPopup}>
-              <div className={styles.popupHeader}>
-                <strong>{hoveredSpace.space_number}</strong>
-                <span>{floorName}</span>
-              </div>
-              {hoveredIntervals.length > 0 ? (
-                <div className={styles.popupOccupants}>
-                  {hoveredIntervals.slice(0, 3).map((interval) => (
-                    <div key={`${interval.user.id}-${interval.start_time}-${interval.end_time}`} className={styles.popupOccupant}>
-                      <span className={styles.popupAvatar}>
-                        {interval.user.profile_photo_url ? (
-                          <img src={interval.user.profile_photo_url} alt="" />
-                        ) : (
-                          getInitials(interval.user.first_name, interval.user.last_name)
-                        )}
-                      </span>
-                      <span>
-                        <b>{interval.user.first_name} {interval.user.last_name}</b>
-                        <small>{interval.start_time} - {interval.end_time}</small>
-                      </span>
-                    </div>
-                  ))}
-                  {hoveredIntervals.length > 3 && <em>+{hoveredIntervals.length - 3} horarios más</em>}
-                </div>
-              ) : (
-                <p>Sin ocupación registrada para este día.</p>
-              )}
-            </div>
-          </foreignObject>
-        )}
       </svg>
+
+      {hoveredSpace && hoverAnchor && (
+        <div
+          className={`${styles.mapPopup} ${popupPositionClass} ${popupVerticalClass}`}
+          style={{ left: popupLeft, top: popupTop }}
+        >
+          <div className={styles.popupHeader}>
+            <strong>{hoveredSpace.space_number}</strong>
+            <span>{floorName}</span>
+          </div>
+          {hoveredRecommendation && (
+            <div className={styles.popupRecommendation}>
+              <span>✨</span>
+              <p>{hoveredRecommendation.reason}</p>
+            </div>
+          )}
+          {hoveredIntervals.length > 0 ? (
+            <div className={styles.popupOccupants}>
+              {hoveredIntervals.slice(0, 3).map((interval) => (
+                <div key={`${interval.user.id}-${interval.start_time}-${interval.end_time}`} className={styles.popupOccupant}>
+                  <span className={styles.popupAvatar}>
+                    {interval.user.profile_photo_url ? (
+                      <img src={interval.user.profile_photo_url} alt="" />
+                    ) : (
+                      getInitials(interval.user.first_name, interval.user.last_name)
+                    )}
+                  </span>
+                  <span>
+                    <b>{interval.user.first_name} {interval.user.last_name}</b>
+                    <small>{interval.start_time} - {interval.end_time}</small>
+                  </span>
+                </div>
+              ))}
+              {hoveredIntervals.length > 3 && <em>+{hoveredIntervals.length - 3} horarios más</em>}
+            </div>
+          ) : (
+            <p className={styles.popupEmpty}>Sin ocupación registrada para este día.</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
