@@ -42,6 +42,7 @@
   color: #18151f;
   font: inherit;
   padding: 0 12px;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
 .toolbar input:focus,
@@ -167,6 +168,7 @@
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #00c9a7, #a100ff);
+  transition: width 260ms ease;
 }
 
 .gaugePanel {
@@ -343,6 +345,7 @@
   border-radius: 999px 999px 0 0;
   background: linear-gradient(180deg, #a100ff, #00c9a7);
   box-shadow: 0 8px 20px rgba(117, 0, 192, 0.16);
+  transition: height 260ms ease;
 }
 
 .hourColumn strong {
@@ -554,8 +557,15 @@
 :global([data-theme='dark']) .kpiCard span,
 :global([data-theme='dark']) .kpiCard small,
 :global([data-theme='dark']) .barMeta,
+:global([data-theme='dark']) .statusMeta,
 :global([data-theme='dark']) .blockList p,
-:global([data-theme='dark']) .blockItem span {
+:global([data-theme='dark']) .blockItem span,
+:global([data-theme='dark']) .gaugeItem small,
+:global([data-theme='dark']) .hourColumn small,
+:global([data-theme='dark']) .topUserItem small,
+:global([data-theme='dark']) .rank,
+:global([data-theme='dark']) .emptyState,
+:global([data-theme='dark']) .insightStrip span {
   color: #b9c3d0;
 }
 
@@ -577,12 +587,55 @@
 
 :global([data-theme='dark']) .kpiCard strong,
 :global([data-theme='dark']) .panelHeader h3,
-:global([data-theme='dark']) .blockItem strong {
+:global([data-theme='dark']) .blockItem strong,
+:global([data-theme='dark']) .gaugeRing span,
+:global([data-theme='dark']) .gaugeItem strong,
+:global([data-theme='dark']) .statusMeta strong,
+:global([data-theme='dark']) .hourColumn strong,
+:global([data-theme='dark']) .topUserItem strong {
   color: #f8f5ff;
 }
 
-:global([data-theme='dark']) .barTrack {
+:global([data-theme='dark']) .barMeta strong {
+  color: #d7b4ff;
+}
+
+:global([data-theme='dark']) .barTrack,
+:global([data-theme='dark']) .statusTrack {
   background: rgba(161, 0, 255, 0.11);
+}
+
+:global([data-theme='dark']) .gaugeRing {
+  background:
+    radial-gradient(circle, #232f3d 0 57%, transparent 58%),
+    conic-gradient(#00c9a7 var(--value), rgba(161, 0, 255, 0.14) 0);
+  box-shadow:
+    inset 0 0 0 1px rgba(161, 0, 255, 0.14),
+    0 12px 28px rgba(0, 0, 0, 0.16);
+}
+
+:global([data-theme='dark']) .gaugeRingAlt {
+  background:
+    radial-gradient(circle, #232f3d 0 57%, transparent 58%),
+    conic-gradient(#ffb000 var(--value), rgba(161, 0, 255, 0.14) 0);
+}
+
+:global([data-theme='dark']) .hourBarWrap {
+  background: linear-gradient(180deg, rgba(161, 0, 255, 0.1), rgba(0, 201, 167, 0.09));
+}
+
+:global([data-theme='dark']) .insightStrip {
+  border-top-color: rgba(161, 0, 255, 0.16);
+}
+
+:global([data-theme='dark']) .insightStrip span,
+:global([data-theme='dark']) .topUserItem b {
+  background: rgba(161, 0, 255, 0.14);
+  color: #d7b4ff;
+}
+
+:global([data-theme='dark']) .topUserItem {
+  border-bottom-color: rgba(161, 0, 255, 0.12);
 }
 
 :global([data-theme='dark']) .blockItem {

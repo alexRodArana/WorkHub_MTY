@@ -34,6 +34,7 @@ const RECOMMENDATION_FACTORS = [
   "proximidad espacial en el mapa",
   "ocupación histórica por día y franja horaria",
   "demanda histórica por espacio",
+  "solo escritorios individuales disponibles",
 ]
 
 type AiProviderName = "gemini"
@@ -388,6 +389,7 @@ export class ReservationService {
       this.reservationRepository.findSpaceDemandScores(filter),
     ])
 
+    const recommendableSpaces = availableSpaces.filter((space) => this.isRecommendableIndividualDesk(space))
     const maxNeighborStrength = Math.max(1, ...Array.from(frequentNeighbors.values()))
     const maxSpacePreference = this.maxMapValue(userPreferences.spaces)
     const maxFloorPreference = this.maxMapValue(userPreferences.floors)
@@ -402,7 +404,7 @@ export class ReservationService {
       0.94
     )
 
-    const rankedRecommendations: IntelligentRecommendation[] = availableSpaces
+    const rankedRecommendations: IntelligentRecommendation[] = recommendableSpaces
       .map((space) => {
         const reasons: string[] = []
         const signals: RecommendationSignal[] = []
@@ -797,7 +799,7 @@ export class ReservationService {
 
     const decision = await this.callAiJson<AiRecommendationDecision>({
       instructions:
-        "Eres la IA de recomendaciones de WorkHub MTY. Elige hasta 6 espacios reales de candidates para el mapa. Responde SOLO JSON valido con predicted_occupancy, prediction_label y recommendations. prediction_label debe ser exactamente baja, media o alta. Cada recommendation debe incluir space_id, reason breve en español, score 0-100 y confidence 0-1. No inventes IDs.",
+        "Eres la IA de recomendaciones de WorkHub MTY. Elige hasta 6 escritorios individuales reales de candidates para el mapa. No recomiendes salas, areas colaborativas, phone booths, work labs ni estacionamientos. Responde SOLO JSON valido con predicted_occupancy, prediction_label y recommendations. prediction_label debe ser exactamente baja, media o alta. Cada recommendation debe incluir space_id, reason breve en español, score 0-100 y confidence 0-1. No inventes IDs.",
       input,
       maxOutputTokens: 900,
       responseSchema: this.getRecommendationResponseSchema(),
@@ -839,6 +841,15 @@ export class ReservationService {
     }
 
     return selected
+  }
+
+  private isRecommendableIndividualDesk(space: Space): boolean {
+    return (
+      space.is_active &&
+      !space.visual_only &&
+      space.priority_category === "escritorio" &&
+      space.layout_type === "desk"
+    )
   }
 
   private getAiProviderMetadata(): AiProviderMetadata {

@@ -57,6 +57,9 @@ export function AdminManagementPage(): JSX.Element {
       .filter((block) => overlapsRange(block.start_time, block.end_time, startTime, endTime))
       .map((block) => block.space_id)
   ), [dateBlocks, endTime, startTime])
+  const selectedIsBlockedForRange = selectedSpace
+    ? blockedSpaceIdsForRange.has(selectedSpace.id)
+    : false
 
   async function refresh() {
     if (!token) return
@@ -109,15 +112,13 @@ export function AdminManagementPage(): JSX.Element {
     }
   }, Boolean(token))
 
-  function handleRequestBlock() {
-    if (!selectedSpace) {
-      setError('Selecciona un espacio o sala en el mapa.')
-      return
-    }
+  function handleSelectManagementSpace(space: SpaceWithLayout) {
+    setSelectedSpace(space)
     if (endTime <= startTime) {
       setError('La hora de fin debe ser mayor a la hora de inicio.')
       return
     }
+
     setConfirming(true)
   }
 
@@ -169,6 +170,42 @@ export function AdminManagementPage(): JSX.Element {
   return (
     <AppShell title="Gestión" subtitle="Bloqueo de espacios por fecha y horario" noscroll>
       <div className={styles.page}>
+        <section className={styles.controlPanel}>
+          <div className={styles.controlCopy}>
+            <span>Bloqueo operativo</span>
+            <strong>Selecciona un espacio directamente en el mapa</strong>
+          </div>
+
+          <div className={styles.controlGrid}>
+            <label>
+              <span>Fecha</span>
+              <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+            </label>
+
+            <label>
+              <span>Inicio</span>
+              <input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
+            </label>
+
+            <label>
+              <span>Fin</span>
+              <input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
+            </label>
+
+            <label className={styles.reasonField}>
+              <span>Motivo</span>
+              <input
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder="Mantenimiento, evento, limpieza"
+              />
+            </label>
+          </div>
+        </section>
+
+        {error && <div className={styles.errorMsg}>{error}</div>}
+        {message && <div className={styles.successMsg}>{message}</div>}
+
         <section className={styles.mapPanel}>
           <FloorMap
             floorId={null}
@@ -181,88 +218,38 @@ export function AdminManagementPage(): JSX.Element {
             aiRecommendedSpaces={new Map()}
             refreshKey={refreshKey}
             mode="management"
-            onSelectLayoutSpace={setSelectedSpace}
+            onSelectLayoutSpace={handleSelectManagementSpace}
             managementUnavailableSpaceIds={blockedSpaceIdsForRange}
           />
         </section>
 
-        <aside className={styles.sidePanel}>
-          <div className={styles.formCard}>
-            <div className={styles.cardHeader}>
-              <span>Bloqueo operativo</span>
-              <strong>{selectedSpace?.space_number ?? 'Sin selección'}</strong>
-            </div>
-
-            {selectedSpace ? (
-              <div className={styles.selectedMeta}>
-                <span>{selectedCategory}</span>
-                <span>{selectedFloorName}</span>
-              </div>
-            ) : (
-              <p className={styles.hint}>Selecciona un escritorio o sala directamente en el mapa.</p>
-            )}
-
-            <label>
-              <span>Fecha</span>
-              <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-            </label>
-
-            <div className={styles.timeGrid}>
-              <label>
-                <span>Inicio</span>
-                <input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
-              </label>
-              <label>
-                <span>Fin</span>
-                <input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
-              </label>
-            </div>
-
-            <label>
-              <span>Motivo</span>
-              <input
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                placeholder="Mantenimiento, evento, limpieza"
-              />
-            </label>
-
-            <button type="button" onClick={handleRequestBlock} disabled={saving || !selectedSpace}>
-              {saving ? 'Guardando...' : 'Bloquear espacio'}
-            </button>
+        <section className={styles.blockPanel}>
+          <div className={styles.cardHeader}>
+            <span>Bloqueos del día</span>
+            <strong>{dateBlocks.length}</strong>
           </div>
 
-          {error && <div className={styles.errorMsg}>{error}</div>}
-          {message && <div className={styles.successMsg}>{message}</div>}
-
-          <div className={styles.formCard}>
-            <div className={styles.cardHeader}>
-              <span>Bloqueos del día</span>
-              <strong>{dateBlocks.length}</strong>
-            </div>
-
-            {loading ? (
-              <div className={styles.loadingWrap}><LoadingSpinner /></div>
-            ) : dateBlocks.length === 0 ? (
-              <p className={styles.hint}>No hay espacios bloqueados para esta fecha.</p>
-            ) : (
-              <div className={styles.blockList}>
-                {dateBlocks.map((block) => (
-                  <div key={block.id} className={styles.blockItem}>
-                    <div>
-                      <strong>{block.space_number}</strong>
-                      <span>{block.floor_name} · {block.start_time} - {block.end_time}</span>
-                      <small>{block.reason || 'Sin motivo registrado'}</small>
-                    </div>
-                    <button type="button" onClick={() => void handleUnblock(block.id)} disabled={saving}>
-                      Liberar
-                    </button>
+          {loading ? (
+            <div className={styles.loadingWrap}><LoadingSpinner /></div>
+          ) : dateBlocks.length === 0 ? (
+            <p className={styles.hint}>No hay espacios bloqueados para esta fecha.</p>
+          ) : (
+            <div className={styles.blockList}>
+              {dateBlocks.map((block) => (
+                <div key={block.id} className={styles.blockItem}>
+                  <div>
+                    <strong>{block.space_number}</strong>
+                    <span>{block.floor_name} · {block.start_time} - {block.end_time}</span>
+                    <small>{block.reason || 'Sin motivo registrado'}</small>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </aside>
+                  <button type="button" onClick={() => void handleUnblock(block.id)} disabled={saving}>
+                    Liberar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
 
         {confirming && selectedSpace && (
           <div
@@ -274,12 +261,22 @@ export function AdminManagementPage(): JSX.Element {
             <div className={styles.confirmDialog} role="dialog" aria-modal="true">
               <span>Confirmar bloqueo</span>
               <h3>{selectedSpace.space_number}</h3>
+              <div className={styles.confirmMeta}>
+                <span>{selectedCategory}</span>
+                <span>{selectedFloorName}</span>
+              </div>
               <p>{date} · {startTime} - {endTime}</p>
+              <small>{reason.trim() || 'Sin motivo registrado'}</small>
+              {selectedIsBlockedForRange && (
+                <div className={styles.confirmWarning}>
+                  Este espacio ya aparece bloqueado en ese horario. Puedes revisar el horario o liberar el bloqueo existente.
+                </div>
+              )}
               <div className={styles.confirmActions}>
                 <button type="button" onClick={() => setConfirming(false)} disabled={saving}>
                   Cancelar
                 </button>
-                <button type="button" onClick={() => void handleConfirmBlock()} disabled={saving}>
+                <button type="button" onClick={() => void handleConfirmBlock()} disabled={saving || selectedIsBlockedForRange}>
                   {saving ? 'Bloqueando...' : 'Confirmar'}
                 </button>
               </div>

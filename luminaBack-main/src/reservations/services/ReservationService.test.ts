@@ -301,6 +301,33 @@ describe("ReservationService", () => {
     expect(result.recommendations).toHaveLength(0)
   })
 
+  it("sends only individual desks to Gemini recommendation selection", async () => {
+    vi.mocked(spaceRepository.findAvailable).mockResolvedValue([
+      makeSpace({ id: 41, space_number: "PB-41", priority_category: "escritorio", layout_type: "desk" }),
+      makeSpace({ id: 42, space_number: "Sala Norte", priority_category: "colaborativo", layout_type: "polygon" }),
+      makeSpace({ id: 43, space_number: "Phone 1", priority_category: "phone_booth", layout_type: "rect" }),
+      makeSpace({ id: 44, space_number: "Lab 1", priority_category: "work_lab", layout_type: "polygon" }),
+    ])
+
+    const result = await service.getRecommendations({
+      reservation_date: FUTURE_DATE,
+      start_time: "09:00",
+      end_time: "10:00",
+    }, 7)
+    const fetchMock = vi.mocked(globalThis.fetch)
+    const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string) as {
+      contents: Array<{ parts: Array<{ text: string }> }>
+    }
+    const context = JSON.parse(body.contents[0].parts[0].text) as {
+      candidates: Array<{ space_id: number; category: string }>
+    }
+
+    expect(context.candidates).toEqual([
+      expect.objectContaining({ space_id: 41, category: "escritorio" }),
+    ])
+    expect(result.recommendations.map((item) => item.space.id)).toEqual([41])
+  })
+
   it("answers assistant questions through Gemini using only authorized context", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
