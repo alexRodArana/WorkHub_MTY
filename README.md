@@ -1,73 +1,171 @@
 # WorkHub MTY
 
-Sistema web para gestionar reservas de espacios de oficina y estacionamiento en WorkHub MTY. La aplicación permite consultar disponibilidad por fecha, horario, piso y zona; reservar escritorios o salas; solicitar estacionamiento como parte de una reserva de espacio; hacer check-in; visualizar ocupación real sobre planos; recibir recomendaciones inteligentes; administrar bloqueos operativos; y consultar accesos de estacionamiento desde una vista exclusiva para guardia.
+WorkHub MTY es una aplicación web para administrar reservas de espacios de oficina, estacionamiento, check-in, ocupación en tiempo real y operación administrativa sobre planos interactivos. El proyecto está dividido en una SPA de React y una API REST con Node.js, TypeScript y PostgreSQL/Supabase.
 
-Repositorio: `https://github.com/alexRodArana/WorkHub_MTY`
+La solución cubre tres perfiles principales:
 
-## Contenido
+- Empleados: reservan espacios, solicitan estacionamiento como parte de una reserva, consultan ocupación, hacen check-in y administran su perfil.
+- Administradores: revisan KPIs operativos y bloquean espacios o salas desde un mapa de gestión.
+- Guardia: consulta únicamente las reservas de estacionamiento del día.
 
-- `luminaBack-main`: API REST con Node.js, Express, TypeScript, PostgreSQL/Supabase y Vitest.
-- `luminaFront-main`: SPA con React, Vite, TypeScript, CSS Modules y Vitest Testing Library.
-- `README.md`: documentación raíz del proyecto.
+## Tabla de Contenido
 
-## Funcionalidades Principales
+- [Características](#características)
+- [Stack Tecnológico](#stack-tecnológico)
+- [Arquitectura](#arquitectura)
+- [Estructura del Repositorio](#estructura-del-repositorio)
+- [Requisitos](#requisitos)
+- [Variables de Entorno](#variables-de-entorno)
+- [Instalación](#instalación)
+- [Base de Datos y Migraciones](#base-de-datos-y-migraciones)
+- [Ejecución Local](#ejecución-local)
+- [Scripts](#scripts)
+- [Roles y Accesos](#roles-y-accesos)
+- [Flujos Principales](#flujos-principales)
+- [IA con Gemini](#ia-con-gemini)
+- [API Principal](#api-principal)
+- [Pruebas y Calidad](#pruebas-y-calidad)
+- [Notas de Seguridad](#notas-de-seguridad)
 
-- Autenticación JWT con roles.
-- Reservas de espacios por fecha, horario, piso y categoría.
-- Estacionamiento ligado obligatoriamente a una reserva de escritorio o sala.
-- Mapa interactivo por piso con disponibilidad, ocupación y fotos de las personas que reservaron.
-- Popup contextual al hacer hover sobre un espacio con nombre, piso, ocupante, foto y horario ocupado.
-- Modal de ocupación por espacio con horarios, estado y perfil del ocupante.
-- Perfil de usuario con foto cargada desde computadora o móvil.
-- Predicción inteligente de ocupación con IA real usando Gemini API.
-- Recomendaciones con IA resaltadas directamente en el mapa con brillo visual y explicación breve al hacer hover.
-- Chatbot con IA para recomendaciones, estado de reservas e insights operativos.
-- Recomendaciones distribuidas entre pisos cuando el usuario no filtra un piso específico.
-- Vista administrador separada en Dashboard de KPIs y Gestión de bloqueos por espacio/sala con mapa, fecha y horario.
-- Vista guardia exclusiva para revisar estacionamientos reservados del día.
-- Monitoreo en tiempo real por Server-Sent Events para reflejar reservas, cancelaciones, check-ins y bloqueos sin refrescar la página.
-- Mensajes de error y confirmación con cierre automático y animación.
-- Diseño responsivo para desktop y móvil con transiciones y microanimaciones.
+## Características
 
-## Roles
+- Autenticación con JWT y protección por roles.
+- Reservas por fecha, horario, piso y tipo de espacio.
+- Estacionamiento ligado obligatoriamente a una reserva de oficina.
+- Mapa interactivo por piso con imagen de fondo, zonas, escritorios y salas.
+- Hover contextual sobre espacios con piso, nombre, ocupante, foto y horario.
+- Avatares sobre lugares reservados en el mapa.
+- Recomendaciones de reserva con IA usando Gemini.
+- Recomendaciones visuales en el mapa con brillo y explicación breve al hacer hover.
+- Las recomendaciones de IA solo consideran escritorios individuales, no salas ni áreas colaborativas.
+- Chatbot con Gemini para consultas de reservas, recomendaciones e insights autorizados.
+- Monitoreo en tiempo real mediante Server-Sent Events para reservas, cancelaciones, check-ins y bloqueos.
+- Check-in con ventana configurable y validación opcional por CIDR.
+- Perfil de usuario con carga de foto desde desktop o móvil.
+- Gamificación con badges, progreso y animaciones al desbloquear logros.
+- Dashboard de empleado con reserva del día, racha, acciones rápidas e historial.
+- Dashboard administrador con KPIs, gráficas, distribución por piso, categoría, hora y usuarios activos.
+- Gestión administrador con mapa completo para bloquear/liberar espacios por fecha y horario.
+- Vista guardia exclusiva para estacionamientos reservados del día.
+- Tema claro/oscuro con paleta consistente.
+- Diseño responsivo para desktop y móvil.
+- Mensajes de error y confirmación con auto-cierre y animación.
 
-- `employee`: usuario estándar. Puede reservar espacios, solicitar estacionamiento con su reserva, hacer check-in y gestionar su perfil.
-- `admin` o `administrador`: acceso únicamente a Dashboard y Gestión. Puede revisar KPIs y bloquear/liberar espacios o salas por fecha y horario.
-- `guard` o `guardia`: acceso exclusivo a la vista de estacionamientos reservados.
+## Stack Tecnológico
 
-La migración `migrate_hu17_remove_friends_parking_only_admin_ai.ts` crea el rol `guardia` si no existe. La migración `migrate_hu19_space_blocks_and_spaces.ts` crea los bloqueos por espacio y verifica que los espacios esperados estén cargados.
+### Frontend
 
-El rol `guard`/`guardia` no tiene acceso a dashboard, nueva reserva, mis reservas, logros, perfil ni administración. Si intenta abrir otra ruta autenticada, el frontend lo redirige automáticamente a `/guardia`.
+- React 18
+- TypeScript
+- Vite
+- React Router
+- CSS Modules
+- Vitest
+- Testing Library
+- MSW para pruebas de servicios
+
+### Backend
+
+- Node.js
+- Express
+- TypeScript
+- PostgreSQL con `pg`
+- Supabase/PostgreSQL como base de datos
+- JWT con `jsonwebtoken`
+- `bcrypt` para contraseñas
+- `express-rate-limit` para login
+- Vitest
+- Supertest
+
+### IA
+
+- Gemini API mediante Google Generative Language API.
+- Modelo por defecto: `gemini-2.5-flash-lite`.
+- Modelos fallback configurables.
+
+## Arquitectura
+
+```text
+WorkHub MTY
+├── luminaFront-main
+│   ├── React SPA
+│   ├── Componentes de vistas
+│   ├── Servicios HTTP
+│   ├── Hooks de tiempo real
+│   └── Pruebas frontend
+│
+├── luminaBack-main
+│   ├── API Express
+│   ├── Autenticación y perfil
+│   ├── Reservas, disponibilidad y check-in
+│   ├── Admin, guardia y gamificación
+│   ├── Recomendaciones y chatbot con Gemini
+│   ├── Repositorios PostgreSQL
+│   └── Migraciones y seeds
+│
+└── README.md
+```
+
+La comunicación frontend-backend ocurre por HTTP REST. Los cambios operativos se propagan al cliente mediante Server-Sent Events desde `GET /reservations/events`.
+
+## Estructura del Repositorio
+
+```text
+.
+├── README.md
+├── luminaBack-main
+│   ├── src
+│   │   ├── auth
+│   │   ├── reservations
+│   │   └── shared
+│   ├── migrate_*.ts
+│   ├── seed_demo_users_and_reservations.ts
+│   ├── seed_guard_user.js
+│   └── package.json
+└── luminaFront-main
+    ├── src
+    │   ├── components
+    │   ├── data
+    │   ├── hooks
+    │   ├── services
+    │   ├── types
+    │   └── utils
+    └── package.json
+```
 
 ## Requisitos
 
 - Node.js 20 o superior.
 - npm.
-- PostgreSQL accesible mediante `DATABASE_URL`.
-- Variables de entorno del backend.
+- PostgreSQL compatible con `DATABASE_URL`.
+- API key de Gemini para recomendaciones y chatbot.
+- Un ambiente de base de datos de desarrollo o QA antes de usar migraciones destructivas.
 
 ## Variables de Entorno
 
 Crear `luminaBack-main/.env`:
 
 ```env
+# JWT
 JWT_SECRET=<secret-seguro>
 JWT_ALGORITHM=HS256
 JWT_EXPIRES_IN=3600
 
+# Servidor
 PORT=3000
 NODE_ENV=development
-
-DATABASE_URL=postgresql://<usuario>:<password>@<host>:<puerto>/<db>
-
-# Opcionales
 ALLOWED_ORIGINS=http://localhost:5173
 TRUST_PROXY=1
+
+# Base de datos
+DATABASE_URL=postgresql://<usuario>:<password>@<host>:<puerto>/<database>
+
+# Reservas y check-in
 RESERVATION_TIMEZONE=America/Monterrey
 CHECK_IN_ALLOWED_CIDRS=10.0.0.0/8,192.168.0.0/16
 # CHECK_IN_WINDOW_OVERRIDE_MINUTES=30
 
-# IA real para recomendaciones y chatbot
+# IA
 AI_PROVIDER=gemini
 GEMINI_API_KEY=<gemini-api-key>
 GEMINI_MODEL=gemini-2.5-flash-lite
@@ -75,36 +173,35 @@ GEMINI_FALLBACK_MODELS=gemini-2.5-flash,gemini-2.0-flash-lite
 # GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 ```
 
-Crear `luminaFront-main/.env` solo si la API no corre en `http://localhost:3000`:
+Crear `luminaFront-main/.env` si la API no corre en `http://localhost:3000`:
 
 ```env
 VITE_API_URL=http://localhost:3000
 ```
 
+No subas archivos `.env` ni claves reales al repositorio.
+
 ## Instalación
+
+Instalar dependencias del backend:
 
 ```bash
 cd luminaBack-main
 npm install
+```
 
+Instalar dependencias del frontend:
+
+```bash
 cd ../luminaFront-main
 npm install
 ```
 
-## Datos Demo
+## Base de Datos y Migraciones
 
-Desde `luminaBack-main` existen scripts auxiliares para poblar datos de prueba:
+Ejecutar migraciones desde `luminaBack-main`.
 
-```bash
-npx ts-node seed_demo_users_and_reservations.ts
-node seed_guard_user.js
-```
-
-Úsalos solo contra una base de desarrollo o QA. No ejecutes seeds de prueba en producción sin revisar el contenido.
-
-## Migraciones
-
-Ejecutar desde `luminaBack-main`.
+Migraciones principales del estado actual:
 
 ```bash
 npx ts-node migrate_hu17_remove_friends_parking_only_admin_ai.ts
@@ -112,25 +209,26 @@ npx ts-node migrate_hu18_realtime_ai_indexes.ts
 npx ts-node migrate_hu19_space_blocks_and_spaces.ts
 ```
 
-Esta migración es destructiva por diseño porque aplica los cambios solicitados:
+Estas migraciones cubren:
 
-- Elimina la tabla `friendships`.
-- Borra reservas sin `space_id`.
-- Hace `reservations.space_id` obligatorio.
-- Crea `area_blocks`.
-- Crea el rol `guardia` si falta.
-- Mantiene estacionamiento como complemento de una reserva de espacio, no como reserva independiente.
+- Eliminación del sistema de amigos.
+- Eliminación de reservas independientes de estacionamiento.
+- Obligatoriedad de `space_id` en reservas.
+- Índices para disponibilidad, ocupación, IA y tiempo real.
+- Tabla `space_blocks` para bloqueos por espacio.
+- Tabla `area_blocks` para bloqueos por área.
+- Rol `guardia`.
+- Validación y carga de espacios esperados por piso.
+- Actualización de conteos reales en `floors.total_spaces`.
 
-La migración HU18 agrega índices para consultas de disponibilidad, monitoreo en tiempo real e IA.
+Para datos demo:
 
-La migración HU19 agrega:
+```bash
+npx ts-node seed_demo_users_and_reservations.ts
+node seed_guard_user.js
+```
 
-- Tabla `space_blocks` para bloqueos por espacio, fecha y horario.
-- Índices para detectar traslapes de bloqueos.
-- Validación idempotente de espacios esperados por piso: Planta Baja 74, Mezzanine 117, Piso 3 36 y Piso 9 74.
-- Actualización de `floors.total_spaces` con los conteos reales.
-
-Recomendación: aplicarlas primero en una base de prueba antes de producción.
+Ejecuta seeds solo en bases de desarrollo o QA.
 
 ## Ejecución Local
 
@@ -150,77 +248,141 @@ npm run dev
 
 URLs por defecto:
 
-- API: `http://localhost:3000`
 - Frontend: `http://localhost:5173`
+- Backend: `http://localhost:3000`
 
-## Pruebas
+## Scripts
 
 Backend:
 
 ```bash
-cd luminaBack-main
-npm test
+npm run dev      # API en modo desarrollo
+npm run build    # Compila TypeScript a dist
+npm start        # Ejecuta dist/index.js
+npm test         # Pruebas backend
+npm run test:watch
 ```
 
 Frontend:
 
 ```bash
-cd luminaFront-main
-npm test
+npm run dev      # Vite dev server
+npm run build    # TypeScript + build de Vite
+npm run preview  # Preview del build
+npm run lint     # ESLint
+npm test         # Pruebas frontend
 ```
 
-Build:
+## Roles y Accesos
 
-```bash
-cd luminaBack-main
-npm run build
+### Employee
 
-cd ../luminaFront-main
-npm run build
-```
+Rutas disponibles:
 
-Cobertura funcional incluida:
+- `/dashboard`
+- `/nueva-reserva`
+- `/mis-reservas`
+- `/logros`
+- `/perfil`
 
-- Servicio de reservas: creación con/sin estacionamiento, rechazo sin escritorio, recomendaciones inteligentes.
-- Controladores de reservas: creación, errores, ocupación con perfil, recomendaciones.
-- Admin/guardia: bloqueo por espacio, KPIs y consulta de estacionamientos.
-- Admin/gestión: bloqueo temporal por espacio y liberación de bloqueos.
-- Perfil: lectura y actualización de foto.
-- Frontend services: disponibilidad, ocupación, recomendaciones, admin, guardia y perfil.
-- Restricción de rutas por rol para guardia.
-- Integración UI: recomendación inteligente y reserva de escritorio con estacionamiento.
+Capacidades:
 
-Última validación local:
+- Reservar espacios.
+- Solicitar estacionamiento como complemento de una reserva.
+- Ver disponibilidad y ocupación en mapa.
+- Usar recomendaciones de IA.
+- Hacer check-in.
+- Cancelar reservas.
+- Gestionar foto de perfil.
+- Ver logros y racha.
 
-- Backend: `npm test` con 17 pruebas y `npm run build`.
-- Frontend: `npm run lint`, `npm test` con 15 pruebas y `npm run build`.
+### Admin / Administrador
 
-## Arquitectura
+Rutas disponibles:
 
-### Backend
+- `/admin`
+- `/admin/gestion`
 
-- `src/index.ts`: configuración de Express, CORS, JSON body limit y rutas.
-- `src/auth`: login, JWT, perfil y repositorios de usuario/roles.
-- `src/reservations`: reservas, pisos, estacionamiento, gamificación, recomendaciones, admin y guardia.
-- `src/shared`: autenticación y contrato común de base de datos.
+Capacidades:
 
-### Frontend
+- Consultar KPIs y gráficas operativas.
+- Revisar ocupación por piso, categoría, hora y estado.
+- Ver usuarios con más actividad.
+- Bloquear espacios o salas por fecha y horario desde el mapa.
+- Liberar bloqueos.
 
-- `src/components`: pantallas y componentes visuales.
-- `src/services`: clientes HTTP.
-- `src/types`: contratos compartidos del frontend.
-- `src/utils`: validación y helpers.
-- `src/data`: etiquetas y layouts base.
+### Guard / Guardia
+
+Ruta disponible:
+
+- `/guardia`
+
+Capacidades:
+
+- Ver únicamente reservas de estacionamiento del día.
+- Consultar usuario, horario, código de reserva, zona y cajón.
+
+El guardia no tiene acceso a dashboard, reservas, perfil, logros ni administración.
+
+## Flujos Principales
+
+### Nueva Reserva
+
+1. El usuario selecciona fecha, horario, piso y categoría.
+2. El frontend consulta disponibilidad.
+3. El mapa muestra espacios disponibles, ocupados y ocupantes reales.
+4. Gemini selecciona recomendaciones solo entre escritorios individuales disponibles.
+5. El usuario selecciona un espacio.
+6. Opcionalmente solicita estacionamiento si cumple la regla de anticipación.
+7. Se crea la reserva y se actualiza el mapa en tiempo real.
+
+### Gestión Administrador
+
+1. El administrador abre `/admin/gestion`.
+2. Define fecha, hora de inicio, hora de fin y motivo.
+3. Selecciona un espacio o sala directamente en el mapa.
+4. Se abre el modal de confirmación.
+5. Al confirmar, el espacio queda bloqueado para ese rango.
+6. El bloqueo se refleja en tiempo real para otros usuarios.
+
+### Check-in
+
+1. El usuario ve la reserva del día en el dashboard.
+2. El sistema calcula si está dentro de la ventana permitida.
+3. Si `CHECK_IN_ALLOWED_CIDRS` está configurado, valida la red.
+4. El check-in cambia el estado a `activa`.
+5. Se recalculan rachas y badges.
+
+## IA con Gemini
+
+El proyecto usa Gemini para dos flujos:
+
+- Recomendaciones visuales en el mapa de nueva reserva.
+- Chatbot dentro de la aplicación.
+
+Reglas implementadas:
+
+- La API requiere `GEMINI_API_KEY`.
+- `AI_PROVIDER` debe ser `gemini` o `google`.
+- Las recomendaciones finales se seleccionan por Gemini.
+- Si Gemini devuelve IDs inválidos, se descartan.
+- No existe fallback local que invente recomendaciones finales.
+- Solo se envían a Gemini candidatos que sean escritorios individuales:
+  - `priority_category = escritorio`
+  - `layout_type = desk`
+  - `is_active = true`
+  - `visual_only = false`
+- El chatbot recibe contexto autorizado y tiene instrucciones de no inventar reservas, espacios ni datos operativos.
 
 ## API Principal
 
-Autenticación:
+### Autenticación y Perfil
 
 - `POST /auth/login`
 - `GET /auth/profile`
 - `PATCH /auth/profile`
 
-Reservas:
+### Reservas
 
 - `GET /reservations/availability`
 - `GET /reservations/occupancy`
@@ -229,15 +391,16 @@ Reservas:
 - `GET /reservations/events`
 - `POST /reservations`
 - `GET /reservations/my`
+- `GET /reservations/my-stats`
 - `POST /reservations/:id/check-in`
 - `DELETE /reservations/:id`
 
-Pisos:
+### Pisos y Espacios
 
 - `GET /reservations/floors`
 - `GET /reservations/floors/:id/spaces`
 
-Admin:
+### Administración
 
 - `GET /reservations/admin/overview`
 - `POST /reservations/admin/space-blocks`
@@ -245,170 +408,73 @@ Admin:
 - `POST /reservations/admin/area-blocks`
 - `DELETE /reservations/admin/area-blocks/:id`
 
-Guardia:
+### Guardia
 
 - `GET /reservations/guard/parking`
 
 ## Reglas de Negocio
 
-- Toda reserva requiere escritorio, sala o espacio reservable.
-- El estacionamiento solo se solicita dentro de una reserva de espacio.
+- Toda reserva requiere un espacio reservable.
+- El estacionamiento no puede reservarse de forma independiente.
 - El estacionamiento requiere al menos 24 horas de anticipación.
 - Un usuario no puede tener reservas de oficina traslapadas.
 - Un usuario no puede tener estacionamientos traslapados.
-- Un espacio bloqueado por admin para una fecha y horario no aparece disponible ni puede reservarse durante ese rango.
-- El check-in respeta ventana de anticipación y red permitida si se configura.
-- Las reservas vencidas sin check-in se expiran automáticamente como `no_show`.
+- Un espacio ocupado o bloqueado no aparece como disponible.
+- Los bloqueos administrativos se evalúan por fecha y traslape de horario.
+- Las recomendaciones IA no recomiendan salas.
+- El guardia solo puede acceder a la vista de guardia.
 
-## Predicciones y Recomendaciones
+## Pruebas y Calidad
 
-El motor inteligente usa dos capas. Primero prepara señales locales auditables con los datos existentes del sistema. Después envía candidatos y contexto a Gemini para que el modelo elija y ordene recomendaciones reales.
+Validaciones recomendadas antes de subir cambios:
 
-Proveedor recomendado para desarrollo:
+```bash
+cd luminaBack-main
+npm test
+npm run build
 
-- `AI_PROVIDER=gemini`
-- `GEMINI_MODEL=gemini-2.5-flash-lite`
-- `GEMINI_FALLBACK_MODELS=gemini-2.5-flash,gemini-2.0-flash-lite`
+cd ../luminaFront-main
+npm run lint
+npm test
+npm run build
+```
 
-Gemini puede usarse con el tier gratuito de Google AI Studio mientras no se habilite facturación y se respeten los límites del servicio. En producción conviene revisar límites, privacidad y billing del proveedor antes de exponerlo a usuarios finales.
-Si el modelo principal responde con saturación temporal o rate limit, el backend intenta automáticamente los modelos de fallback configurados.
+Estado validado localmente:
 
-Señales usadas:
+- Backend tests: `20 passed`.
+- Backend build: OK.
+- Frontend lint: OK.
+- Frontend tests: `15 passed`.
+- Frontend build: OK.
 
-- Ocupación histórica por día de semana, horario, piso y categoría.
-- Reservas actuales del mismo horario.
-- Usuarios con los que el usuario autenticado ha coincidido frecuentemente.
-- Coordenadas del layout para priorizar espacios cercanos.
-- Preferencias recientes del usuario por espacio, piso y categoría.
-- Presión histórica de demanda por asiento.
+La cobertura incluye:
 
-La respuesta incluye:
+- Autenticación y perfil.
+- Creación de reservas.
+- Reglas de estacionamiento.
+- Rechazo de reservas sin espacio.
+- Recomendaciones con Gemini.
+- Filtro de recomendaciones solo para escritorios individuales.
+- Descarte de IDs inválidos devueltos por Gemini.
+- Chatbot con contexto autorizado.
+- Ocupación y disponibilidad.
+- Admin overview y bloqueos.
+- Guardia y estacionamiento.
+- Rutas por rol.
+- Integración de nueva reserva en frontend.
 
-- `predicted_occupancy`: porcentaje estimado.
-- `prediction_label`: `baja`, `media` o `alta`.
-- `model`: nombre, versión, confianza y factores usados.
-- `recommendations`: espacios ordenados por score, confianza, señales, explicación breve y persona cercana si aplica.
+## Notas de Seguridad
 
-En el frontend, las recomendaciones se muestran como brillo sobre el mapa. Si no hay filtro de piso, el backend reparte las recomendaciones entre pisos para evitar que todas queden concentradas en el primer piso. Al hacer hover sobre un espacio recomendado se muestra una razón corta, por ejemplo cercanía con una persona frecuente o afinidad con el historial del usuario.
+- No subir `.env`, tokens, passwords ni API keys.
+- Rotar cualquier secreto que haya sido compartido fuera de un gestor seguro.
+- Usar una base de datos separada para desarrollo, QA y producción.
+- Probar migraciones destructivas en QA antes de producción.
+- Configurar `ALLOWED_ORIGINS` en producción.
+- Configurar `TRUST_PROXY=1` en plataformas con proxy administrado.
+- Definir `CHECK_IN_ALLOWED_CIDRS` si el check-in debe limitarse a la red de oficina.
 
-El chatbot usa el mismo proveedor de IA y responde solo con el contexto autorizado del usuario autenticado. Si el usuario es administrador, puede incluir KPIs operativos; si es empleado, limita la respuesta a sus reservas y recomendaciones.
+## Estado Actual
 
-## Monitoreo en Tiempo Real
-
-La API expone `GET /reservations/events` como un canal SSE autenticado. El frontend mantiene una conexión `EventSource` mientras la sesión está activa y escucha eventos de:
-
-- `reservation.created`
-- `reservation.cancelled`
-- `reservation.checked_in`
-- `area_block.created`
-- `area_block.deleted`
-- `space_block.created`
-- `space_block.deleted`
-
-Cada evento incluye `id`, `type`, `timestamp` y, cuando aplica, fecha de reserva, espacio, piso, usuario actor y si afecta estacionamiento.
-
-Vistas que se resincronizan sin refrescar:
-
-- `/nueva-reserva`: disponibilidad, ocupación del mapa y recomendaciones.
-- `/dashboard`: reserva del día, próximas reservas, historial corto y métricas de logros.
-- `/mis-reservas`: lista activa o historial según la pestaña abierta.
-- `/admin`: KPIs, gráficas y ocupación.
-- `/admin/gestion`: mapa de gestión y bloqueos por espacio.
-- `/guardia`: reservas de estacionamiento del día.
-
-## Vista Administrador
-
-El administrador solo ve dos pestañas: Dashboard y Gestión.
-
-La vista `/admin` muestra:
-
-- Reservas totales del día.
-- Reservas confirmadas, activas, canceladas y no show.
-- Uso de estacionamiento.
-- Usuarios únicos.
-- Ocupación general.
-- Medidores visuales de ocupación y estacionamiento.
-- Distribución de reservas por estado.
-- Demanda por hora.
-- Usuarios con más actividad.
-- Ocupación por piso.
-- Ocupación por categoría.
-- Bloqueos activos por espacio y por área.
-
-La vista `/admin/gestion` muestra un mapa como el de reservas, sin recomendaciones de IA. Al seleccionar un escritorio o sala, el administrador puede bloquear ese lugar para una fecha y horario específicos, confirmar la acción y liberar bloqueos existentes.
-
-## Vista Guardia
-
-La vista `/guardia` muestra reservas de estacionamiento por fecha:
-
-- Persona.
-- Foto o iniciales.
-- Lugar asignado.
-- Horario.
-- Código de reserva.
-- Espacio de oficina asociado.
-
-La ruta y el endpoint requieren rol `guard` o `guardia`; el usuario administrador no ve esta pestaña por defecto.
-
-Además, el usuario guardia solo ve la pestaña Guardia en la navegación.
-
-## Fotos de Perfil
-
-Las fotos se guardan como data URL en `users.profile_photo_url`.
-
-Restricciones:
-
-- PNG, JPG/JPEG o WEBP.
-- Tamaño máximo validado por backend: 750 KB.
-- El frontend recorta y comprime a avatar cuadrado antes de enviar.
-
-## Rendimiento
-
-Mejoras incluidas:
-
-- Consultas independientes en paralelo con `Promise.all`.
-- Recomendaciones y disponibilidad consultadas en paralelo desde UI.
-- Agrupación de ocupación por espacio en backend para reducir trabajo del cliente.
-- Refresco selectivo por eventos realtime en lugar de recargar la aplicación completa.
-- Eliminación de llamadas sociales innecesarias.
-- Memos en mapa para lookups por espacio.
-- Asignación de estacionamiento transaccional con `FOR UPDATE SKIP LOCKED`.
-- Build de producción con Vite y TypeScript.
-
-## Operación
-
-Para validar una instalación:
-
-1. Aplicar migración en base de prueba.
-2. Ejecutar backend.
-3. Ejecutar frontend.
-4. Iniciar sesión con un usuario activo.
-5. Probar `/nueva-reserva`.
-6. Probar `/admin` con usuario admin.
-7. Probar `/guardia` con usuario guardia.
-8. Correr pruebas y builds.
-
-## Troubleshooting
-
-- `UNAUTHORIZED`: token expirado o no enviado.
-- `FORBIDDEN`: usuario sin rol requerido.
-- `PARKING_TOO_LATE`: estacionamiento solicitado con menos de 24 horas.
-- `PARKING_CONFLICT`: el usuario ya tiene estacionamiento traslapado.
-- `SPACE_UNAVAILABLE`: el espacio fue reservado o bloqueado.
-- `AI_NOT_CONFIGURED`: falta configurar `AI_PROVIDER` y la API key correspondiente.
-- `AI_PROVIDER_ERROR`: el proveedor de IA no respondió, rechazó el modelo o devolvió una respuesta inválida.
-- `DATABASE_ERROR`: revisar `DATABASE_URL`, migraciones y conectividad.
-
-## Estado de Calidad
-
-Comandos verificados durante el desarrollo:
-
-- `luminaBack-main`: `npm test` con 16 pruebas, `npm run build`.
-- `luminaFront-main`: `npm run lint`, `npm test` con 14 pruebas, `npm run build`.
-
-## Seguridad
-
-- No subas archivos `.env` ni tokens personales al repositorio.
-- Rota cualquier token que haya sido pegado en chats, terminales compartidas o logs.
-- Usa una base de datos separada para desarrollo, pruebas y producción.
-- Revisa las migraciones destructivas antes de ejecutarlas contra datos reales.
+- Rama de trabajo: `admin-space-management-badges`.
+- Repositorio remoto: `https://github.com/alexRodArana/WorkHub_MTY`.
+- La aplicación está preparada para correr localmente con backend en `3000` y frontend en `5173`.
