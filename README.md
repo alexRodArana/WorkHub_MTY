@@ -23,6 +23,7 @@ La solución cubre tres perfiles principales:
 - [Roles y Accesos](#roles-y-accesos)
 - [Flujos Principales](#flujos-principales)
 - [IA con Gemini](#ia-con-gemini)
+- [Predicciones y Recomendaciones](#predicciones-y-recomendaciones)
 - [API Principal](#api-principal)
 - [Pruebas y Calidad](#pruebas-y-calidad)
 - [Notas de Seguridad](#notas-de-seguridad)
@@ -364,21 +365,49 @@ Reglas implementadas:
 
 - La API requiere `GEMINI_API_KEY`.
 - `AI_PROVIDER` debe ser `gemini` o `google`.
+- Si Gemini no está configurado, no responde o devuelve JSON inválido, el backend devuelve error.
+- El sistema no usa datos inventados, hardcodeados ni ejemplos falsos.
+- El sistema sí usa datos reales del sistema como contexto autorizado para Gemini.
+- El chatbot llama a Gemini obligatoriamente y recibe únicamente contexto autorizado.
+- El chatbot tiene instrucciones de no inventar reservas, espacios, horarios, usuarios, KPIs ni estacionamientos.
+- El chatbot no completa respuestas ni acciones con defaults locales si Gemini devuelve una respuesta inválida.
+
+## Predicciones y Recomendaciones
+
+Las predicciones y recomendaciones del mapa se generan obligatoriamente con Gemini. El backend prepara contexto real del sistema y se lo envía a Gemini para que el modelo seleccione las recomendaciones finales.
+
+Contexto real enviado a Gemini:
+
+- Fecha, hora de inicio y hora de fin solicitadas.
+- Piso y categoría filtrados, si el usuario los seleccionó.
+- Escritorios individuales disponibles para ese horario.
+- Ocupación estimada calculada con datos históricos reales.
+- Ocupantes actuales del mismo horario.
+- Señales de uso del usuario autenticado.
+- Señales de cercanía con colaboradores frecuentes, cuando existen.
+- Coordenadas reales del layout para evaluar proximidad en el mapa.
+
+Reglas estrictas:
+
 - Cada solicitud de recomendaciones llama a Gemini. No se sirve desde caché local.
 - Las recomendaciones finales las elige Gemini. El backend no genera recomendaciones finales con lógica local.
-- Si Gemini no está configurado, no responde o devuelve JSON inválido, el backend devuelve error.
 - Si Gemini devuelve IDs inexistentes o fuera de los candidatos enviados, esos IDs se descartan.
-- El sistema no usa datos inventados, hardcodeados ni ejemplos falsos.
-- El sistema sí usa datos reales del sistema como contexto autorizado para Gemini, por ejemplo disponibilidad, ocupación, piso, horario y señales del usuario autenticado.
 - Solo se envían a Gemini candidatos que sean escritorios individuales:
   - `priority_category = escritorio`
   - `layout_type = desk`
   - `is_active = true`
   - `visual_only = false`
 - No se envían salas, áreas colaborativas, phone booths, work labs ni estacionamientos como candidatos de recomendación.
-- El chatbot también llama a Gemini obligatoriamente y recibe únicamente contexto autorizado.
-- El chatbot tiene instrucciones de no inventar reservas, espacios, horarios, usuarios, KPIs ni estacionamientos.
-- El chatbot no completa respuestas ni acciones con defaults locales si Gemini devuelve una respuesta inválida.
+- Si no hay escritorios individuales disponibles, Gemini recibe una lista vacía y no se muestran recomendaciones inventadas.
+- Si Gemini falla, no se muestran recomendaciones fabricadas por el backend.
+
+Respuesta esperada de Gemini:
+
+- `predicted_occupancy`: ocupación estimada para la franja.
+- `prediction_label`: `baja`, `media` o `alta`.
+- `recommendations`: hasta 6 escritorios individuales reales, cada uno con `space_id`, razón breve, score y confianza.
+
+El frontend solo muestra recomendaciones validadas contra los espacios reales enviados como candidatos. Visualmente se resaltan en el mapa con brillo y muestran una explicación breve al hacer hover.
 
 ## API Principal
 
