@@ -364,7 +364,8 @@ Reglas implementadas:
 
 - La API requiere `GEMINI_API_KEY`.
 - `AI_PROVIDER` debe ser `gemini` o `google`.
-- Las recomendaciones finales se seleccionan por Gemini.
+- Cada solicitud de recomendaciones consulta Gemini obligatoriamente.
+- Las recomendaciones finales se seleccionan por Gemini, no por un fallback local ni por caché.
 - Si Gemini devuelve IDs inválidos, se descartan.
 - No existe fallback local que invente recomendaciones finales.
 - Solo se envían a Gemini candidatos que sean escritorios individuales:
@@ -373,6 +374,7 @@ Reglas implementadas:
   - `is_active = true`
   - `visual_only = false`
 - El chatbot recibe contexto autorizado y tiene instrucciones de no inventar reservas, espacios ni datos operativos.
+- Si Gemini no está configurado, no responde válido o no está disponible, el backend devuelve error en lugar de fabricar una respuesta local.
 
 ## API Principal
 

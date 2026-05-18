@@ -15,7 +15,6 @@ import {
   CheckInResult,
   Space,
   UserPreferenceSignals,
-  UserReservation,
 } from "../interfaces"
 import { getAllowedCheckInCidrs, getCheckInWindowOverrideMinutes } from "../config"
 
@@ -23,9 +22,8 @@ const CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const CODE_LENGTH = 8
 const DEFAULT_TIMEZONE = process.env.RESERVATION_TIMEZONE ?? "America/Monterrey"
 const CHECK_IN_POST_START_MINUTES = 30
-const RECOMMENDATION_MODEL_NAME = "Lumina Workspace AI"
-const RECOMMENDATION_MODEL_VERSION = "local-xai-v1.1"
-const RECOMMENDATION_CACHE_TTL_MS = Number(process.env.RECOMMENDATION_CACHE_TTL_MS ?? 8_000)
+const RECOMMENDATION_MODEL_NAME = "Gemini Workspace AI"
+const RECOMMENDATION_MODEL_VERSION = "gemini-only-v1"
 const GEMINI_DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 const GEMINI_DEFAULT_MODEL = "gemini-2.5-flash-lite"
 const RECOMMENDATION_FACTORS = [
@@ -50,8 +48,8 @@ type AiJsonSchema = Record<string, unknown>
 interface AiRecommendationChoice {
   space_id: number
   reason: string
-  score?: number
-  confidence?: number
+  score: number
+  confidence: number
 }
 
 interface AiRecommendationDecision {
@@ -68,8 +66,6 @@ interface AiAssistantDecision {
 }
 
 export class ReservationService {
-  private readonly recommendationCache = new Map<string, { expiresAt: number; result: RecommendationResult }>()
-
   constructor(
     private readonly spaceRepository: SpaceRepository,
     private readonly reservationRepository: ReservationRepository,
@@ -367,11 +363,7 @@ export class ReservationService {
       throw new ReservationError(400, "INVALID_TIME_RANGE", "El tiempo de fin debe ser mayor al tiempo de inicio")
     }
 
-    const cacheKey = this.getRecommendationCacheKey(filter, userId)
-    const cached = this.recommendationCache.get(cacheKey)
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.result
-    }
+    this.getAiProviderMetadata()
 
     const [
       availableSpaces,
@@ -576,7 +568,7 @@ export class ReservationService {
         version: `${RECOMMENDATION_MODEL_VERSION}:${this.getAiProviderMetadata().model}`,
         confidence: aiRecommendations.length > 0
           ? Number((aiRecommendations.slice(0, 3).reduce((sum, item) => sum + item.confidence, 0) / Math.min(3, aiRecommendations.length)).toFixed(2))
-          : Number(baseConfidence.toFixed(2)),
+          : 0,
         factors: RECOMMENDATION_FACTORS,
       },
       predicted_occupancy: this.clamp(aiDecision.predicted_occupancy ?? predictedOccupancy, 0, 1),
@@ -587,12 +579,6 @@ export class ReservationService {
         "baja"),
       recommendations: aiRecommendations,
     }
-
-    this.recommendationCache.set(cacheKey, {
-      expiresAt: Date.now() + Math.max(0, RECOMMENDATION_CACHE_TTL_MS),
-      result,
-    })
-    this.compactRecommendationCache()
 
     return result
   }
@@ -621,7 +607,7 @@ export class ReservationService {
       space_number: item.space.space_number,
       floor_id: item.space.floor_id,
       score: item.score,
-      reason: this.getAssistantRecommendationReason(item),
+      reason: item.ai_summary,
     })) ?? []
 
     const context = JSON.stringify({
@@ -652,41 +638,38 @@ export class ReservationService {
 
     const decision = await this.callAiJson<AiAssistantDecision>({
       instructions:
-        "Eres el chatbot con IA real de WorkHub MTY. Responde en español, breve y accionable. Usa SOLO el contexto recibido; si faltan datos, dilo. Devuelve SOLO JSON valido con answer, confidence 0-1, intent y actions. No inventes reservas ni espacios.",
+        "Eres Gemini actuando como chatbot real de WorkHub MTY. Responde en español, breve y accionable. Usa SOLO el JSON de contexto recibido; no uses conocimiento externo, memoria previa, ejemplos ni datos inventados. Si el contexto no contiene la respuesta, dilo explícitamente. Devuelve SOLO JSON valido con answer, confidence 0-1, intent y actions. No inventes reservas, espacios, horarios, usuarios, KPIs ni estacionamientos.",
       input: context,
       maxOutputTokens: 700,
       responseSchema: this.getAssistantResponseSchema(),
     })
 
-    return {
-      answer: decision.answer || "No pude generar una respuesta útil con los datos disponibles.",
-      confidence: Number(this.clamp(decision.confidence ?? 0.76, 0, 1).toFixed(2)),
-      intent: decision.intent ?? (wantsRecommendation ? "recommendation" : wantsAdmin ? "admin_insight" : "general"),
-      recommendations: compactRecommendations,
-      actions: Array.isArray(decision.actions) && decision.actions.length > 0
-        ? decision.actions.slice(0, 2)
-        : [{ label: wantsRecommendation ? "Nueva reserva" : "Ver mis reservas", to: wantsRecommendation ? "/nueva-reserva" : "/mis-reservas" }],
+    const assistantAnswer = typeof decision.answer === "string" ? decision.answer.trim() : ""
+    const assistantConfidence = typeof decision.confidence === "number" ? decision.confidence : Number.NaN
+    const assistantIntent = this.normalizeAssistantIntent(decision.intent)
+    const assistantActions = Array.isArray(decision.actions)
+      ? decision.actions
+          .filter((action) => typeof action.label === "string" && typeof action.to === "string")
+          .map((action) => ({ label: action.label.trim(), to: action.to.trim() }))
+          .filter((action) => action.label.length > 0 && action.to.length > 0)
+          .slice(0, 2)
+      : null
+
+    if (
+      assistantAnswer.length === 0 ||
+      Number.isNaN(assistantConfidence) ||
+      !assistantIntent ||
+      assistantActions === null
+    ) {
+      throw new ReservationError(502, "AI_PROVIDER_ERROR", "Gemini devolvió una respuesta inválida")
     }
-  }
 
-  private getRecommendationCacheKey(filter: AvailabilityFilter, userId: number): string {
-    return [
-      userId,
-      filter.reservation_date,
-      filter.start_time,
-      filter.end_time,
-      filter.floor_id ?? "all",
-      filter.priority_category ?? "all",
-    ].join("|")
-  }
-
-  private compactRecommendationCache(): void {
-    if (this.recommendationCache.size <= 200) return
-    const now = Date.now()
-    for (const [key, value] of this.recommendationCache.entries()) {
-      if (value.expiresAt <= now || this.recommendationCache.size > 160) {
-        this.recommendationCache.delete(key)
-      }
+    return {
+      answer: assistantAnswer,
+      confidence: Number(this.clamp(assistantConfidence, 0, 1).toFixed(2)),
+      intent: assistantIntent,
+      recommendations: compactRecommendations,
+      actions: assistantActions,
     }
   }
 
@@ -735,41 +718,12 @@ export class ReservationService {
     return hour >= 7 && hour <= 21 ? hour : null
   }
 
-  private getAssistantRecommendationReason(item: IntelligentRecommendation): string {
-    if (item.nearby_user) return `cerca de ${item.nearby_user.first_name} ${item.nearby_user.last_name}`
-    const signal = item.signals[0]
-    if (signal?.label === "Patrón personal") return "coincide con tu historial"
-    if (signal?.label === "Disponibilidad prevista") return "mejor disponibilidad prevista"
-    if (signal?.label === "Distribución del mapa") return "mejor distribución en el mapa"
-    return "mejor balance entre disponibilidad y preferencia"
-  }
-
-  private buildReservationStatusAnswer(reservations: UserReservation[]): string {
-    if (reservations.length === 0) {
-      return "No tienes reservas activas o próximas en este momento."
-    }
-
-    const next = reservations[0]
-    const date = typeof next.reservation_date === "string"
-      ? next.reservation_date.slice(0, 10)
-      : String(next.reservation_date)
-    const parking = next.parking_spot_number
-      ? ` También tienes estacionamiento ${next.parking_spot_number} en ${next.parking_zone_name}.`
-      : ""
-
-    return `Tu próxima reserva es ${next.space_number} en ${next.floor_name}, el ${date} de ${String(next.start_time).slice(0, 5)} a ${String(next.end_time).slice(0, 5)}.${parking}`
-  }
-
   private async getAiRecommendationDecision(
     filter: AvailabilityFilter,
     userId: number,
     candidates: IntelligentRecommendation[],
     predictedOccupancy: number
   ): Promise<AiRecommendationDecision> {
-    if (candidates.length === 0) {
-      return { predicted_occupancy: predictedOccupancy, recommendations: [] }
-    }
-
     const input = JSON.stringify({
       user_id: userId,
       reservation: filter,
@@ -799,20 +753,38 @@ export class ReservationService {
 
     const decision = await this.callAiJson<AiRecommendationDecision>({
       instructions:
-        "Eres la IA de recomendaciones de WorkHub MTY. Elige hasta 6 escritorios individuales reales de candidates para el mapa. No recomiendes salas, areas colaborativas, phone booths, work labs ni estacionamientos. Responde SOLO JSON valido con predicted_occupancy, prediction_label y recommendations. prediction_label debe ser exactamente baja, media o alta. Cada recommendation debe incluir space_id, reason breve en español, score 0-100 y confidence 0-1. No inventes IDs.",
+        "Eres Gemini actuando como IA real de recomendaciones de WorkHub MTY. Elige hasta 6 escritorios individuales reales de candidates para el mapa. Usa SOLO el JSON de candidates recibido; no uses conocimiento externo, memoria previa, ejemplos ni datos inventados. No recomiendes salas, areas colaborativas, phone booths, work labs ni estacionamientos. Si no hay candidates, devuelve recommendations vacio. Responde SOLO JSON valido con predicted_occupancy, prediction_label y recommendations. prediction_label debe ser exactamente baja, media o alta. Cada recommendation debe incluir space_id, reason breve en español, score 0-100 y confidence 0-1. No inventes IDs.",
       input,
       maxOutputTokens: 900,
       responseSchema: this.getRecommendationResponseSchema(),
     })
 
+    const normalizedPredictionLabel = this.normalizePredictionLabel(decision.prediction_label)
+    if (
+      typeof decision.predicted_occupancy !== "number" ||
+      !normalizedPredictionLabel ||
+      !Array.isArray(decision.recommendations)
+    ) {
+      throw new ReservationError(502, "AI_PROVIDER_ERROR", "Gemini devolvió recomendaciones inválidas")
+    }
+
     return {
-      predicted_occupancy: typeof decision.predicted_occupancy === "number"
-        ? decision.predicted_occupancy
-        : predictedOccupancy,
-      prediction_label: this.normalizePredictionLabel(decision.prediction_label),
-      recommendations: Array.isArray(decision.recommendations)
-        ? decision.recommendations
-        : [],
+      predicted_occupancy: decision.predicted_occupancy,
+      prediction_label: normalizedPredictionLabel,
+      recommendations: decision.recommendations
+        .filter((item) =>
+          Number.isFinite(Number(item.space_id)) &&
+          typeof item.reason === "string" &&
+          item.reason.trim().length > 0 &&
+          typeof item.score === "number" &&
+          typeof item.confidence === "number"
+        )
+        .map((item) => ({
+          space_id: Number(item.space_id),
+          reason: item.reason.trim(),
+          score: item.score,
+          confidence: item.confidence,
+        })),
     }
   }
 
@@ -827,16 +799,12 @@ export class ReservationService {
       const candidate = byId.get(Number(choice.space_id))
       if (!candidate || selected.some((item) => item.space.id === candidate.space.id)) continue
 
-      const reason = typeof choice.reason === "string" && choice.reason.trim()
-        ? choice.reason.trim()
-        : "La IA eligió este espacio por disponibilidad, afinidad y distribución del mapa"
-
       selected.push({
         ...candidate,
-        score: this.clamp(Math.round(choice.score ?? candidate.score), 0, 100),
-        confidence: Number(this.clamp(choice.confidence ?? candidate.confidence, 0.52, 0.98).toFixed(2)),
-        ai_summary: reason,
-        reasons: [reason, ...candidate.reasons.filter((item) => item !== reason)].slice(0, 4),
+        score: this.clamp(Math.round(choice.score), 0, 100),
+        confidence: Number(this.clamp(choice.confidence, 0.52, 0.98).toFixed(2)),
+        ai_summary: choice.reason,
+        reasons: [choice.reason, ...candidate.reasons.filter((item) => item !== choice.reason)].slice(0, 4),
       })
     }
 
@@ -1035,6 +1003,20 @@ export class ReservationService {
     return undefined
   }
 
+  private normalizeAssistantIntent(intent: unknown): AssistantResponse["intent"] | null {
+    if (
+      intent === "reservation_status" ||
+      intent === "recommendation" ||
+      intent === "admin_insight" ||
+      intent === "parking" ||
+      intent === "general"
+    ) {
+      return intent
+    }
+
+    return null
+  }
+
   private getRecommendationResponseSchema(): AiJsonSchema {
     return {
       type: "object",
@@ -1068,7 +1050,7 @@ export class ReservationService {
         confidence: { type: "number" },
         intent: {
           type: "string",
-          enum: ["reservation_status", "recommendation", "admin_insight", "general"],
+          enum: ["reservation_status", "recommendation", "admin_insight", "parking", "general"],
         },
         actions: {
           type: "array",

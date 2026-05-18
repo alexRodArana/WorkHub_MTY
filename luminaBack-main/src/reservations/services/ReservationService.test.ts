@@ -299,6 +299,35 @@ describe("ReservationService", () => {
 
     expect(result.model.name).toContain("Gemini API")
     expect(result.recommendations).toHaveLength(0)
+    expect(result.model.confidence).toBe(0)
+  })
+
+  it("requires Gemini configuration before generating recommendations", async () => {
+    delete process.env.GEMINI_API_KEY
+
+    await expect(service.getRecommendations({
+      reservation_date: FUTURE_DATE,
+      start_time: "09:00",
+      end_time: "10:00",
+      priority_category: "escritorio",
+    }, 7)).rejects.toMatchObject({ code: "AI_NOT_CONFIGURED" })
+
+    expect(spaceRepository.findAvailable).not.toHaveBeenCalled()
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+  })
+
+  it("calls Gemini on every recommendation request instead of serving a local cache", async () => {
+    const filter = {
+      reservation_date: FUTURE_DATE,
+      start_time: "09:00",
+      end_time: "10:00",
+      priority_category: "escritorio" as const,
+    }
+
+    await service.getRecommendations(filter, 7)
+    await service.getRecommendations(filter, 7)
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2)
   })
 
   it("sends only individual desks to Gemini recommendation selection", async () => {
@@ -358,9 +387,34 @@ describe("ReservationService", () => {
 
     expect(String(fetchMock.mock.calls[0][0])).toContain("generativelanguage.googleapis.com")
     expect(String(fetchMock.mock.calls[0][0])).toContain("gemini-2.5-flash-lite")
-    expect(body.systemInstruction.parts[0].text).toContain("Usa SOLO el contexto recibido")
+    expect(body.systemInstruction.parts[0].text).toContain("Usa SOLO el JSON de contexto recibido")
     expect(context.user).toEqual({ id: 7, role: "employee", is_admin: false, is_guard: false })
     expect(result.answer).toContain("contexto disponible")
+  })
+
+  it("rejects assistant responses when Gemini does not return a valid answer", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                answer: "",
+                confidence: 0.8,
+                intent: "general",
+                actions: [],
+              }),
+            }],
+          },
+        }],
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(service.answerAssistantQuestion("¿qué puedo hacer?", 7, "employee"))
+      .rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" })
   })
 
   it("spreads AI recommendations across floors when no floor filter is selected", async () => {
