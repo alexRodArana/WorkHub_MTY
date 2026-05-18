@@ -1,10 +1,11 @@
 .page {
   position: relative;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto;
   gap: 14px;
-  min-height: 0;
-  height: 100%;
+  min-height: 100%;
+  height: auto;
+  padding-bottom: 6px;
 }
 
 .controlPanel,
@@ -90,7 +91,9 @@
 }
 
 .mapPanel {
-  min-height: 0;
+  display: flex;
+  min-height: 460px;
+  height: clamp(500px, 66vh, 760px);
   overflow: hidden;
   border-radius: 18px;
 }
@@ -99,8 +102,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: 190px;
-  overflow: hidden;
+  overflow: visible;
   padding: 16px;
   border-radius: 18px;
 }
@@ -154,7 +156,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 10px;
-  overflow: auto;
   padding-right: 2px;
 }
 

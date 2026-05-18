@@ -168,7 +168,7 @@ export function AdminManagementPage(): JSX.Element {
   }
 
   return (
-    <AppShell title="Gestión" subtitle="Bloqueo de espacios por fecha y horario" noscroll>
+    <AppShell title="Gestión" subtitle="Bloqueo de espacios por fecha y horario">
       <div className={styles.page}>
         <section className={styles.controlPanel}>
           <div className={styles.controlCopy}>
