@@ -355,7 +355,7 @@ El guardia no tiene acceso a dashboard, reservas, perfil, logros ni administraci
 
 ## IA con Gemini
 
-El proyecto usa Gemini para dos flujos:
+El proyecto usa Gemini de forma obligatoria para dos flujos:
 
 - Recomendaciones visuales en el mapa de nueva reserva.
 - Chatbot dentro de la aplicación.
@@ -364,17 +364,21 @@ Reglas implementadas:
 
 - La API requiere `GEMINI_API_KEY`.
 - `AI_PROVIDER` debe ser `gemini` o `google`.
-- Cada solicitud de recomendaciones consulta Gemini obligatoriamente.
-- Las recomendaciones finales se seleccionan por Gemini, no por un fallback local ni por caché.
-- Si Gemini devuelve IDs inválidos, se descartan.
-- No existe fallback local que invente recomendaciones finales.
+- Cada solicitud de recomendaciones llama a Gemini. No se sirve desde caché local.
+- Las recomendaciones finales las elige Gemini. El backend no genera recomendaciones finales con lógica local.
+- Si Gemini no está configurado, no responde o devuelve JSON inválido, el backend devuelve error.
+- Si Gemini devuelve IDs inexistentes o fuera de los candidatos enviados, esos IDs se descartan.
+- El sistema no usa datos inventados, hardcodeados ni ejemplos falsos.
+- El sistema sí usa datos reales del sistema como contexto autorizado para Gemini, por ejemplo disponibilidad, ocupación, piso, horario y señales del usuario autenticado.
 - Solo se envían a Gemini candidatos que sean escritorios individuales:
   - `priority_category = escritorio`
   - `layout_type = desk`
   - `is_active = true`
   - `visual_only = false`
-- El chatbot recibe contexto autorizado y tiene instrucciones de no inventar reservas, espacios ni datos operativos.
-- Si Gemini no está configurado, no responde válido o no está disponible, el backend devuelve error en lugar de fabricar una respuesta local.
+- No se envían salas, áreas colaborativas, phone booths, work labs ni estacionamientos como candidatos de recomendación.
+- El chatbot también llama a Gemini obligatoriamente y recibe únicamente contexto autorizado.
+- El chatbot tiene instrucciones de no inventar reservas, espacios, horarios, usuarios, KPIs ni estacionamientos.
+- El chatbot no completa respuestas ni acciones con defaults locales si Gemini devuelve una respuesta inválida.
 
 ## API Principal
 
