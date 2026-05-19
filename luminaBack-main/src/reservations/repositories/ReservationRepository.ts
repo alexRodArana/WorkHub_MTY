@@ -333,8 +333,8 @@ export class ReservationRepository {
       const result = await this.db.query<UserReservation>(
         `SELECT r.id AS reservation_id,
                 r.reservation_code,
-                s.space_number AS space_number,
-                f.name AS floor_name,
+                COALESCE(s.space_number, 'Solo estacionamiento') AS space_number,
+                COALESCE(f.name, 'Estacionamiento') AS floor_name,
                 f.floor_number,
                 r.reservation_date,
                 r.start_time,
@@ -345,8 +345,8 @@ export class ReservationRepository {
                 ps.spot_number  AS parking_spot_number,
                 pz.name         AS parking_zone_name
          FROM reservations r
-         JOIN spaces s ON s.id = r.space_id
-         JOIN floors f ON f.id = s.floor_id
+         LEFT JOIN spaces s ON s.id = r.space_id
+         LEFT JOIN floors f ON f.id = s.floor_id
          LEFT JOIN parking_spots ps ON ps.id = r.parking_spot_id
          LEFT JOIN parking_zones pz ON pz.id = ps.zone_id
          WHERE r.user_id = $1
@@ -620,12 +620,16 @@ export class ReservationRepository {
            SELECT *
            FROM reservations
            WHERE reservation_date = $1
-             AND space_id IS NOT NULL
          ),
          active_reservations AS (
            SELECT *
            FROM daily_reservations
            WHERE status IN ('confirmada', 'activa')
+         ),
+         active_workspace_reservations AS (
+           SELECT *
+           FROM active_reservations
+           WHERE space_id IS NOT NULL
          ),
          counted_reservations AS (
            SELECT *
@@ -641,7 +645,7 @@ export class ReservationRepository {
            (SELECT COUNT(*) FROM active_reservations WHERE parking_spot_id IS NOT NULL)::text AS parking_reservations,
            (SELECT COUNT(DISTINCT user_id) FROM active_reservations)::text AS unique_users,
            (SELECT COUNT(*) FROM spaces WHERE is_active = true AND visual_only = false)::text AS total_spaces,
-           (SELECT COUNT(DISTINCT space_id) FROM active_reservations)::text AS occupied_spaces`,
+           (SELECT COUNT(DISTINCT space_id) FROM active_workspace_reservations)::text AS occupied_spaces`,
         [date]
       ),
       this.db.query<{
@@ -689,7 +693,6 @@ export class ReservationRepository {
         `SELECT status, COUNT(*)::text AS count
          FROM reservations
          WHERE reservation_date = $1
-           AND space_id IS NOT NULL
          GROUP BY status
          ORDER BY status`,
         [date]
@@ -700,7 +703,6 @@ export class ReservationRepository {
          FROM reservations
          WHERE reservation_date = $1
            AND status IN ('confirmada', 'activa')
-           AND space_id IS NOT NULL
          GROUP BY date_trunc('hour', start_time::time)
          ORDER BY date_trunc('hour', start_time::time)`,
         [date]
@@ -721,7 +723,6 @@ export class ReservationRepository {
          JOIN users u ON u.id = r.user_id
          WHERE r.reservation_date = $1
            AND r.status IN ('confirmada', 'activa')
-           AND r.space_id IS NOT NULL
          GROUP BY u.id, u.first_name, u.last_name, u.email
          ORDER BY COUNT(*) DESC, u.first_name
          LIMIT 5`,
@@ -975,8 +976,8 @@ export class ReservationRepository {
               r.status,
               ps.spot_number AS parking_spot_number,
               pz.name AS parking_zone_name,
-              s.space_number,
-              f.name AS floor_name,
+              COALESCE(s.space_number, 'Solo estacionamiento') AS space_number,
+              COALESCE(f.name, 'Estacionamiento') AS floor_name,
               json_build_object(
                 'id', u.id,
                 'first_name', u.first_name,
@@ -987,8 +988,8 @@ export class ReservationRepository {
               ) AS user
        FROM reservations r
        JOIN users u ON u.id = r.user_id
-       JOIN spaces s ON s.id = r.space_id
-       JOIN floors f ON f.id = s.floor_id
+       LEFT JOIN spaces s ON s.id = r.space_id
+       LEFT JOIN floors f ON f.id = s.floor_id
        JOIN parking_spots ps ON ps.id = r.parking_spot_id
        JOIN parking_zones pz ON pz.id = ps.zone_id
        WHERE r.reservation_date = $1

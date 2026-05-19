@@ -8,7 +8,8 @@ import styles from './ConfirmationModal.module.css';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
-  space: SpaceAvailability;
+  mode?: 'workspace' | 'parking-only';
+  space: SpaceAvailability | null;
   filters: FilterValues;
   onConfirm: (requiresParking: boolean) => void;
   onCancel: () => void;
@@ -30,6 +31,7 @@ function getFloorName(floorId: number | string): string {
 
 export function ConfirmationModal({
   isOpen,
+  mode = 'workspace',
   space,
   filters,
   onConfirm,
@@ -43,17 +45,18 @@ export function ConfirmationModal({
   const [requiresParking, setRequiresParking] = useState(false);
 
   const parkingEligible = isParkingEligible(filters.reservation_date, filters.start_time);
+  const isParkingOnly = mode === 'parking-only';
+  const canConfirm = !isLoading && (!isParkingOnly || parkingEligible);
 
-  // Reset checkbox when modal opens
   useEffect(() => {
     if (isOpen) {
-      setRequiresParking(false);
+      setRequiresParking(isParkingOnly);
       previousFocusRef.current = document.activeElement as HTMLElement;
       confirmBtnRef.current?.focus();
     } else {
       previousFocusRef.current?.focus();
     }
-  }, [isOpen]);
+  }, [isOpen, isParkingOnly]);
 
   // Focus trap
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -85,7 +88,9 @@ export function ConfirmationModal({
 
   if (!isOpen) return null;
 
-  const categoryLabel = PRIORITY_CATEGORY_LABELS[space.priority_category] ?? space.priority_category;
+  const categoryLabel = space
+    ? PRIORITY_CATEGORY_LABELS[space.priority_category] ?? space.priority_category
+    : 'Estacionamiento';
 
   return (
     <div
@@ -104,24 +109,26 @@ export function ConfirmationModal({
         <div className={styles.modalHeader}>
           <div className={styles.modalHeaderIcon}>📋</div>
           <h2 id="confirmation-modal-title" className={styles.title}>
-            Confirmar reserva
+            {isParkingOnly ? 'Reservar estacionamiento' : 'Confirmar reserva'}
           </h2>
         </div>
 
         <div className={styles.modalBody}>
         <div className={styles.summary}>
           <div className={styles.row}>
-            <span className={styles.rowLabel}>Espacio</span>
-            <span className={styles.rowValue}>{space.space_number}</span>
+            <span className={styles.rowLabel}>{isParkingOnly ? 'Reserva' : 'Espacio'}</span>
+            <span className={styles.rowValue}>{space?.space_number ?? 'Solo estacionamiento'}</span>
           </div>
           <div className={styles.row}>
             <span className={styles.rowLabel}>Tipo</span>
             <span className={styles.rowValue}>{categoryLabel}</span>
           </div>
-          <div className={styles.row}>
-            <span className={styles.rowLabel}>Piso</span>
-            <span className={styles.rowValue}>{getFloorName(space.floor_id)}</span>
-          </div>
+          {space && (
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>Piso</span>
+              <span className={styles.rowValue}>{getFloorName(space.floor_id)}</span>
+            </div>
+          )}
           <div className={styles.row}>
             <span className={styles.rowLabel}>Fecha</span>
             <span className={styles.rowValue}>{filters.reservation_date}</span>
@@ -136,18 +143,25 @@ export function ConfirmationModal({
           </div>
         </div>
 
-        <div className={`${styles.parkingSection} ${!parkingEligible ? styles.parkingSectionDisabled : ''}`}>
-          <label className={styles.parkingLabel}>
-            <input
-              type="checkbox"
-              className={styles.parkingCheckbox}
-              checked={requiresParking}
-              onChange={(e) => setRequiresParking(e.target.checked)}
-              disabled={!parkingEligible || isLoading}
-            />
-            <span className={styles.parkingIcon}>P</span>
-            <span className={styles.parkingText}>Solicitar lugar de estacionamiento</span>
-          </label>
+        <div className={`${styles.parkingSection} ${isParkingOnly ? styles.parkingOnlySection : ''} ${!parkingEligible ? styles.parkingSectionDisabled : ''}`}>
+          {isParkingOnly ? (
+            <div className={styles.parkingLabel}>
+              <span className={styles.parkingIcon}>P</span>
+              <span className={styles.parkingText}>Se asignará el primer cajón disponible</span>
+            </div>
+          ) : (
+            <label className={styles.parkingLabel}>
+              <input
+                type="checkbox"
+                className={styles.parkingCheckbox}
+                checked={requiresParking}
+                onChange={(e) => setRequiresParking(e.target.checked)}
+                disabled={!parkingEligible || isLoading}
+              />
+              <span className={styles.parkingIcon}>P</span>
+              <span className={styles.parkingText}>Solicitar lugar de estacionamiento</span>
+            </label>
+          )}
           {!parkingEligible && (
             <p className={styles.parkingHint}>
               Solo disponible con más de 24 horas de anticipación
@@ -176,10 +190,10 @@ export function ConfirmationModal({
             ref={confirmBtnRef}
             type="button"
             className={styles.confirmBtn}
-            onClick={() => onConfirm(requiresParking)}
-            disabled={isLoading}
+            onClick={() => onConfirm(isParkingOnly ? true : requiresParking)}
+            disabled={!canConfirm}
           >
-            Confirmar reserva
+            {isParkingOnly ? 'Confirmar estacionamiento' : 'Confirmar reserva'}
           </button>
         </div>
         </div>

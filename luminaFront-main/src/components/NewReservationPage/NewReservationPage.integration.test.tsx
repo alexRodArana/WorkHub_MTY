@@ -183,6 +183,47 @@ describe('NewReservationPage integration', () => {
     })
   })
 
+  it('creates a parking-only reservation without selecting a workspace', async () => {
+    vi.mocked(createReservation).mockResolvedValue({
+      success: true,
+      data: {
+        reservation_id: 45,
+        reservation_code: 'PARK1234',
+        space_id: null,
+        reservation_date: '2099-06-01',
+        start_time: '10:00',
+        end_time: '11:00',
+        status: 'confirmada',
+        requiere_estacionamiento: true,
+        parking_spot: { zone_name: 'T1', spot_number: 'T1-02' },
+      },
+    })
+
+    render(
+      <MemoryRouter
+        initialEntries={['/nueva-reserva']}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
+        <NewReservationPage />
+      </MemoryRouter>
+    )
+
+    fireEvent.change(screen.getByLabelText(/fecha/i), {
+      target: { value: '2099-06-01' },
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: /Reservar estacionamiento/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Confirmar estacionamiento/i }))
+
+    await waitFor(() => {
+      expect(createReservation).toHaveBeenCalledWith(expect.objectContaining({
+        space_id: null,
+        reservation_date: '2099-06-01',
+        requiere_estacionamiento: true,
+      }), 'token-123')
+    })
+  })
+
   it('keeps the active floor layout when an older floor request finishes later', async () => {
     const floorOne = deferred<Awaited<ReturnType<typeof fetchFloorSpaces>>>()
     const floorNine = deferred<Awaited<ReturnType<typeof fetchFloorSpaces>>>()

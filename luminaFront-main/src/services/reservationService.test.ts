@@ -58,7 +58,7 @@ describe('reservationService', () => {
     expect(String(spy.mock.calls[0][0])).toContain('reservation_date=2099-06-01')
   })
 
-  it('sends a workspace reservation with parking only as an attached option', async () => {
+  it('sends a workspace reservation with parking as an attached option', async () => {
     const spy = mockFetch(201, { reservation_id: 1 })
 
     await createReservation({
@@ -72,6 +72,27 @@ describe('reservationService', () => {
     const body = JSON.parse(spy.mock.calls[0][1]?.body as string)
     expect(body).toEqual({
       space_id: 5,
+      reservation_date: '2099-06-01',
+      start_time: '09:00',
+      end_time: '10:00',
+      requiere_estacionamiento: true,
+    })
+  })
+
+  it('sends a parking-only reservation with a null workspace id', async () => {
+    const spy = mockFetch(201, { reservation_id: 2 })
+
+    await createReservation({
+      space_id: null,
+      reservation_date: '2099-06-01',
+      start_time: '09:00',
+      end_time: '10:00',
+      requiere_estacionamiento: true,
+    }, TOKEN)
+
+    const body = JSON.parse(spy.mock.calls[0][1]?.body as string)
+    expect(body).toEqual({
+      space_id: null,
       reservation_date: '2099-06-01',
       start_time: '09:00',
       end_time: '10:00',

@@ -4,7 +4,7 @@ WorkHub MTY es una aplicación web para administrar reservas de espacios de ofic
 
 La solución cubre tres perfiles principales:
 
-- Empleados: reservan espacios, solicitan estacionamiento como parte de una reserva, consultan ocupación, hacen check-in y administran su perfil.
+- Empleados: reservan espacios, pueden reservar estacionamiento con o sin escritorio, consultan ocupación, hacen check-in y administran su perfil.
 - Administradores: revisan KPIs operativos y bloquean espacios o salas desde un mapa de gestión.
 - Guardia: consulta únicamente las reservas de estacionamiento del día.
 
@@ -32,7 +32,7 @@ La solución cubre tres perfiles principales:
 
 - Autenticación con JWT y protección por roles.
 - Reservas por fecha, horario, piso y tipo de espacio.
-- Estacionamiento ligado obligatoriamente a una reserva de oficina.
+- Estacionamiento disponible como complemento de un escritorio o como reserva independiente.
 - Mapa interactivo por piso con imagen de fondo, zonas, escritorios y salas.
 - Hover contextual sobre espacios con piso, nombre, ocupante, foto y horario.
 - Avatares sobre lugares reservados en el mapa.
@@ -208,19 +208,22 @@ Migraciones principales del estado actual:
 npx ts-node migrate_hu17_remove_friends_parking_only_admin_ai.ts
 npx ts-node migrate_hu18_realtime_ai_indexes.ts
 npx ts-node migrate_hu19_space_blocks_and_spaces.ts
+npx ts-node migrate_hu20_parking_only_db_quality.ts
 ```
 
 Estas migraciones cubren:
 
 - Eliminación del sistema de amigos.
-- Eliminación de reservas independientes de estacionamiento.
-- Obligatoriedad de `space_id` en reservas.
+- Reserva independiente de estacionamiento mediante `space_id` nullable.
+- Restricción de integridad: toda reserva debe tener escritorio o estacionamiento.
 - Índices para disponibilidad, ocupación, IA y tiempo real.
 - Tabla `space_blocks` para bloqueos por espacio.
 - Tabla `area_blocks` para bloqueos por área.
 - Rol `guardia`.
 - Validación y carga de espacios esperados por piso.
 - Actualización de conteos reales en `floors.total_spaces`.
+- Limpieza de tablas legacy vacías no referenciadas.
+- Recalculo de estadísticas con `ANALYZE` para consultas críticas.
 
 Para datos demo:
 
@@ -290,6 +293,7 @@ Capacidades:
 
 - Reservar espacios.
 - Solicitar estacionamiento como complemento de una reserva.
+- Reservar estacionamiento sin seleccionar escritorio.
 - Ver disponibilidad y ocupación en mapa.
 - Usar recomendaciones de IA.
 - Hacer check-in.
@@ -336,6 +340,8 @@ El guardia no tiene acceso a dashboard, reservas, perfil, logros ni administraci
 5. El usuario selecciona un espacio.
 6. Opcionalmente solicita estacionamiento si cumple la regla de anticipación.
 7. Se crea la reserva y se actualiza el mapa en tiempo real.
+
+También puede usar la acción `Reservar estacionamiento` sin seleccionar escritorio. En ese flujo el backend crea la reserva con `space_id = null` y asigna el primer cajón disponible siguiendo la prioridad de zonas de estacionamiento.
 
 ### Gestión Administrador
 
@@ -449,8 +455,8 @@ El frontend solo muestra recomendaciones validadas contra los espacios reales en
 
 ## Reglas de Negocio
 
-- Toda reserva requiere un espacio reservable.
-- El estacionamiento no puede reservarse de forma independiente.
+- Toda reserva requiere un espacio reservable o una solicitud de estacionamiento.
+- El estacionamiento puede reservarse de forma independiente.
 - El estacionamiento requiere al menos 24 horas de anticipación.
 - Un usuario no puede tener reservas de oficina traslapadas.
 - Un usuario no puede tener estacionamientos traslapados.
@@ -476,10 +482,10 @@ npm run build
 
 Estado validado localmente:
 
-- Backend tests: `20 passed`.
+- Backend tests: `26 passed`.
 - Backend build: OK.
 - Frontend lint: OK.
-- Frontend tests: `15 passed`.
+- Frontend tests: `17 passed`.
 - Frontend build: OK.
 
 La cobertura incluye:
@@ -487,7 +493,8 @@ La cobertura incluye:
 - Autenticación y perfil.
 - Creación de reservas.
 - Reglas de estacionamiento.
-- Rechazo de reservas sin espacio.
+- Reservas de estacionamiento sin escritorio.
+- Rechazo de solicitudes sin escritorio y sin estacionamiento.
 - Recomendaciones con Gemini.
 - Filtro de recomendaciones solo para escritorios individuales.
 - Descarte de IDs inválidos devueltos por Gemini.

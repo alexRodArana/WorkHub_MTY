@@ -189,7 +189,7 @@ describe("ReservationService", () => {
     }))
   })
 
-  it("assigns parking only as part of a workspace reservation", async () => {
+  it("assigns parking as part of a workspace reservation when requested", async () => {
     vi.mocked(reservationRepository.create).mockResolvedValue(makeReservationResult({
       requiere_estacionamiento: true,
     }))
@@ -207,17 +207,64 @@ describe("ReservationService", () => {
     expect(result.parking_spot).toMatchObject({ zone_name: "T1", spot_number: "T1-01" })
   })
 
-  it("rejects reservation requests without a workspace id", async () => {
-    await expect(service.createReservation({
+  it("creates a parking-only reservation without requiring a workspace id", async () => {
+    vi.mocked(reservationRepository.create).mockResolvedValue(makeReservationResult({
+      space_id: null,
+      requiere_estacionamiento: true,
+    }))
+
+    const result = await service.createReservation({
       reservation_date: FUTURE_DATE,
       start_time: "09:00",
       end_time: "10:00",
       requiere_estacionamiento: true,
+    }, 7)
+
+    expect(spaceRepository.findById).not.toHaveBeenCalled()
+    expect(reservationRepository.hasOverlappingOfficeForUser).not.toHaveBeenCalled()
+    expect(reservationRepository.hasOverlappingForSpace).not.toHaveBeenCalled()
+    expect(reservationRepository.hasOverlappingBlockForSpace).not.toHaveBeenCalled()
+    expect(reservationRepository.hasOverlappingParkingForUser).toHaveBeenCalledWith(7, FUTURE_DATE, "09:00", "10:00")
+    expect(reservationRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: 7,
+      space_id: null,
+      requiere_estacionamiento: true,
+    }))
+    expect(parkingRepository.assignSpot).toHaveBeenCalledWith(10, FUTURE_DATE, "09:00", "10:00")
+    expect(result).toMatchObject({
+      space_id: null,
+      requiere_estacionamiento: true,
+      parking_spot: { zone_name: "T1", spot_number: "T1-01" },
+    })
+  })
+
+  it("rejects requests without workspace and without parking", async () => {
+    await expect(service.createReservation({
+      reservation_date: FUTURE_DATE,
+      start_time: "09:00",
+      end_time: "10:00",
     }, 7)).rejects.toMatchObject({ code: "MISSING_FIELDS" })
 
     expect(spaceRepository.findById).not.toHaveBeenCalled()
     expect(reservationRepository.create).not.toHaveBeenCalled()
     expect(parkingRepository.assignSpot).not.toHaveBeenCalled()
+  })
+
+  it("cancels the pending reservation when parking is unavailable", async () => {
+    vi.mocked(reservationRepository.create).mockResolvedValue(makeReservationResult({
+      space_id: null,
+      requiere_estacionamiento: true,
+    }))
+    vi.mocked(parkingRepository.assignSpot).mockResolvedValue(null)
+
+    await expect(service.createReservation({
+      reservation_date: FUTURE_DATE,
+      start_time: "09:00",
+      end_time: "10:00",
+      requiere_estacionamiento: true,
+    }, 7)).rejects.toMatchObject({ code: "PARKING_UNAVAILABLE" })
+
+    expect(reservationRepository.update).toHaveBeenCalledWith(10, { status: "cancelada" })
   })
 
   it("returns intelligent recommendations near frequent collaborators", async () => {

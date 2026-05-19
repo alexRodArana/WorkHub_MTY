@@ -112,6 +112,39 @@ describe("ReservationController integration", () => {
     expect(reservationService.createReservation).toHaveBeenCalledWith(body, 7)
   })
 
+  it("creates a parking-only reservation and returns 201", async () => {
+    vi.mocked(reservationService.createReservation).mockResolvedValue({
+      reservation_id: 23,
+      reservation_code: "PARK1234",
+      space_id: null,
+      reservation_date: "2099-06-01",
+      start_time: "09:00",
+      end_time: "10:00",
+      status: "confirmada",
+      requiere_estacionamiento: true,
+      parking_spot: { zone_name: "T1", spot_number: "T1-02" },
+      newBadges: [],
+    })
+
+    const response = makeResponse()
+    const body = {
+      reservation_date: "2099-06-01",
+      start_time: "09:00",
+      end_time: "10:00",
+      requiere_estacionamiento: true,
+    }
+
+    await controller.createReservation(makeRequest({ body }), response)
+
+    expect(response.statusCodeValue).toBe(201)
+    expect(response.body).toMatchObject({
+      reservation_id: 23,
+      space_id: null,
+      parking_spot: { zone_name: "T1", spot_number: "T1-02" },
+    })
+    expect(reservationService.createReservation).toHaveBeenCalledWith(body, 7)
+  })
+
   it("maps reservation errors to their HTTP status and API code", async () => {
     vi.mocked(reservationService.createReservation).mockRejectedValue(
       new ReservationError(409, "PARKING_CONFLICT", "El usuario ya tiene estacionamiento reservado")
@@ -288,8 +321,8 @@ describe("GuardController", () => {
           parking_spot_number: "T1-01",
           parking_zone_name: "T1",
           user,
-          space_number: "PB-01",
-          floor_name: "Planta Baja",
+          space_number: "Solo estacionamiento",
+          floor_name: "Estacionamiento",
         },
       ]),
     } as unknown as ReservationRepository

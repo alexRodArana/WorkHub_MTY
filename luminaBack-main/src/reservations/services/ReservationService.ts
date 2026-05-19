@@ -93,9 +93,8 @@ export class ReservationService {
     const requiresParking = input.requiere_estacionamiento === true
     const hasSpaceId = typeof space_id === "number" && space_id > 0
 
-    // Validate required fields
-    if (!reservation_date || !start_time || !end_time || !hasSpaceId) {
-      throw new ReservationError(400, "MISSING_FIELDS", "Los campos space_id, reservation_date, start_time y end_time son requeridos")
+    if (!reservation_date || !start_time || !end_time || (!hasSpaceId && !requiresParking)) {
+      throw new ReservationError(400, "MISSING_FIELDS", "Selecciona un espacio o solicita estacionamiento, además de fecha y horario")
     }
 
     // Validate time range
@@ -118,20 +117,34 @@ export class ReservationService {
       }
     }
 
-    const resolvedSpaceId = space_id as number
+    const resolvedSpaceId = hasSpaceId ? space_id as number : null
 
-    // Check space exists
-    const space = await this.spaceRepository.findById(resolvedSpaceId)
-    if (!space) {
-      throw new ReservationError(404, "SPACE_NOT_FOUND", "El espacio no existe o no está disponible")
-    }
+    if (hasSpaceId) {
+      const space = await this.spaceRepository.findById(resolvedSpaceId as number)
+      if (!space) {
+        throw new ReservationError(404, "SPACE_NOT_FOUND", "El espacio no existe o no está disponible")
+      }
 
-    // Check user conflict for office spaces only. Parking-only reservations may overlap desk reservations.
-    const hasOfficeConflict = await this.reservationRepository.hasOverlappingOfficeForUser(
-      userId, reservation_date, start_time, end_time
-    )
-    if (hasOfficeConflict) {
-      throw new ReservationError(409, "USER_CONFLICT", "El usuario ya tiene una reservación en ese horario")
+      const hasOfficeConflict = await this.reservationRepository.hasOverlappingOfficeForUser(
+        userId, reservation_date, start_time, end_time
+      )
+      if (hasOfficeConflict) {
+        throw new ReservationError(409, "USER_CONFLICT", "El usuario ya tiene una reservación en ese horario")
+      }
+
+      const hasSpaceConflict = await this.reservationRepository.hasOverlappingForSpace(
+        resolvedSpaceId as number, reservation_date, start_time, end_time
+      )
+      if (hasSpaceConflict) {
+        throw new ReservationError(409, "SPACE_UNAVAILABLE", "El espacio no está disponible en ese horario")
+      }
+
+      const hasSpaceBlock = await this.reservationRepository.hasOverlappingBlockForSpace(
+        resolvedSpaceId as number, reservation_date, start_time, end_time
+      )
+      if (hasSpaceBlock) {
+        throw new ReservationError(409, "SPACE_UNAVAILABLE", "El espacio está bloqueado por administración en ese horario")
+      }
     }
 
     if (requiresParking) {
@@ -141,21 +154,10 @@ export class ReservationService {
       if (hasParkingConflict) {
         throw new ReservationError(409, "PARKING_CONFLICT", "El usuario ya tiene estacionamiento reservado en ese horario")
       }
-    }
 
-    // Check space conflict
-    const hasSpaceConflict = await this.reservationRepository.hasOverlappingForSpace(
-      resolvedSpaceId, reservation_date, start_time, end_time
-    )
-    if (hasSpaceConflict) {
-      throw new ReservationError(409, "SPACE_UNAVAILABLE", "El espacio no está disponible en ese horario")
-    }
-
-    const hasSpaceBlock = await this.reservationRepository.hasOverlappingBlockForSpace(
-      resolvedSpaceId, reservation_date, start_time, end_time
-    )
-    if (hasSpaceBlock) {
-      throw new ReservationError(409, "SPACE_UNAVAILABLE", "El espacio está bloqueado por administración en ese horario")
+      if (!this.parkingRepository) {
+        throw new ReservationError(503, "PARKING_UNAVAILABLE", "No fue posible asignar estacionamiento en este momento")
+      }
     }
 
     // Generate unique code
@@ -176,7 +178,6 @@ export class ReservationService {
       check_out_time: null,
     })
 
-    // Assign parking spot if requested (soft failure — reservation always succeeds)
     let finalReservation = reservation
     if (requiresParking && this.parkingRepository) {
       try {
@@ -186,9 +187,17 @@ export class ReservationService {
           start_time,
           end_time
         )
+        if (!spot) {
+          await this.cancelReservationAfterParkingFailure(reservation.reservation_id)
+          throw new ReservationError(409, "PARKING_UNAVAILABLE", "No hay lugares de estacionamiento disponibles para ese horario")
+        }
         finalReservation = { ...reservation, parking_spot: spot }
       } catch (err) {
-        console.error("Parking assignment failed (reservation still created):", err)
+        if (!(err instanceof ReservationError && err.code === "PARKING_UNAVAILABLE")) {
+          await this.cancelReservationAfterParkingFailure(reservation.reservation_id)
+          console.error("Parking assignment failed:", err)
+        }
+        throw err
       }
     }
 
@@ -203,6 +212,14 @@ export class ReservationService {
     }
 
     return { ...finalReservation, newBadges }
+  }
+
+  private async cancelReservationAfterParkingFailure(reservationId: number): Promise<void> {
+    try {
+      await this.reservationRepository.update(reservationId, { status: "cancelada" })
+    } catch (err) {
+      console.error("Failed to cancel reservation after parking assignment error:", err)
+    }
   }
 
   async cancelReservation(reservationId: number, userId: number): Promise<void> {
@@ -244,6 +261,10 @@ export class ReservationService {
 
     if (reservation.status !== "confirmada") {
       throw new ReservationError(422, "INVALID_STATUS", "La reservación no está en estado confirmada")
+    }
+
+    if (reservation.space_id === null) {
+      throw new ReservationError(422, "INVALID_STATUS", "Las reservas solo de estacionamiento no requieren check-in")
     }
 
     this.validateCheckInIp(clientIp)

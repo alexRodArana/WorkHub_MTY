@@ -8,6 +8,11 @@
   100% { opacity: 0; transform: translateY(-6px); }
 }
 
+@keyframes earnedPulse {
+  0%, 100% { opacity: 0.42; transform: translateX(-18%); }
+  50% { opacity: 0.9; transform: translateX(18%); }
+}
+
 .wrapper {
   width: 100%;
   display: flex;
@@ -78,6 +83,7 @@
 }
 
 .badgeCard {
+  position: relative;
   display: flex;
   gap: 14px;
   align-items: center;
@@ -87,8 +93,19 @@
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 10px 24px rgba(70, 0, 115, 0.07);
+  overflow: hidden;
   animation: cardIn 320ms ease both;
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, opacity 160ms ease;
+}
+
+.badgeCardEarned::before {
+  content: '';
+  position: absolute;
+  inset: 0 28% auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, #008c72, #a100ff, #7500c0);
+  opacity: 0.6;
+  animation: earnedPulse 3.2s ease-in-out infinite;
 }
 
 .badgeCard:hover {
@@ -218,6 +235,7 @@
 @media (prefers-reduced-motion: reduce) {
   .statsBar,
   .badgeCard,
+  .badgeCardEarned::before,
   .errorMsg {
     animation: none;
     transition: none;

@@ -24,6 +24,8 @@ interface ReservationFlowState {
   filters: FilterValues
   availableSpaces: SpaceAvailability[]
   selectedSpace: SpaceAvailability | null
+  confirmedSpace: SpaceAvailability | null
+  reservationMode: 'workspace' | 'parking-only'
   isSearching: boolean
   hasSearched: boolean
   searchError: string | null
@@ -89,6 +91,8 @@ export function NewReservationPage(): JSX.Element {
     filters: getDefaultFilters(),
     availableSpaces: [],
     selectedSpace: null,
+    confirmedSpace: null,
+    reservationMode: 'workspace',
     isSearching: false,
     hasSearched: false,
     searchError: null,
@@ -185,7 +189,7 @@ export function NewReservationPage(): JSX.Element {
   }
 
   function handleSelectSpace(space: SpaceAvailability) {
-    setState((prev) => ({ ...prev, selectedSpace: space, confirmError: null }))
+    setState((prev) => ({ ...prev, selectedSpace: space, reservationMode: 'workspace', confirmError: null }))
   }
 
   function handleVisibleFloorChange(floorId: number) {
@@ -196,7 +200,26 @@ export function NewReservationPage(): JSX.Element {
   }
 
   function handleContinue() {
-    setState((prev) => ({ ...prev, showConfirmationModal: true }))
+    setState((prev) => ({ ...prev, reservationMode: 'workspace', showConfirmationModal: true }))
+  }
+
+  function handleParkingOnlyReservation() {
+    const { reservation_date, start_time, end_time } = state.filters
+    if (!reservation_date || !start_time || !end_time || end_time <= start_time) {
+      setState((prev) => ({
+        ...prev,
+        searchError: 'Selecciona una fecha y un horario válido para reservar estacionamiento.',
+      }))
+      return
+    }
+
+    setState((prev) => ({
+      ...prev,
+      selectedSpace: null,
+      reservationMode: 'parking-only',
+      confirmError: null,
+      showConfirmationModal: true,
+    }))
   }
 
   async function handleConfirm(requiresParking: boolean) {
@@ -206,16 +229,17 @@ export function NewReservationPage(): JSX.Element {
       return
     }
 
-    if (!state.selectedSpace) return
+    if (state.reservationMode === 'workspace' && !state.selectedSpace) return
 
     setState((prev) => ({ ...prev, isConfirming: true, confirmError: null }))
 
+    const isParkingOnly = state.reservationMode === 'parking-only'
     const payload = {
-      space_id: state.selectedSpace.id,
+      space_id: isParkingOnly ? null : state.selectedSpace?.id,
       reservation_date: state.filters.reservation_date,
       start_time: state.filters.start_time,
       end_time: state.filters.end_time,
-      requiere_estacionamiento: requiresParking,
+      requiere_estacionamiento: isParkingOnly ? true : requiresParking,
     }
 
     const result = await createReservation(payload, token)
@@ -225,6 +249,7 @@ export function NewReservationPage(): JSX.Element {
         ...prev,
         isConfirming: false,
         confirmedReservation: result.data,
+        confirmedSpace: isParkingOnly ? null : state.selectedSpace,
         showSuccessModal: true,
         showConfirmationModal: false,
       }))
@@ -238,7 +263,7 @@ export function NewReservationPage(): JSX.Element {
 
     const errorCode = result.error
 
-    if (errorCode === 'SPACE_NOT_FOUND' || errorCode === 'SPACE_UNAVAILABLE') {
+    if ((errorCode === 'SPACE_NOT_FOUND' || errorCode === 'SPACE_UNAVAILABLE') && state.selectedSpace) {
       const removedId = state.selectedSpace?.id
       setState((prev) => ({
         ...prev,
@@ -325,6 +350,17 @@ export function NewReservationPage(): JSX.Element {
               isLoading={state.isSearching}
               availableCategories={state.floorCategories}
             />
+            <div className={styles.filterActions}>
+              <button
+                type="button"
+                className={styles.parkingOnlyBtn}
+                onClick={handleParkingOnlyReservation}
+                disabled={state.isConfirming}
+              >
+                <span className={styles.parkingGlyph} aria-hidden="true">P</span>
+                <span>Reservar estacionamiento</span>
+              </button>
+            </div>
           </div>
         </section>
 
@@ -374,9 +410,10 @@ export function NewReservationPage(): JSX.Element {
         </section>
       </div>
 
-      {state.showConfirmationModal && state.selectedSpace && (
+      {state.showConfirmationModal && (state.reservationMode === 'parking-only' || state.selectedSpace) && (
         <ConfirmationModal
           isOpen={state.showConfirmationModal}
+          mode={state.reservationMode}
           space={state.selectedSpace}
           filters={state.filters}
           onConfirm={handleConfirm}
@@ -387,11 +424,11 @@ export function NewReservationPage(): JSX.Element {
         />
       )}
 
-      {state.showSuccessModal && state.confirmedReservation && state.selectedSpace && (
+      {state.showSuccessModal && state.confirmedReservation && (
         <SuccessModal
           isOpen={state.showSuccessModal}
           reservation={state.confirmedReservation}
-          space={state.selectedSpace}
+          space={state.confirmedSpace}
           filters={state.filters}
           onViewReservations={handleViewReservations}
         />

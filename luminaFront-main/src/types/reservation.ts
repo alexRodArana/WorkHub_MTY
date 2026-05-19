@@ -99,7 +99,7 @@ export interface UserReservation {
   reservation_code: string
   space_number: string
   floor_name: string
-  floor_number: number
+  floor_number: number | null
   reservation_date: string
   start_time: string
   end_time: string

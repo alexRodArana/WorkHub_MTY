@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, type CSSProperties } from 'react';
 import type { ReservationResponse, SpaceAvailability, FilterValues } from '../../../types/reservation';
 import { PRIORITY_CATEGORY_LABELS } from '../../../data/floorLayouts';
 import { getBadgeImage } from '../../../utils/badgeVisual';
@@ -7,7 +7,7 @@ import styles from './SuccessModal.module.css';
 interface SuccessModalProps {
   isOpen: boolean;
   reservation: ReservationResponse;
-  space: SpaceAvailability;
+  space: SpaceAvailability | null;
   filters: FilterValues;
   onViewReservations: () => void;
 }
@@ -68,7 +68,9 @@ export function SuccessModal({
 
   if (!isOpen) return null;
 
-  const categoryLabel = PRIORITY_CATEGORY_LABELS[space.priority_category] ?? space.priority_category;
+  const categoryLabel = space
+    ? PRIORITY_CATEGORY_LABELS[space.priority_category] ?? space.priority_category
+    : 'Estacionamiento';
   const newBadges = reservation.newBadges ?? [];
 
   return (
@@ -100,17 +102,19 @@ export function SuccessModal({
 
         <div className={styles.summary}>
           <div className={styles.row}>
-            <span className={styles.rowLabel}>Espacio</span>
-            <span className={styles.rowValue}>{space.space_number}</span>
+            <span className={styles.rowLabel}>{space ? 'Espacio' : 'Reserva'}</span>
+            <span className={styles.rowValue}>{space?.space_number ?? 'Solo estacionamiento'}</span>
           </div>
           <div className={styles.row}>
             <span className={styles.rowLabel}>Tipo</span>
             <span className={styles.rowValue}>{categoryLabel}</span>
           </div>
-          <div className={styles.row}>
-            <span className={styles.rowLabel}>Piso</span>
-            <span className={styles.rowValue}>{getFloorName(space.floor_id)}</span>
-          </div>
+          {space && (
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>Piso</span>
+              <span className={styles.rowValue}>{getFloorName(space.floor_id)}</span>
+            </div>
+          )}
           <div className={styles.row}>
             <span className={styles.rowLabel}>Fecha</span>
             <span className={styles.rowValue}>{filters.reservation_date}</span>
@@ -140,8 +144,12 @@ export function SuccessModal({
               <strong>{newBadges.length}</strong>
             </div>
             <div className={styles.badgeUnlockList}>
-              {newBadges.map((badge) => (
-                <article key={badge.id} className={styles.badgeUnlockItem}>
+              {newBadges.map((badge, index) => (
+                <article
+                  key={badge.id}
+                  className={styles.badgeUnlockItem}
+                  style={{ '--unlock-delay': `${index * 90}ms` } as CSSProperties}
+                >
                   <span className={styles.badgeUnlockGlow} aria-hidden="true" />
                   <img src={getBadgeImage(badge.key, true)} alt="" />
                   <div>

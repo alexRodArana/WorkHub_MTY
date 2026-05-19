@@ -32,6 +32,83 @@
   animation: reservationSurfaceIn 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.filterActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.parkingOnlyBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 16px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 140, 114, 0.22);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(0, 140, 114, 0.12), rgba(161, 0, 255, 0.08)),
+    rgba(255, 255, 255, 0.92);
+  color: #17352f;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 140, 114, 0.08);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.parkingOnlyBtn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.38) 45%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 520ms ease;
+  pointer-events: none;
+}
+
+.parkingOnlyBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(0, 140, 114, 0.4);
+  box-shadow: 0 14px 30px rgba(0, 140, 114, 0.13);
+}
+
+.parkingOnlyBtn:hover:not(:disabled)::after {
+  transform: translateX(120%);
+}
+
+.parkingOnlyBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 140, 114, 0.16), 0 8px 20px rgba(0, 140, 114, 0.1);
+}
+
+.parkingOnlyBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.parkingGlyph {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #008c72, #7500c0);
+  font-size: 0.78rem;
+  font-weight: 900;
+  box-shadow: 0 6px 14px rgba(0, 140, 114, 0.18);
+}
+
 .mapRow {
   display: flex;
   align-items: stretch;
@@ -95,6 +172,20 @@
   background: linear-gradient(180deg, rgba(35, 47, 61, 0.96), rgba(29, 39, 52, 0.98));
   border-color: rgba(161, 0, 255, 0.14);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+}
+
+:global([data-theme='dark']) .parkingOnlyBtn {
+  border-color: rgba(0, 190, 154, 0.24);
+  background:
+    linear-gradient(135deg, rgba(0, 190, 154, 0.14), rgba(161, 0, 255, 0.1)),
+    rgba(21, 28, 38, 0.84);
+  color: #eefbf8;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2);
+}
+
+:global([data-theme='dark']) .parkingOnlyBtn:hover:not(:disabled) {
+  border-color: rgba(0, 190, 154, 0.42);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.28);
 }
 
 :global([data-theme='dark']) .aiMapCard {
@@ -179,6 +270,14 @@
     padding: 12px 14px;
   }
 
+  .filterActions {
+    justify-content: stretch;
+  }
+
+  .parkingOnlyBtn {
+    width: 100%;
+  }
+
   .mapCard {
     padding: 8px;
     flex: 0 0 auto;
@@ -207,8 +306,14 @@
 
 @media (prefers-reduced-motion: reduce) {
   .filterCard,
-  .mapCard {
+  .mapCard,
+  .parkingOnlyBtn,
+  .parkingOnlyBtn::after {
     animation: none;
     transition: none;
+  }
+
+  .parkingOnlyBtn:hover:not(:disabled) {
+    transform: none;
   }
 }
