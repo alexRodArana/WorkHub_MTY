@@ -56,6 +56,23 @@
   border-radius: 20px;
 }
 
+.modePill {
+  align-self: flex-start;
+  padding: 6px 10px;
+  border: 1px solid rgba(117, 0, 192, 0.12);
+  border-radius: 999px;
+  background: rgba(117, 0, 192, 0.06);
+  color: #7500c0;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.modePillParking {
+  border-color: rgba(0, 140, 114, 0.18);
+  background: rgba(0, 140, 114, 0.08);
+  color: #0b7a63;
+}
+
 .info {
   display: flex;
   flex-direction: column;
@@ -131,6 +148,18 @@
 :global([data-theme='dark']) .spaceType {
   color: #a100ff;
   background: rgba(161, 0, 255, 0.12);
+}
+
+:global([data-theme='dark']) .modePill {
+  border-color: rgba(161, 0, 255, 0.16);
+  background: rgba(161, 0, 255, 0.1);
+  color: #f8f5ff;
+}
+
+:global([data-theme='dark']) .modePillParking {
+  border-color: rgba(0, 190, 154, 0.2);
+  background: rgba(0, 190, 154, 0.1);
+  color: #76eac4;
 }
 
 :global([data-theme='dark']) .rowValue {

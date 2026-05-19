@@ -20,18 +20,24 @@ interface FloorPlanViewerProps {
 
 type OccupancyInterval = SpaceOccupancy['intervals'][number]
 
-// Desk fills — solid colors
+// Desk fills mirror room styling: solid stroke with translucent interior.
 const DESK_FILL: Record<SpaceStatus, string> = {
-  available:   '#00c9a7',
-  unavailable: '#c0c0c0',
-  selected:    '#a100ff',
-  neutral:     '#b8c4cc',
+  available:   'rgba(0, 201, 167, 0.24)',
+  unavailable: 'rgba(192, 192, 192, 0.2)',
+  selected:    'rgba(161, 0, 255, 0.3)',
+  neutral:     'rgba(184, 196, 204, 0.16)',
 }
 const DESK_STROKE: Record<SpaceStatus, string> = {
-  available:   '#009b80',
-  unavailable: '#a0a0a0',
-  selected:    '#7500c0',
+  available:   '#00c9a7',
+  unavailable: '#a8a8a8',
+  selected:    '#a100ff',
   neutral:     '#8a9baa',
+}
+const DESK_STROKE_WIDTH: Record<SpaceStatus, number> = {
+  available:   0.34,
+  unavailable: 0.24,
+  selected:    0.58,
+  neutral:     0.24,
 }
 
 // Area fills — semi-transparent so floor plan shows through
@@ -59,12 +65,6 @@ const HOVER_STROKE: Record<SpaceStatus, string> = {
   selected: '#7500c0',
   neutral: '#5f6f7a',
 }
-const HOVER_LABEL_FILL: Record<SpaceStatus, string> = {
-  available: '#0b6f60',
-  unavailable: '#323741',
-  selected: '#460073',
-  neutral: '#3f4d56',
-}
 const AI_RECOMMENDATION_STROKE = '#ffb000'
 const AI_RECOMMENDATION_FILL = 'rgba(255, 176, 0, 0.18)'
 
@@ -91,10 +91,6 @@ function seatOffset(dir: LayoutDirection, dw: number, dh: number): { dx: number;
 
 function getInitials(firstName: string, lastName: string): string {
   return `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase()
-}
-
-function compactMapLabel(label: string): string {
-  return label.length > 34 ? `${label.slice(0, 31)}...` : label
 }
 
 function getSpaceAnchor(space: SpaceWithLayout, vbW: number): { x: number; y: number } | null {
@@ -172,8 +168,6 @@ interface ShapeProps {
   status: SpaceStatus
   hovered: boolean
   onClick: () => void
-  titleText: string
-  hoverLabel: string
   aiRecommendation: AiSpaceRecommendationMarker | null
   onMouseEnter: () => void
   onMouseLeave: () => void
@@ -194,14 +188,12 @@ function OccupantMarker({
   const primary = intervals[0]
   const user = primary.user
   const clipId = `occupant-avatar-${space.id}-${user.id}`
-  const label = `${user.first_name} ${user.last_name} reservó ${space.space_number} de ${primary.start_time} a ${primary.end_time}`
   const radius = 2.75
   const x = anchor.x
   const y = anchor.y
 
   return (
     <g style={{ pointerEvents: 'none' }}>
-      <title>{label}</title>
       <circle
         cx={x.toFixed(3)}
         cy={y.toFixed(3)}
@@ -273,8 +265,6 @@ function AreaShape({
   status,
   hovered,
   onClick,
-  titleText,
-  hoverLabel,
   aiRecommendation,
   onMouseEnter,
   onMouseLeave,
@@ -293,8 +283,6 @@ function AreaShape({
   const strokeW    = AREA_STROKE_WIDTH[status]
   const cx = space.layout_cx != null ? space.layout_cx * vbW : null
   const cy = space.layout_cy != null ? space.layout_cy * 100 : null
-  const label = compactMapLabel(isSelected ? space.space_number : hoverLabel)
-  const labelWidth = Math.max(14, label.length * 1.15)
 
   // Hover: slightly brighter fill
   const fill   = hovered && clickable ? baseFill.replace(/[\d.]+\)$/, (m) => {
@@ -311,7 +299,6 @@ function AreaShape({
       role={clickable ? 'button' : undefined}
       aria-label={space.space_number}
     >
-      <title>{titleText}</title>
       {aiRecommendation && status === 'available' && (
         <polygon
           points={pts}
@@ -333,32 +320,6 @@ function AreaShape({
         filter={hovered || isSelected ? 'url(#spaceLift)' : undefined}
         style={{ transition: 'fill 160ms ease, stroke 160ms ease, stroke-width 160ms ease' }}
       />
-      {/* Label in center for areas */}
-      {(isSelected || hovered) && cx !== null && cy !== null && (
-        <g style={{ pointerEvents: 'none', userSelect: 'none' }}>
-          <rect
-            x={(cx - labelWidth / 2).toFixed(3)}
-            y={(cy - 3.2).toFixed(3)}
-            width={labelWidth.toFixed(3)}
-            height="5.8"
-            rx="2"
-            fill="rgba(255, 255, 255, 0.94)"
-            stroke="rgba(24, 21, 31, 0.12)"
-            strokeWidth="0.12"
-          />
-          <text
-            x={cx.toFixed(3)}
-            y={cy.toFixed(3)}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize={2}
-            fontWeight="bold"
-            fill={HOVER_LABEL_FILL[status]}
-          >
-            {label}
-          </text>
-        </g>
-      )}
       {aiRecommendation && status === 'available' && cx !== null && cy !== null && !hovered && !isSelected && (
         <g style={{ pointerEvents: 'none', userSelect: 'none' }}>
           <text x={(cx + 5.2).toFixed(3)} y={(cy - 4.2).toFixed(3)} textAnchor="middle" dominantBaseline="middle" fontSize="3.1" filter="url(#aiRecommendationGlow)">
@@ -378,8 +339,6 @@ function DeskShape({
   status,
   hovered,
   onClick,
-  titleText,
-  hoverLabel,
   aiRecommendation,
   onMouseEnter,
   onMouseLeave,
@@ -397,11 +356,10 @@ function DeskShape({
   const off = seatOffset(dir, dw, dh)
   const fill   = DESK_FILL[status]
   const stroke = DESK_STROKE[status]
+  const strokeW = DESK_STROKE_WIDTH[status]
   const clickable = status !== 'neutral'
   const isSelected = status === 'selected'
-  const label = compactMapLabel(isSelected ? space.space_number : hoverLabel)
-  const labelWidth = Math.max(11, label.length * 1.05)
-  const labelY = Math.max(4, my - dh / 2 - seatR - 3.8)
+  const sparkleY = Math.max(4, my - dh / 2 - seatR - 3.8)
 
   return (
     <g
@@ -412,7 +370,6 @@ function DeskShape({
       role={clickable ? 'button' : undefined}
       aria-label={space.space_number}
     >
-      <title>{titleText}</title>
       {aiRecommendation && status === 'available' && (
         <>
           <rect
@@ -467,7 +424,7 @@ function DeskShape({
         rx={(Math.min(dw, dh) * 0.15).toFixed(3)}
         fill={fill}
         stroke={hovered ? HOVER_STROKE[status] : stroke}
-        strokeWidth={hovered || isSelected ? 0.34 : 0.18}
+        strokeWidth={hovered || isSelected ? strokeW + 0.24 : strokeW}
         style={{ transition: 'fill 160ms ease, stroke 160ms ease, stroke-width 160ms ease' }}
       />
       <circle
@@ -476,38 +433,12 @@ function DeskShape({
         r={seatR.toFixed(3)}
         fill={fill}
         stroke={hovered ? HOVER_STROKE[status] : stroke}
-        strokeWidth={hovered || isSelected ? 0.34 : 0.18}
+        strokeWidth={hovered || isSelected ? strokeW + 0.24 : strokeW}
         style={{ transition: 'fill 160ms ease, stroke 160ms ease, stroke-width 160ms ease' }}
       />
-      {(hovered || isSelected) && (
-        <g style={{ pointerEvents: 'none', userSelect: 'none' }}>
-          <rect
-            x={(mx - labelWidth / 2).toFixed(3)}
-            y={(labelY - 2.8).toFixed(3)}
-            width={labelWidth.toFixed(3)}
-            height="5.2"
-            rx="1.8"
-            fill="rgba(255, 255, 255, 0.96)"
-            stroke="rgba(24, 21, 31, 0.12)"
-            strokeWidth="0.12"
-            filter="url(#spaceLift)"
-          />
-          <text
-            x={mx.toFixed(3)}
-            y={(labelY - 0.1).toFixed(3)}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize={1.85}
-            fontWeight="bold"
-            fill={HOVER_LABEL_FILL[status]}
-          >
-            {label}
-          </text>
-        </g>
-      )}
       {aiRecommendation && status === 'available' && !hovered && !isSelected && (
         <g style={{ pointerEvents: 'none', userSelect: 'none' }}>
-          <text x={(mx + 4.9).toFixed(3)} y={(labelY - 0.05).toFixed(3)} textAnchor="middle" dominantBaseline="middle" fontSize="3" filter="url(#aiRecommendationGlow)">
+          <text x={(mx + 4.9).toFixed(3)} y={(sparkleY - 0.05).toFixed(3)} textAnchor="middle" dominantBaseline="middle" fontSize="3" filter="url(#aiRecommendationGlow)">
             ✨
             <animate attributeName="opacity" values="0.45;1;0.45" dur="1.6s" repeatCount="indefinite" />
             <animate attributeName="font-size" values="2.7;3.35;2.7" dur="1.6s" repeatCount="indefinite" />
@@ -558,30 +489,6 @@ export function FloorPlanViewer({
   const popupVerticalClass = hoverAnchor && hoverAnchor.y > 58
     ? styles.mapPopupAbove
     : styles.mapPopupBelow
-
-  function getTitle(space: SpaceWithLayout, status: SpaceStatus): string {
-    const intervals = occupancyBySpace.get(space.id) ?? []
-    const recommendation = aiRecommendedSpaces.get(space.id)
-    const prefix = recommendation ? `Recomendado: ${recommendation.reason}. ` : ''
-    if (status !== 'unavailable' || intervals.length === 0) {
-      return `${prefix}${space.space_number}`
-    }
-
-    return `${prefix}${space.space_number} ocupado: ${intervals.map((interval) => `${interval.start_time}-${interval.end_time}`).join(', ')}`
-  }
-
-  function getHoverLabel(space: SpaceWithLayout, status: SpaceStatus): string {
-    const intervals = occupancyBySpace.get(space.id) ?? []
-    const recommendation = aiRecommendedSpaces.get(space.id)
-    if (status === 'available' && recommendation) return `✨ ${recommendation.reason}`
-    if (status === 'available') return `${space.space_number} libre`
-    if (status === 'selected') return `${space.space_number} seleccionado`
-    if (status === 'unavailable' && intervals.length > 0) {
-      return `Ocupado hasta ${intervals[intervals.length - 1].end_time}`
-    }
-    if (status === 'unavailable') return `${space.space_number} ocupado`
-    return space.space_number
-  }
 
   function handleShapeClick(space: SpaceWithLayout, status: SpaceStatus) {
     if (status === 'unavailable') {
@@ -642,8 +549,6 @@ export function FloorPlanViewer({
               status={status}
               hovered={hoveredId === space.id}
               onClick={() => handleShapeClick(space, status)}
-              titleText={getTitle(space, status)}
-              hoverLabel={getHoverLabel(space, status)}
               aiRecommendation={hasSearched ? aiRecommendedSpaces.get(space.id) ?? null : null}
               onMouseEnter={() => setHoveredId(space.id)}
               onMouseLeave={() => setHoveredId(null)}
@@ -662,8 +567,6 @@ export function FloorPlanViewer({
               status={status}
               hovered={hoveredId === space.id}
               onClick={() => handleShapeClick(space, status)}
-              titleText={getTitle(space, status)}
-              hoverLabel={getHoverLabel(space, status)}
               aiRecommendation={hasSearched ? aiRecommendedSpaces.get(space.id) ?? null : null}
               onMouseEnter={() => setHoveredId(space.id)}
               onMouseLeave={() => setHoveredId(null)}

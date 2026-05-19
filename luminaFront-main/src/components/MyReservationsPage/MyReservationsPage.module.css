@@ -199,6 +199,43 @@
   flex-shrink: 0;
 }
 
+.cardBadges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.typeBadge {
+  max-width: 210px;
+  padding: 0.4rem 0.72rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: right;
+  white-space: normal;
+}
+
+.typeDeskParking {
+  background: linear-gradient(135deg, rgba(161, 0, 255, 0.13), rgba(0, 140, 114, 0.1));
+  color: #460073;
+  border: 1px solid rgba(117, 0, 192, 0.14);
+}
+
+.typeDeskOnly {
+  background: rgba(117, 0, 192, 0.08);
+  color: #7500c0;
+  border: 1px solid rgba(117, 0, 192, 0.14);
+}
+
+.typeParkingOnly {
+  background: rgba(0, 140, 114, 0.1);
+  color: #0b7a63;
+  border: 1px solid rgba(0, 140, 114, 0.18);
+}
+
 .badgeConfirmada {
   background: #e8f0ff;
   color: #0055cc;
@@ -394,6 +431,24 @@
   border-color: rgba(161, 0, 255, 0.18);
 }
 
+:global([data-theme='dark']) .typeDeskParking {
+  background: linear-gradient(135deg, rgba(161, 0, 255, 0.18), rgba(0, 190, 154, 0.11));
+  color: #f8f5ff;
+  border-color: rgba(161, 0, 255, 0.2);
+}
+
+:global([data-theme='dark']) .typeDeskOnly {
+  background: rgba(161, 0, 255, 0.12);
+  color: #f8f5ff;
+  border-color: rgba(161, 0, 255, 0.18);
+}
+
+:global([data-theme='dark']) .typeParkingOnly {
+  background: rgba(0, 190, 154, 0.12);
+  color: #76eac4;
+  border-color: rgba(0, 190, 154, 0.22);
+}
+
 :global([data-theme='dark']) .errorMsg {
   color: #ff9aaa;
   background: rgba(255, 50, 70, 0.12);
@@ -440,6 +495,10 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 0.65rem;
+  }
+
+  .cardBadges {
+    align-items: flex-start;
   }
 
   .cardMeta {

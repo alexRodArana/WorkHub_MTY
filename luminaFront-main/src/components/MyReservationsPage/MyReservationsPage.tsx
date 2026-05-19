@@ -29,6 +29,27 @@ const STATUS_CLASS: Record<ReservationStatus, string> = {
   no_show: 'badgeNoShow',
 }
 
+function getReservationType(reservation: UserReservation): {
+  label: string
+  className: string
+  parkingOnly: boolean
+} {
+  const hasParking = Boolean(reservation.parking_spot_number)
+  const parkingOnly =
+    reservation.floor_number === null ||
+    reservation.space_number.toLowerCase() === 'solo estacionamiento'
+
+  if (parkingOnly) {
+    return { label: 'Solo estacionamiento', className: 'typeParkingOnly', parkingOnly: true }
+  }
+
+  if (hasParking) {
+    return { label: 'Escritorio + estacionamiento', className: 'typeDeskParking', parkingOnly: false }
+  }
+
+  return { label: 'Solo escritorio', className: 'typeDeskOnly', parkingOnly: false }
+}
+
 export function MyReservationsPage(): JSX.Element {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState(0)
@@ -249,7 +270,10 @@ export function MyReservationsPage(): JSX.Element {
                   const isHistorial = activeTab === 1
                   const displaySpace = reservation.space_number
                   const displayFloor = reservation.floor_name
-                  const checkIn = isHistorial ? null : getCheckInAvailability(reservation, nowMs)
+                  const reservationType = getReservationType(reservation)
+                  const checkIn = isHistorial || reservationType.parkingOnly
+                    ? null
+                    : getCheckInAvailability(reservation, nowMs)
                   const helperClassName =
                     checkIn?.tone === 'ready'
                       ? styles.actionHintReady
@@ -267,9 +291,14 @@ export function MyReservationsPage(): JSX.Element {
                           <span className={styles.floorName}>{displayFloor}</span>
                         </div>
 
-                        <span className={`${styles.badge} ${styles[STATUS_CLASS[reservation.status]]}`}>
-                          {STATUS_LABEL[reservation.status]}
-                        </span>
+                        <div className={styles.cardBadges}>
+                          <span className={`${styles.typeBadge} ${styles[reservationType.className]}`}>
+                            {reservationType.label}
+                          </span>
+                          <span className={`${styles.badge} ${styles[STATUS_CLASS[reservation.status]]}`}>
+                            {STATUS_LABEL[reservation.status]}
+                          </span>
+                        </div>
                       </div>
 
                       <div className={styles.cardMeta}>
@@ -326,9 +355,11 @@ export function MyReservationsPage(): JSX.Element {
                             )}
                           </div>
 
-                          <span className={helperClassName}>
-                            {checkIn ? checkIn.helper : ''}
-                          </span>
+                          {checkIn && (
+                            <span className={helperClassName}>
+                              {checkIn.helper}
+                            </span>
+                          )}
                         </div>
                       )}
                     </li>

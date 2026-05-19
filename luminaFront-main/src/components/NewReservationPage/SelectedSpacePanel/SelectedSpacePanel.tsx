@@ -16,6 +16,7 @@ function getFloorName(floorId: number | string): string {
 interface SelectedSpacePanelProps {
   space: SpaceAvailability | null;
   filters: FilterValues;
+  mode?: 'desk-parking' | 'desk-only' | 'parking-only';
   onContinue: () => void;
 }
 
@@ -25,10 +26,11 @@ function formatDate(value: string): string {
   return new Intl.DateTimeFormat('es-MX', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(year, month - 1, day));
 }
 
-export function SelectedSpacePanel({ space, filters, onContinue }: SelectedSpacePanelProps) {
+export function SelectedSpacePanel({ space, filters, mode = 'desk-parking', onContinue }: SelectedSpacePanelProps) {
   const categoryLabel = space
     ? (PRIORITY_CATEGORY_LABELS[space.priority_category] ?? space.priority_category)
     : null;
+  const includesParking = mode === 'desk-parking';
 
   return (
     <div className={styles.panel}>
@@ -43,6 +45,10 @@ export function SelectedSpacePanel({ space, filters, onContinue }: SelectedSpace
             <span className={styles.spaceNumber}>{space.space_number}</span>
             <span className={styles.spaceType}>{categoryLabel}</span>
           </div>
+
+          <span className={`${styles.modePill} ${includesParking ? styles.modePillParking : ''}`}>
+            {includesParking ? 'Incluye estacionamiento' : 'Solo escritorio'}
+          </span>
 
           <div className={styles.info}>
             <div className={styles.row}>
@@ -73,7 +79,7 @@ export function SelectedSpacePanel({ space, filters, onContinue }: SelectedSpace
         onClick={onContinue}
         disabled={!space}
       >
-        Confirmar reserva
+        {includesParking ? 'Confirmar escritorio + estacionamiento' : 'Confirmar escritorio'}
       </button>
     </div>
   );

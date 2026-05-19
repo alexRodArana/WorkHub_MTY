@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type {
   AiSpaceRecommendationMarker,
@@ -20,12 +20,37 @@ import { ErrorBanner } from '../ErrorBanner/ErrorBanner'
 import AppShell from '../Layout/AppShell'
 import styles from './NewReservationPage.module.css'
 
+type ReservationMode = 'desk-parking' | 'desk-only' | 'parking-only'
+
+const MODE_INTRO_STORAGE_KEY = 'workhub-reservation-modes-intro-seen'
+const RESERVATION_MODES: Array<{
+  value: ReservationMode
+  label: string
+  description: string
+}> = [
+  {
+    value: 'desk-parking',
+    label: 'Escritorio + estacionamiento',
+    description: 'Reserva un escritorio y solicita cajón en el mismo flujo.',
+  },
+  {
+    value: 'desk-only',
+    label: 'Solo escritorio',
+    description: 'Usa el mapa para elegir únicamente tu lugar de trabajo.',
+  },
+  {
+    value: 'parking-only',
+    label: 'Solo estacionamiento',
+    description: 'Reserva un cajón sin seleccionar escritorio.',
+  },
+]
+
 interface ReservationFlowState {
   filters: FilterValues
   availableSpaces: SpaceAvailability[]
   selectedSpace: SpaceAvailability | null
   confirmedSpace: SpaceAvailability | null
-  reservationMode: 'workspace' | 'parking-only'
+  reservationMode: ReservationMode
   isSearching: boolean
   hasSearched: boolean
   searchError: string | null
@@ -86,13 +111,20 @@ function getRecommendationReason(item: RecommendationResult['recommendations'][n
 export function NewReservationPage(): JSX.Element {
   const navigate = useNavigate()
   const [mapRefreshKey, setMapRefreshKey] = useState(0)
+  const [showModeIntro, setShowModeIntro] = useState(() => {
+    try {
+      return window.localStorage.getItem(MODE_INTRO_STORAGE_KEY) !== '1'
+    } catch {
+      return true
+    }
+  })
 
   const [state, setState] = useState<ReservationFlowState>({
     filters: getDefaultFilters(),
     availableSpaces: [],
     selectedSpace: null,
     confirmedSpace: null,
-    reservationMode: 'workspace',
+    reservationMode: 'desk-parking',
     isSearching: false,
     hasSearched: false,
     searchError: null,
@@ -119,6 +151,7 @@ export function NewReservationPage(): JSX.Element {
   // Auto-search when all required fields are valid
   useEffect(() => {
     const { reservation_date, start_time, end_time } = state.filters
+    if (state.reservationMode === 'parking-only') return
     const allFilled = reservation_date && start_time && end_time && end_time > start_time
     if (!allFilled) return
     const timeoutId = window.setTimeout(() => {
@@ -126,7 +159,7 @@ export function NewReservationPage(): JSX.Element {
     }, 220)
     return () => window.clearTimeout(timeoutId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.filters.reservation_date, state.filters.start_time, state.filters.end_time, state.filters.floor_id, state.filters.priority_category])
+  }, [state.filters.reservation_date, state.filters.start_time, state.filters.end_time, state.filters.floor_id, state.filters.priority_category, state.reservationMode])
 
   useEffect(() => {
     if (!state.searchError) return
@@ -145,6 +178,8 @@ export function NewReservationPage(): JSX.Element {
   }, [state.confirmError])
 
   async function handleSearch() {
+    if (state.reservationMode === 'parking-only') return
+
     const token = getSession()?.access_token
     if (!token) {
       navigate('/login', { replace: true })
@@ -189,7 +224,7 @@ export function NewReservationPage(): JSX.Element {
   }
 
   function handleSelectSpace(space: SpaceAvailability) {
-    setState((prev) => ({ ...prev, selectedSpace: space, reservationMode: 'workspace', confirmError: null }))
+    setState((prev) => ({ ...prev, selectedSpace: space, confirmError: null }))
   }
 
   function handleVisibleFloorChange(floorId: number) {
@@ -200,10 +235,10 @@ export function NewReservationPage(): JSX.Element {
   }
 
   function handleContinue() {
-    setState((prev) => ({ ...prev, reservationMode: 'workspace', showConfirmationModal: true }))
+    setState((prev) => ({ ...prev, showConfirmationModal: true }))
   }
 
-  function handleParkingOnlyReservation() {
+  function handleParkingOnlyContinue() {
     const { reservation_date, start_time, end_time } = state.filters
     if (!reservation_date || !start_time || !end_time || end_time <= start_time) {
       setState((prev) => ({
@@ -216,10 +251,28 @@ export function NewReservationPage(): JSX.Element {
     setState((prev) => ({
       ...prev,
       selectedSpace: null,
-      reservationMode: 'parking-only',
       confirmError: null,
       showConfirmationModal: true,
     }))
+  }
+
+  function handleModeChange(mode: ReservationMode) {
+    setState((prev) => ({
+      ...prev,
+      reservationMode: mode,
+      selectedSpace: mode === 'parking-only' ? null : prev.selectedSpace,
+      confirmError: null,
+      searchError: null,
+    }))
+  }
+
+  function handleCloseModeIntro() {
+    try {
+      window.localStorage.setItem(MODE_INTRO_STORAGE_KEY, '1')
+    } catch {
+      // Ignore storage errors; the modal can safely reappear next session.
+    }
+    setShowModeIntro(false)
   }
 
   async function handleConfirm(requiresParking: boolean) {
@@ -229,17 +282,18 @@ export function NewReservationPage(): JSX.Element {
       return
     }
 
-    if (state.reservationMode === 'workspace' && !state.selectedSpace) return
+    if (state.reservationMode !== 'parking-only' && !state.selectedSpace) return
 
     setState((prev) => ({ ...prev, isConfirming: true, confirmError: null }))
 
     const isParkingOnly = state.reservationMode === 'parking-only'
+    const modeRequiresParking = state.reservationMode === 'desk-parking' || isParkingOnly
     const payload = {
       space_id: isParkingOnly ? null : state.selectedSpace?.id,
       reservation_date: state.filters.reservation_date,
       start_time: state.filters.start_time,
       end_time: state.filters.end_time,
-      requiere_estacionamiento: isParkingOnly ? true : requiresParking,
+      requiere_estacionamiento: modeRequiresParking || requiresParking,
     }
 
     const result = await createReservation(payload, token)
@@ -310,6 +364,8 @@ export function NewReservationPage(): JSX.Element {
   handleSearchRef.current = handleSearch
 
   useReservationRealtime((event) => {
+    if (state.reservationMode === 'parking-only') return
+
     const filters = state.filters
     const hasValidSearch = filters.reservation_date && filters.start_time && filters.end_time && filters.end_time > filters.start_time
     const sameDate = !event.reservation_date || event.reservation_date === filters.reservation_date
@@ -337,12 +393,29 @@ export function NewReservationPage(): JSX.Element {
     [state.recommendations]
   )
   const recommendationCount = state.recommendations?.recommendations.length ?? 0
+  const isParkingOnlyMode = state.reservationMode === 'parking-only'
 
   return (
     <AppShell title="Nueva Reserva" noscroll>
       <div className={styles.pageContent}>
         <section className={styles.filterSection}>
           <div className={styles.filterCard}>
+            <div className={styles.modeTabs} role="tablist" aria-label="Tipo de reserva">
+              {RESERVATION_MODES.map((mode, index) => (
+                <button
+                  key={mode.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={state.reservationMode === mode.value}
+                  className={`${styles.modeTab} ${state.reservationMode === mode.value ? styles.modeTabActive : ''}`}
+                  onClick={() => handleModeChange(mode.value)}
+                  style={{ '--tab-delay': `${index * 70}ms` } as CSSProperties}
+                >
+                  <span>{mode.label}</span>
+                  <small>{mode.description}</small>
+                </button>
+              ))}
+            </div>
             <FilterPanel
               values={state.filters}
               onChange={(filters) => setState((prev) => ({ ...prev, filters }))}
@@ -350,17 +423,6 @@ export function NewReservationPage(): JSX.Element {
               isLoading={state.isSearching}
               availableCategories={state.floorCategories}
             />
-            <div className={styles.filterActions}>
-              <button
-                type="button"
-                className={styles.parkingOnlyBtn}
-                onClick={handleParkingOnlyReservation}
-                disabled={state.isConfirming}
-              >
-                <span className={styles.parkingGlyph} aria-hidden="true">P</span>
-                <span>Reservar estacionamiento</span>
-              </button>
-            </div>
           </div>
         </section>
 
@@ -375,40 +437,92 @@ export function NewReservationPage(): JSX.Element {
               </div>
             )}
 
-            {state.hasSearched && state.availableSpaces.length === 0 && !state.searchError && (
+            {!isParkingOnlyMode && state.hasSearched && state.availableSpaces.length === 0 && !state.searchError && (
               <div className={styles.emptyWrap}>
                 Sin espacios disponibles para los filtros seleccionados. Prueba otra fecha u horario.
               </div>
             )}
 
             <div className={`${styles.mapCard} ${recommendationCount > 0 ? styles.aiMapCard : ''}`}>
-              <FloorMap
-                floorId={state.filters.floor_id}
-                availableSpaces={state.availableSpaces}
-                selectedSpaceId={state.selectedSpace?.id ?? null}
-                onSelectSpace={handleSelectSpace}
-                isLoading={state.isSearching}
-                hasSearched={state.hasSearched}
-                reservationDate={state.filters.reservation_date}
-                aiRecommendedSpaces={aiRecommendedSpaces}
-                refreshKey={mapRefreshKey}
-                onCategoriesLoaded={handleCategoriesLoaded}
-                onVisibleFloorChange={handleVisibleFloorChange}
-              />
+              {isParkingOnlyMode ? (
+                <div className={styles.parkingOnlyPanel}>
+                  <span className={styles.parkingOnlyIcon} aria-hidden="true">P</span>
+                  <h2>Reserva de estacionamiento</h2>
+                  <p>
+                    Se asignará automáticamente el primer cajón disponible según la prioridad de zonas.
+                    Esta reserva no requiere seleccionar asiento ni hacer check-in.
+                  </p>
+                  <dl>
+                    <div>
+                      <dt>Fecha</dt>
+                      <dd>{state.filters.reservation_date || 'Selecciona fecha'}</dd>
+                    </div>
+                    <div>
+                      <dt>Horario</dt>
+                      <dd>{state.filters.start_time && state.filters.end_time ? `${state.filters.start_time} - ${state.filters.end_time}` : 'Selecciona horario'}</dd>
+                    </div>
+                  </dl>
+                  <button
+                    type="button"
+                    className={styles.parkingContinueBtn}
+                    onClick={handleParkingOnlyContinue}
+                    disabled={state.isConfirming}
+                  >
+                    Continuar
+                  </button>
+                </div>
+              ) : (
+                <FloorMap
+                  floorId={state.filters.floor_id}
+                  availableSpaces={state.availableSpaces}
+                  selectedSpaceId={state.selectedSpace?.id ?? null}
+                  onSelectSpace={handleSelectSpace}
+                  isLoading={state.isSearching}
+                  hasSearched={state.hasSearched}
+                  reservationDate={state.filters.reservation_date}
+                  aiRecommendedSpaces={aiRecommendedSpaces}
+                  refreshKey={mapRefreshKey}
+                  onCategoriesLoaded={handleCategoriesLoaded}
+                  onVisibleFloorChange={handleVisibleFloorChange}
+                />
+              )}
             </div>
           </main>
 
-          <aside className={`${styles.sidePanel} ${state.selectedSpace ? styles.sidePanelOpen : ''}`}>
+          <aside className={`${styles.sidePanel} ${!isParkingOnlyMode && state.selectedSpace ? styles.sidePanelOpen : ''}`}>
             <div className={styles.selectedCard}>
               <SelectedSpacePanel
                 space={state.selectedSpace}
                 filters={state.filters}
+                mode={state.reservationMode}
                 onContinue={handleContinue}
               />
             </div>
           </aside>
         </section>
       </div>
+
+      {showModeIntro && (
+        <div className={styles.introBackdrop} role="presentation" onClick={handleCloseModeIntro}>
+          <section
+            className={styles.introModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reservation-mode-intro-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <span className={styles.introSpark} aria-hidden="true">✨</span>
+            <h2 id="reservation-mode-intro-title">Elige cómo quieres reservar</h2>
+            <p>
+              Nueva Reserva ahora se divide en tres modos: escritorio con estacionamiento,
+              solo escritorio o solo estacionamiento. Cambia de pestaña según lo que necesites antes de confirmar.
+            </p>
+            <button type="button" onClick={handleCloseModeIntro}>
+              Entendido
+            </button>
+          </section>
+        </div>
+      )}
 
       {state.showConfirmationModal && (state.reservationMode === 'parking-only' || state.selectedSpace) && (
         <ConfirmationModal

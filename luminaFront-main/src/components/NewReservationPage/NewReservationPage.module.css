@@ -18,6 +18,39 @@
   }
 }
 
+@keyframes modeTabIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes introIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes introSpark {
+  0%, 100% {
+    opacity: 0.74;
+    transform: scale(0.92) rotate(-4deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12) rotate(4deg);
+  }
+}
+
 .filterSection {
   width: 100%;
   flex-shrink: 0;
@@ -32,81 +65,92 @@
   animation: reservationSurfaceIn 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.filterActions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 12px;
+.modeTabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
-.parkingOnlyBtn {
+.modeTab {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  min-height: 44px;
-  padding: 0 16px;
+  min-height: 68px;
+  padding: 11px 13px;
   overflow: hidden;
-  border: 1px solid rgba(0, 140, 114, 0.22);
-  border-radius: 14px;
-  background:
-    linear-gradient(135deg, rgba(0, 140, 114, 0.12), rgba(161, 0, 255, 0.08)),
-    rgba(255, 255, 255, 0.92);
-  color: #17352f;
+  border: 1px solid rgba(117, 0, 192, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #3f3553;
   font: inherit;
-  font-size: 0.9rem;
-  font-weight: 800;
+  text-align: left;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(0, 140, 114, 0.08);
+  box-shadow: 0 6px 14px rgba(70, 0, 115, 0.04);
+  animation: modeTabIn 280ms cubic-bezier(0.16, 1, 0.3, 1) var(--tab-delay, 0ms) both;
   transition:
-    border-color 180ms ease,
-    box-shadow 180ms ease,
     transform 180ms ease,
-    background 180ms ease;
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease;
 }
 
-.parkingOnlyBtn::after {
+.modeTab::after {
   content: '';
   position: absolute;
-  inset: 0;
-  background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.38) 45%, transparent 70%);
-  transform: translateX(-120%);
-  transition: transform 520ms ease;
-  pointer-events: none;
+  inset: auto 12px 8px 12px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #008c72, #a100ff);
+  opacity: 0;
+  transform: scaleX(0.4);
+  transition: opacity 180ms ease, transform 180ms ease;
 }
 
-.parkingOnlyBtn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  border-color: rgba(0, 140, 114, 0.4);
-  box-shadow: 0 14px 30px rgba(0, 140, 114, 0.13);
+.modeTab span,
+.modeTab small {
+  position: relative;
+  z-index: 1;
+  display: block;
 }
 
-.parkingOnlyBtn:hover:not(:disabled)::after {
-  transform: translateX(120%);
-}
-
-.parkingOnlyBtn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 140, 114, 0.16), 0 8px 20px rgba(0, 140, 114, 0.1);
-}
-
-.parkingOnlyBtn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.parkingGlyph {
-  width: 24px;
-  height: 24px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  color: #ffffff;
-  background: linear-gradient(135deg, #008c72, #7500c0);
-  font-size: 0.78rem;
+.modeTab span {
+  color: inherit;
+  font-size: 0.88rem;
   font-weight: 900;
-  box-shadow: 0 6px 14px rgba(0, 140, 114, 0.18);
+  line-height: 1.14;
+}
+
+.modeTab small {
+  margin-top: 4px;
+  color: #7b748f;
+  font-size: 0.73rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.modeTab:hover {
+  transform: translateY(-2px);
+  border-color: rgba(161, 0, 255, 0.22);
+  background: rgba(161, 0, 255, 0.06);
+  box-shadow: 0 12px 24px rgba(70, 0, 115, 0.08);
+}
+
+.modeTabActive {
+  border-color: rgba(161, 0, 255, 0.22);
+  background:
+    linear-gradient(135deg, rgba(161, 0, 255, 0.12), rgba(0, 140, 114, 0.07)),
+    rgba(255, 255, 255, 0.94);
+  color: #460073;
+  box-shadow: 0 12px 26px rgba(70, 0, 115, 0.11);
+}
+
+.modeTabActive::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.modeTabActive small {
+  color: #51425f;
 }
 
 .mapRow {
@@ -166,6 +210,163 @@
     0 0 0 3px rgba(255, 176, 0, 0.08);
 }
 
+.parkingOnlyPanel {
+  flex: 1;
+  min-height: 420px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 28px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(0, 140, 114, 0.14), transparent 38%),
+    linear-gradient(180deg, rgba(161, 0, 255, 0.06), rgba(255, 255, 255, 0.58));
+  text-align: center;
+}
+
+.parkingOnlyIcon {
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #008c72, #7500c0);
+  font-size: 2rem;
+  font-weight: 950;
+  box-shadow: 0 18px 36px rgba(0, 140, 114, 0.18);
+}
+
+.parkingOnlyPanel h2 {
+  margin: 0;
+  color: #18151f;
+  font-size: 1.45rem;
+  line-height: 1.1;
+}
+
+.parkingOnlyPanel p {
+  max-width: 560px;
+  margin: 0;
+  color: #6b6380;
+  font-size: 0.94rem;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.parkingOnlyPanel dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: min(520px, 100%);
+  margin: 8px 0 0;
+}
+
+.parkingOnlyPanel dl div {
+  padding: 12px;
+  border: 1px solid rgba(117, 0, 192, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.parkingOnlyPanel dt {
+  color: #7b748f;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.parkingOnlyPanel dd {
+  margin: 4px 0 0;
+  color: #18151f;
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.parkingContinueBtn,
+.introModal button {
+  min-height: 46px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #a100ff, #7500c0);
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.94rem;
+  font-weight: 850;
+  cursor: pointer;
+  box-shadow: 0 12px 26px rgba(117, 0, 192, 0.24);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.parkingContinueBtn {
+  padding: 0 34px;
+}
+
+.parkingContinueBtn:hover:not(:disabled),
+.introModal button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px rgba(117, 0, 192, 0.32);
+}
+
+.parkingContinueBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.introBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(24, 21, 31, 0.62);
+  backdrop-filter: blur(5px);
+}
+
+.introModal {
+  width: min(480px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 13px;
+  padding: 28px;
+  border: 1px solid rgba(161, 0, 255, 0.14);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 30px 80px rgba(24, 21, 31, 0.34);
+  text-align: center;
+  animation: introIn 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.introSpark {
+  font-size: 2rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 14px rgba(255, 176, 0, 0.45));
+  animation: introSpark 1.8s ease-in-out infinite;
+}
+
+.introModal h2 {
+  margin: 0;
+  color: #18151f;
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.introModal p {
+  margin: 0;
+  color: #6b6380;
+  font-size: 0.94rem;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.introModal button {
+  margin-top: 6px;
+  padding: 0 28px;
+}
+
 :global([data-theme='dark']) .filterCard,
 :global([data-theme='dark']) .mapCard,
 :global([data-theme='dark']) .selectedCard {
@@ -174,25 +375,47 @@
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
 }
 
-:global([data-theme='dark']) .parkingOnlyBtn {
-  border-color: rgba(0, 190, 154, 0.24);
-  background:
-    linear-gradient(135deg, rgba(0, 190, 154, 0.14), rgba(161, 0, 255, 0.1)),
-    rgba(21, 28, 38, 0.84);
-  color: #eefbf8;
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2);
-}
-
-:global([data-theme='dark']) .parkingOnlyBtn:hover:not(:disabled) {
-  border-color: rgba(0, 190, 154, 0.42);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.28);
-}
-
 :global([data-theme='dark']) .aiMapCard {
   border-color: rgba(255, 176, 0, 0.42);
   box-shadow:
     0 14px 34px rgba(0, 0, 0, 0.28),
     0 0 0 3px rgba(255, 176, 0, 0.1);
+}
+
+:global([data-theme='dark']) .modeTab,
+:global([data-theme='dark']) .parkingOnlyPanel dl div,
+:global([data-theme='dark']) .introModal {
+  background: rgba(21, 28, 38, 0.9);
+  border-color: rgba(161, 0, 255, 0.16);
+}
+
+:global([data-theme='dark']) .modeTab {
+  color: #f8f5ff;
+}
+
+:global([data-theme='dark']) .modeTab small,
+:global([data-theme='dark']) .parkingOnlyPanel p,
+:global([data-theme='dark']) .parkingOnlyPanel dt,
+:global([data-theme='dark']) .introModal p {
+  color: #b9c3d0;
+}
+
+:global([data-theme='dark']) .modeTabActive {
+  background:
+    linear-gradient(135deg, rgba(161, 0, 255, 0.18), rgba(0, 190, 154, 0.1)),
+    rgba(35, 47, 61, 0.96);
+}
+
+:global([data-theme='dark']) .parkingOnlyPanel {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(0, 190, 154, 0.13), transparent 38%),
+    linear-gradient(180deg, rgba(161, 0, 255, 0.08), rgba(21, 28, 38, 0.52));
+}
+
+:global([data-theme='dark']) .parkingOnlyPanel h2,
+:global([data-theme='dark']) .parkingOnlyPanel dd,
+:global([data-theme='dark']) .introModal h2 {
+  color: #f8f5ff;
 }
 
 :global([data-theme='dark']) .emptyWrap {
@@ -270,12 +493,13 @@
     padding: 12px 14px;
   }
 
-  .filterActions {
-    justify-content: stretch;
+  .modeTabs {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
-  .parkingOnlyBtn {
-    width: 100%;
+  .modeTab {
+    min-height: 58px;
   }
 
   .mapCard {
@@ -302,18 +526,36 @@
     padding: 0.75rem 0.85rem;
     font-size: 0.82rem;
   }
+
+  .parkingOnlyPanel {
+    min-height: 360px;
+    padding: 22px 14px;
+  }
+
+  .parkingOnlyPanel dl {
+    grid-template-columns: 1fr;
+  }
+
+  .introModal {
+    padding: 22px;
+    border-radius: 20px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .filterCard,
   .mapCard,
-  .parkingOnlyBtn,
-  .parkingOnlyBtn::after {
+  .modeTab,
+  .parkingContinueBtn,
+  .introModal,
+  .introSpark {
     animation: none;
     transition: none;
   }
 
-  .parkingOnlyBtn:hover:not(:disabled) {
+  .modeTab:hover,
+  .parkingContinueBtn:hover:not(:disabled),
+  .introModal button:hover {
     transform: none;
   }
 }

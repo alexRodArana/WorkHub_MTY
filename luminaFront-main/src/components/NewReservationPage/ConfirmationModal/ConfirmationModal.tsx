@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect } from 'react';
 import type { SpaceAvailability, FilterValues } from '../../../types/reservation';
 import { PRIORITY_CATEGORY_LABELS } from '../../../data/floorLayouts';
 import { isParkingEligible } from '../../../utils/parkingUtils';
@@ -8,7 +8,7 @@ import styles from './ConfirmationModal.module.css';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
-  mode?: 'workspace' | 'parking-only';
+  mode?: 'desk-parking' | 'desk-only' | 'parking-only';
   space: SpaceAvailability | null;
   filters: FilterValues;
   onConfirm: (requiresParking: boolean) => void;
@@ -31,7 +31,7 @@ function getFloorName(floorId: number | string): string {
 
 export function ConfirmationModal({
   isOpen,
-  mode = 'workspace',
+  mode = 'desk-parking',
   space,
   filters,
   onConfirm,
@@ -42,21 +42,20 @@ export function ConfirmationModal({
 }: ConfirmationModalProps) {
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
-  const [requiresParking, setRequiresParking] = useState(false);
 
   const parkingEligible = isParkingEligible(filters.reservation_date, filters.start_time);
   const isParkingOnly = mode === 'parking-only';
-  const canConfirm = !isLoading && (!isParkingOnly || parkingEligible);
+  const includesParking = mode === 'desk-parking' || isParkingOnly;
+  const canConfirm = !isLoading && (!includesParking || parkingEligible);
 
   useEffect(() => {
     if (isOpen) {
-      setRequiresParking(isParkingOnly);
       previousFocusRef.current = document.activeElement as HTMLElement;
       confirmBtnRef.current?.focus();
     } else {
       previousFocusRef.current?.focus();
     }
-  }, [isOpen, isParkingOnly]);
+  }, [isOpen]);
 
   // Focus trap
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -143,26 +142,24 @@ export function ConfirmationModal({
           </div>
         </div>
 
-        <div className={`${styles.parkingSection} ${isParkingOnly ? styles.parkingOnlySection : ''} ${!parkingEligible ? styles.parkingSectionDisabled : ''}`}>
+        <div className={`${styles.parkingSection} ${includesParking ? styles.parkingOnlySection : ''} ${includesParking && !parkingEligible ? styles.parkingSectionDisabled : ''}`}>
           {isParkingOnly ? (
             <div className={styles.parkingLabel}>
               <span className={styles.parkingIcon}>P</span>
               <span className={styles.parkingText}>Se asignará el primer cajón disponible</span>
             </div>
-          ) : (
-            <label className={styles.parkingLabel}>
-              <input
-                type="checkbox"
-                className={styles.parkingCheckbox}
-                checked={requiresParking}
-                onChange={(e) => setRequiresParking(e.target.checked)}
-                disabled={!parkingEligible || isLoading}
-              />
+          ) : includesParking ? (
+            <div className={styles.parkingLabel}>
               <span className={styles.parkingIcon}>P</span>
-              <span className={styles.parkingText}>Solicitar lugar de estacionamiento</span>
-            </label>
+              <span className={styles.parkingText}>Esta reserva incluye estacionamiento</span>
+            </div>
+          ) : (
+            <div className={styles.parkingLabel}>
+              <span className={styles.parkingIcon}>P</span>
+              <span className={styles.parkingText}>Sin estacionamiento</span>
+            </div>
           )}
-          {!parkingEligible && (
+          {includesParking && !parkingEligible && (
             <p className={styles.parkingHint}>
               Solo disponible con más de 24 horas de anticipación
             </p>
@@ -190,7 +187,7 @@ export function ConfirmationModal({
             ref={confirmBtnRef}
             type="button"
             className={styles.confirmBtn}
-            onClick={() => onConfirm(isParkingOnly ? true : requiresParking)}
+            onClick={() => onConfirm(includesParking)}
             disabled={!canConfirm}
           >
             {isParkingOnly ? 'Confirmar estacionamiento' : 'Confirmar reserva'}

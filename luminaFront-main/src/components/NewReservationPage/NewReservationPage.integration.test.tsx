@@ -66,6 +66,15 @@ describe('NewReservationPage integration', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date('2026-04-29T10:00:00-06:00'))
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: vi.fn(() => '1'),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        clear: vi.fn(),
+      },
+    })
 
     vi.mocked(getSession).mockReturnValue({
       access_token: 'token-123',
@@ -167,10 +176,7 @@ describe('NewReservationPage integration', () => {
     expect(screen.queryByText(/Mapa IA activo/i)).not.toBeInTheDocument()
 
     fireEvent.click(recommendation)
-    fireEvent.click(screen.getByRole('button', { name: /^Confirmar reserva$/i }))
-
-    const checkbox = await screen.findByRole('checkbox', { name: /Solicitar lugar de estacionamiento/i })
-    fireEvent.click(checkbox)
+    fireEvent.click(screen.getByRole('button', { name: /Confirmar escritorio \+ estacionamiento/i }))
     const confirmButtons = screen.getAllByRole('button', { name: /^Confirmar reserva$/i })
     fireEvent.click(confirmButtons[confirmButtons.length - 1])
 
@@ -212,7 +218,8 @@ describe('NewReservationPage integration', () => {
       target: { value: '2099-06-01' },
     })
 
-    fireEvent.click(await screen.findByRole('button', { name: /Reservar estacionamiento/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /Solo estacionamiento/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Continuar$/i }))
     fireEvent.click(await screen.findByRole('button', { name: /Confirmar estacionamiento/i }))
 
     await waitFor(() => {
