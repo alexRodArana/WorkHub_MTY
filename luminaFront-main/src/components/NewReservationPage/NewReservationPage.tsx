@@ -400,19 +400,20 @@ export function NewReservationPage(): JSX.Element {
       <div className={styles.pageContent}>
         <section className={styles.filterSection}>
           <div className={styles.filterCard}>
-            <div className={styles.modeTabs} role="tablist" aria-label="Tipo de reserva">
+            <div className={`${styles.modeTabs} ${showModeIntro ? styles.modeTabsIntro : ''}`} role="tablist" aria-label="Tipo de reserva">
               {RESERVATION_MODES.map((mode, index) => (
                 <button
                   key={mode.value}
                   type="button"
                   role="tab"
                   aria-selected={state.reservationMode === mode.value}
+                  aria-label={`${mode.label}: ${mode.description}`}
+                  title={mode.description}
                   className={`${styles.modeTab} ${state.reservationMode === mode.value ? styles.modeTabActive : ''}`}
                   onClick={() => handleModeChange(mode.value)}
                   style={{ '--tab-delay': `${index * 70}ms` } as CSSProperties}
                 >
                   <span>{mode.label}</span>
-                  <small>{mode.description}</small>
                 </button>
               ))}
             </div>
@@ -517,6 +518,13 @@ export function NewReservationPage(): JSX.Element {
               Nueva Reserva ahora se divide en tres modos: escritorio con estacionamiento,
               solo escritorio o solo estacionamiento. Cambia de pestaña según lo que necesites antes de confirmar.
             </p>
+            <div className={styles.introSteps} aria-hidden="true">
+              {RESERVATION_MODES.map((mode, index) => (
+                <span key={mode.value} style={{ '--step-delay': `${index * 120}ms` } as CSSProperties}>
+                  {mode.label}
+                </span>
+              ))}
+            </div>
             <button type="button" onClick={handleCloseModeIntro}>
               Entendido
             </button>

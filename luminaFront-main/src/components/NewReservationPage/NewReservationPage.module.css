@@ -21,11 +21,23 @@
 @keyframes modeTabIn {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
+  }
+}
+
+@keyframes modeTabSpotlight {
+  0% {
+    box-shadow: 0 0 0 rgba(161, 0, 255, 0);
+  }
+  38% {
+    box-shadow: 0 0 0 5px rgba(161, 0, 255, 0.08);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(161, 0, 255, 0);
   }
 }
 
@@ -40,6 +52,28 @@
   }
 }
 
+@keyframes introBackdropIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(7px);
+  }
+}
+
+@keyframes introFloat {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.38;
+  }
+  50% {
+    transform: translate3d(10px, -12px, 0) scale(1.08);
+    opacity: 0.68;
+  }
+}
+
 @keyframes introSpark {
   0%, 100% {
     opacity: 0.74;
@@ -48,6 +82,26 @@
   50% {
     opacity: 1;
     transform: scale(1.12) rotate(4deg);
+  }
+}
+
+@keyframes introStepIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes introShine {
+  from {
+    transform: translateX(-140%) rotate(12deg);
+  }
+  to {
+    transform: translateX(140%) rotate(12deg);
   }
 }
 
@@ -66,38 +120,36 @@
 }
 
 .modeTabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 12px;
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  margin: 0 0 12px;
+  padding: 0 2px 8px;
+  border-bottom: 1px solid rgba(117, 0, 192, 0.12);
 }
 
 .modeTab {
   position: relative;
-  min-height: 68px;
-  padding: 11px 13px;
+  min-height: 34px;
+  padding: 0 2px;
   overflow: hidden;
-  border: 1px solid rgba(117, 0, 192, 0.12);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.78);
-  color: #3f3553;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #6b6380;
   font: inherit;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
-  box-shadow: 0 6px 14px rgba(70, 0, 115, 0.04);
   animation: modeTabIn 280ms cubic-bezier(0.16, 1, 0.3, 1) var(--tab-delay, 0ms) both;
   transition:
     transform 180ms ease,
-    border-color 180ms ease,
-    background 180ms ease,
-    box-shadow 180ms ease,
     color 180ms ease;
 }
 
 .modeTab::after {
   content: '';
   position: absolute;
-  inset: auto 12px 8px 12px;
+  inset: auto 0 0;
   height: 3px;
   border-radius: 999px;
   background: linear-gradient(90deg, #008c72, #a100ff);
@@ -106,8 +158,13 @@
   transition: opacity 180ms ease, transform 180ms ease;
 }
 
-.modeTab span,
-.modeTab small {
+.modeTabsIntro .modeTab {
+  animation:
+    modeTabIn 280ms cubic-bezier(0.16, 1, 0.3, 1) var(--tab-delay, 0ms) both,
+    modeTabSpotlight 1.15s ease calc(var(--tab-delay, 0ms) + 360ms) both;
+}
+
+.modeTab span {
   position: relative;
   z-index: 1;
   display: block;
@@ -115,42 +172,23 @@
 
 .modeTab span {
   color: inherit;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 900;
   line-height: 1.14;
 }
 
-.modeTab small {
-  margin-top: 4px;
-  color: #7b748f;
-  font-size: 0.73rem;
-  font-weight: 700;
-  line-height: 1.25;
-}
-
 .modeTab:hover {
-  transform: translateY(-2px);
-  border-color: rgba(161, 0, 255, 0.22);
-  background: rgba(161, 0, 255, 0.06);
-  box-shadow: 0 12px 24px rgba(70, 0, 115, 0.08);
+  transform: translateY(-1px);
+  color: #460073;
 }
 
 .modeTabActive {
-  border-color: rgba(161, 0, 255, 0.22);
-  background:
-    linear-gradient(135deg, rgba(161, 0, 255, 0.12), rgba(0, 140, 114, 0.07)),
-    rgba(255, 255, 255, 0.94);
   color: #460073;
-  box-shadow: 0 12px 26px rgba(70, 0, 115, 0.11);
 }
 
 .modeTabActive::after {
   opacity: 1;
   transform: scaleX(1);
-}
-
-.modeTabActive small {
-  color: #51425f;
 }
 
 .mapRow {
@@ -321,11 +359,41 @@
   display: grid;
   place-items: center;
   padding: 18px;
-  background: rgba(24, 21, 31, 0.62);
-  backdrop-filter: blur(5px);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 28% 18%, rgba(161, 0, 255, 0.18), transparent 30%),
+    radial-gradient(circle at 72% 78%, rgba(0, 140, 114, 0.16), transparent 28%),
+    rgba(24, 21, 31, 0.64);
+  animation: introBackdropIn 220ms ease both;
+  backdrop-filter: blur(7px);
+}
+
+.introBackdrop::before,
+.introBackdrop::after {
+  content: '';
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(161, 0, 255, 0.18), transparent 64%);
+  pointer-events: none;
+  animation: introFloat 5s ease-in-out infinite;
+}
+
+.introBackdrop::before {
+  left: 10%;
+  top: 18%;
+}
+
+.introBackdrop::after {
+  right: 8%;
+  bottom: 12%;
+  background: radial-gradient(circle, rgba(0, 140, 114, 0.16), transparent 64%);
+  animation-delay: 900ms;
 }
 
 .introModal {
+  position: relative;
   width: min(480px, 100%);
   display: flex;
   flex-direction: column;
@@ -337,7 +405,19 @@
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 30px 80px rgba(24, 21, 31, 0.34);
   text-align: center;
+  overflow: hidden;
   animation: introIn 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.introModal::before {
+  content: '';
+  position: absolute;
+  inset: -60% auto auto -34%;
+  width: 44%;
+  height: 220%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.58), transparent);
+  animation: introShine 2.4s ease 260ms both;
+  pointer-events: none;
 }
 
 .introSpark {
@@ -362,6 +442,26 @@
   line-height: 1.5;
 }
 
+.introSteps {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.introSteps span {
+  padding: 7px 10px;
+  border: 1px solid rgba(117, 0, 192, 0.12);
+  border-radius: 999px;
+  background: rgba(161, 0, 255, 0.07);
+  color: #460073;
+  font-size: 0.76rem;
+  font-weight: 900;
+  animation: introStepIn 300ms cubic-bezier(0.16, 1, 0.3, 1) calc(260ms + var(--step-delay, 0ms)) both;
+}
+
 .introModal button {
   margin-top: 6px;
   padding: 0 28px;
@@ -382,7 +482,6 @@
     0 0 0 3px rgba(255, 176, 0, 0.1);
 }
 
-:global([data-theme='dark']) .modeTab,
 :global([data-theme='dark']) .parkingOnlyPanel dl div,
 :global([data-theme='dark']) .introModal {
   background: rgba(21, 28, 38, 0.9);
@@ -390,20 +489,25 @@
 }
 
 :global([data-theme='dark']) .modeTab {
-  color: #f8f5ff;
+  color: #b9c3d0;
 }
 
-:global([data-theme='dark']) .modeTab small,
 :global([data-theme='dark']) .parkingOnlyPanel p,
 :global([data-theme='dark']) .parkingOnlyPanel dt,
 :global([data-theme='dark']) .introModal p {
   color: #b9c3d0;
 }
 
+:global([data-theme='dark']) .modeTabs {
+  border-color: rgba(161, 0, 255, 0.16);
+}
+
 :global([data-theme='dark']) .modeTabActive {
-  background:
-    linear-gradient(135deg, rgba(161, 0, 255, 0.18), rgba(0, 190, 154, 0.1)),
-    rgba(35, 47, 61, 0.96);
+  color: #ffffff;
+}
+
+:global([data-theme='dark']) .modeTab:hover {
+  color: #ffffff;
 }
 
 :global([data-theme='dark']) .parkingOnlyPanel {
@@ -415,6 +519,12 @@
 :global([data-theme='dark']) .parkingOnlyPanel h2,
 :global([data-theme='dark']) .parkingOnlyPanel dd,
 :global([data-theme='dark']) .introModal h2 {
+  color: #f8f5ff;
+}
+
+:global([data-theme='dark']) .introSteps span {
+  background: rgba(161, 0, 255, 0.12);
+  border-color: rgba(161, 0, 255, 0.18);
   color: #f8f5ff;
 }
 
@@ -494,12 +604,14 @@
   }
 
   .modeTabs {
-    grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
   }
 
   .modeTab {
-    min-height: 58px;
+    min-width: max-content;
+    min-height: 34px;
   }
 
   .mapCard {
@@ -546,7 +658,13 @@
   .filterCard,
   .mapCard,
   .modeTab,
+  .modeTabsIntro .modeTab,
   .parkingContinueBtn,
+  .introBackdrop,
+  .introBackdrop::before,
+  .introBackdrop::after,
+  .introModal::before,
+  .introSteps span,
   .introModal,
   .introSpark {
     animation: none;
