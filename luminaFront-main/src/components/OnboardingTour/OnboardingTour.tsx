@@ -25,12 +25,20 @@ type TargetRect = {
 
 type OnboardingTourProps = {
   role?: string
+  userId?: number | string | null
   restartKey: number
 }
 
-const STORAGE_PREFIX = 'workhub-onboarding-tour-v5'
+const STORAGE_PREFIX = 'workhub-onboarding-tour-v6'
+const ACTIVE_SESSION_KEY = 'workhub-onboarding-tour-active'
 const CARD_WIDTH = 390
 const VIEWPORT_GAP = 18
+
+type ActiveTourState = {
+  role: TourRole
+  userKey: string
+  stepIndex: number
+}
 
 function tourSelector(id: string): string {
   return `[data-tour="${id}"]`
@@ -52,6 +60,42 @@ function shouldOpenSidebar(step?: TourStep): boolean {
 function setSidebarTourState(open: boolean): void {
   if (open) document.body.setAttribute('data-tour-sidebar', 'open')
   else document.body.removeAttribute('data-tour-sidebar')
+}
+
+function getUserKey(userId: OnboardingTourProps['userId']): string {
+  return userId == null ? 'anonymous' : String(userId)
+}
+
+function readActiveTour(): ActiveTourState | null {
+  try {
+    const raw = window.sessionStorage.getItem(ACTIVE_SESSION_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<ActiveTourState>
+    if (!parsed.role || typeof parsed.stepIndex !== 'number' || !parsed.userKey) return null
+    return {
+      role: parsed.role,
+      userKey: parsed.userKey,
+      stepIndex: parsed.stepIndex,
+    }
+  } catch {
+    return null
+  }
+}
+
+function writeActiveTour(state: ActiveTourState): void {
+  try {
+    window.sessionStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(state))
+  } catch {
+    // Non-critical; the tour still works inside the current mounted page.
+  }
+}
+
+function clearActiveTour(): void {
+  try {
+    window.sessionStorage.removeItem(ACTIVE_SESSION_KEY)
+  } catch {
+    // Ignore storage failures.
+  }
 }
 
 const employeeSteps: TourStep[] = [
@@ -430,14 +474,65 @@ function getHighlightStyle(rect: TargetRect | null): CSSProperties | undefined {
   }
 }
 
-export function OnboardingTour({ role, restartKey }: OnboardingTourProps): JSX.Element | null {
+function getScrimStyles(rect: TargetRect | null): CSSProperties[] {
+  if (!rect) {
+    return [{
+      left: 0,
+      top: 0,
+      width: '100%',
+      height: '100%',
+    }]
+  }
+
+  const pad = 12
+  const left = clamp(rect.left - pad, 0, window.innerWidth)
+  const top = clamp(rect.top - pad, 0, window.innerHeight)
+  const right = clamp(rect.left + rect.width + pad, 0, window.innerWidth)
+  const bottom = clamp(rect.top + rect.height + pad, 0, window.innerHeight)
+  const height = Math.max(0, bottom - top)
+
+  return [
+    {
+      left: 0,
+      top: 0,
+      width: '100%',
+      height: top,
+    },
+    {
+      left: 0,
+      top: bottom,
+      width: '100%',
+      height: Math.max(0, window.innerHeight - bottom),
+    },
+    {
+      left: 0,
+      top,
+      width: left,
+      height,
+    },
+    {
+      left: right,
+      top,
+      width: Math.max(0, window.innerWidth - right),
+      height,
+    },
+  ]
+}
+
+export function OnboardingTour({ role, userId, restartKey }: OnboardingTourProps): JSX.Element | null {
   const navigate = useNavigate()
   const location = useLocation()
   const tourRole = getTourRole(role)
+  const userKey = getUserKey(userId)
   const steps = useMemo(() => STEPS_BY_ROLE[tourRole], [tourRole])
-  const storageKey = `${STORAGE_PREFIX}:${tourRole}`
-  const [active, setActive] = useState(false)
-  const [stepIndex, setStepIndex] = useState(0)
+  const storageKey = `${STORAGE_PREFIX}:${tourRole}:${userKey}`
+  const resumedTour = useMemo(() => {
+    const activeTour = readActiveTour()
+    if (!activeTour || activeTour.role !== tourRole || activeTour.userKey !== userKey) return null
+    return clamp(activeTour.stepIndex, 0, Math.max(0, steps.length - 1))
+  }, [steps.length, tourRole, userKey])
+  const [active, setActive] = useState(() => resumedTour !== null)
+  const [stepIndex, setStepIndex] = useState(() => resumedTour ?? 0)
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null)
   const targetRef = useRef<HTMLElement | null>(null)
   const autoStartedRef = useRef(false)
@@ -454,13 +549,15 @@ export function OnboardingTour({ role, restartKey }: OnboardingTourProps): JSX.E
     targetRef.current?.removeAttribute('data-tour-active-target')
     targetRef.current = null
     setSidebarTourState(false)
+    clearActiveTour()
     setActive(false)
   }, [storageKey])
 
   const startTour = useCallback(() => {
+    writeActiveTour({ role: tourRole, userKey, stepIndex: 0 })
     setStepIndex(0)
     setActive(true)
-  }, [])
+  }, [tourRole, userKey])
 
   useEffect(() => {
     if (restartKey <= 0) return
@@ -468,8 +565,17 @@ export function OnboardingTour({ role, restartKey }: OnboardingTourProps): JSX.E
   }, [restartKey, startTour])
 
   useEffect(() => {
-    if (autoStartedRef.current || restartKey > 0 || steps.length === 0) return
+    if (autoStartedRef.current || steps.length === 0) return
     autoStartedRef.current = true
+
+    const activeTour = readActiveTour()
+    if (activeTour && activeTour.role === tourRole && activeTour.userKey === userKey) {
+      setStepIndex(clamp(activeTour.stepIndex, 0, steps.length - 1))
+      setActive(true)
+      return
+    }
+
+    if (restartKey > 0) return
 
     let seen = false
     try {
@@ -482,7 +588,12 @@ export function OnboardingTour({ role, restartKey }: OnboardingTourProps): JSX.E
     if (seen) return
     const id = window.setTimeout(() => startTour(), 650)
     return () => window.clearTimeout(id)
-  }, [restartKey, startTour, steps.length, storageKey])
+  }, [restartKey, startTour, steps.length, storageKey, tourRole, userKey])
+
+  useEffect(() => {
+    if (!active || !currentStep) return
+    writeActiveTour({ role: tourRole, userKey, stepIndex })
+  }, [active, currentStep, stepIndex, tourRole, userKey])
 
   useEffect(() => {
     if (!active || !currentStep) return
@@ -516,7 +627,6 @@ export function OnboardingTour({ role, restartKey }: OnboardingTourProps): JSX.E
     setSidebarTourState(needsSidebar)
     targetRef.current?.removeAttribute('data-tour-active-target')
     targetRef.current = null
-    setTargetRect(null)
 
     function locateTarget() {
       if (cancelled) return
@@ -529,8 +639,11 @@ export function OnboardingTour({ role, restartKey }: OnboardingTourProps): JSX.E
         targetRef.current = element
         element.setAttribute('data-tour-active-target', 'true')
         element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
-        window.setTimeout(updateTargetRect, needsSidebar ? 320 : 220)
-        window.setTimeout(updateTargetRect, needsSidebar ? 460 : 340)
+        window.requestAnimationFrame(() => {
+          updateTargetRect()
+          window.setTimeout(updateTargetRect, needsSidebar ? 300 : 180)
+          window.setTimeout(updateTargetRect, needsSidebar ? 480 : 320)
+        })
         return
       }
 
@@ -569,27 +682,43 @@ export function OnboardingTour({ role, restartKey }: OnboardingTourProps): JSX.E
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') finishTour()
       if (event.key === 'ArrowRight') {
-        setStepIndex((index) => index >= steps.length - 1 ? index : index + 1)
+        setStepIndex((index) => {
+          const next = index >= steps.length - 1 ? index : index + 1
+          writeActiveTour({ role: tourRole, userKey, stepIndex: next })
+          return next
+        })
       }
       if (event.key === 'ArrowLeft') {
-        setStepIndex((index) => Math.max(0, index - 1))
+        setStepIndex((index) => {
+          const next = Math.max(0, index - 1)
+          writeActiveTour({ role: tourRole, userKey, stepIndex: next })
+          return next
+        })
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [active, finishTour, steps.length])
+  }, [active, finishTour, steps.length, tourRole, userKey])
 
   if (!active || !currentStep) return null
 
   const placement = getTooltipPlacement(currentStep, targetRect)
   const tooltipStyle = getTooltipStyle(targetRect, placement)
   const highlightStyle = getHighlightStyle(targetRect)
+  const scrimStyles = getScrimStyles(targetRect)
   const isLastStep = stepIndex === steps.length - 1
 
   return (
     <div className={styles.root} aria-live="polite">
-      <div className={styles.scrim} />
+      {scrimStyles.map((style, index) => (
+        <div
+          // The pieces intentionally leave the active element uncovered.
+          key={`${currentStep.id}-scrim-${index}`}
+          className={`${styles.scrim} ${targetRect ? styles.scrimPiece : styles.scrimFull}`}
+          style={style}
+        />
+      ))}
       <div className={styles.ambientOne} aria-hidden="true" />
       <div className={styles.ambientTwo} aria-hidden="true" />
 
@@ -638,7 +767,11 @@ export function OnboardingTour({ role, restartKey }: OnboardingTourProps): JSX.E
             <button
               type="button"
               className={styles.secondaryBtn}
-              onClick={() => setStepIndex((index) => Math.max(0, index - 1))}
+              onClick={() => setStepIndex((index) => {
+                const next = Math.max(0, index - 1)
+                writeActiveTour({ role: tourRole, userKey, stepIndex: next })
+                return next
+              })}
               disabled={stepIndex === 0}
             >
               Atrás
@@ -648,7 +781,11 @@ export function OnboardingTour({ role, restartKey }: OnboardingTourProps): JSX.E
               className={styles.primaryBtn}
               onClick={() => {
                 if (isLastStep) finishTour()
-                else setStepIndex((index) => index + 1)
+                else setStepIndex((index) => {
+                  const next = index + 1
+                  writeActiveTour({ role: tourRole, userKey, stepIndex: next })
+                  return next
+                })
               }}
             >
               {isLastStep ? 'Finalizar' : 'Siguiente'}

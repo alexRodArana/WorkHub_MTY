@@ -124,7 +124,9 @@ const guardNavItem = {
 export default function AppShell({ title, subtitle, children, action, noscroll }: AppShellProps): JSX.Element {
   const location = useLocation()
   const navigate = useNavigate()
-  const role = getSession()?.user.role.toLowerCase() ?? ''
+  const session = getSession()
+  const role = session?.user.role.toLowerCase() ?? ''
+  const userId = session?.user.id ?? null
   const isGuard = isGuardRole(role)
   const isAdmin = isAdminRole(role)
   const [theme, setTheme] = useState<ThemeMode>(() => getInitialTheme())
@@ -266,7 +268,7 @@ export default function AppShell({ title, subtitle, children, action, noscroll }
           </section>
         </main>
 
-        <OnboardingTour role={role} restartKey={tourRestartKey} />
+        <OnboardingTour role={role} userId={userId} restartKey={tourRestartKey} />
 
       </div>
     </div>

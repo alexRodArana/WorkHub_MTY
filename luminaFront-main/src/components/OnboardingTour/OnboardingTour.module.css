@@ -6,11 +6,11 @@
 @keyframes tourCardIn {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.97);
+    filter: blur(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }
 
@@ -61,18 +61,33 @@
 }
 
 .scrim {
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  z-index: 1;
   background:
     radial-gradient(circle at 22% 16%, rgba(161, 0, 255, 0.09), transparent 30%),
     radial-gradient(circle at 78% 76%, rgba(0, 140, 114, 0.07), transparent 26%),
-    rgba(15, 12, 20, 0.28);
-  backdrop-filter: blur(0.8px);
+    rgba(15, 12, 20, 0.3);
+  backdrop-filter: blur(1.4px);
+  transition:
+    left 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    top 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    width 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    height 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 180ms ease;
+}
+
+.scrimPiece {
+  pointer-events: none;
+}
+
+.scrimFull {
+  pointer-events: none;
 }
 
 .ambientOne,
 .ambientTwo {
   position: absolute;
+  z-index: 0;
   width: 320px;
   height: 320px;
   border-radius: 999px;
@@ -98,6 +113,7 @@
 
 .highlight {
   position: fixed;
+  z-index: 2;
   border-radius: 20px;
   border: 2px solid rgba(255, 176, 0, 0.96);
   box-shadow:
@@ -108,10 +124,12 @@
   overflow: hidden;
   pointer-events: none;
   transition:
-    left 230ms cubic-bezier(0.16, 1, 0.3, 1),
-    top 230ms cubic-bezier(0.16, 1, 0.3, 1),
-    width 230ms cubic-bezier(0.16, 1, 0.3, 1),
-    height 230ms cubic-bezier(0.16, 1, 0.3, 1);
+    left 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    top 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    width 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    height 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 220ms ease;
+  will-change: left, top, width, height;
 }
 
 .highlightPulse {
@@ -126,12 +144,13 @@
   position: absolute;
   inset: -20% auto -20% -40%;
   width: 42%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
   animation: tourScan 2.4s ease-in-out infinite;
 }
 
 .card {
   position: fixed;
+  z-index: 4;
   width: min(390px, calc(100vw - 36px));
   display: flex;
   flex-direction: column;
@@ -148,6 +167,12 @@
   overflow: hidden;
   pointer-events: auto;
   animation: tourCardIn 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition:
+    left 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    top 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms ease;
+  will-change: left, top, transform;
 }
 
 .cardGlow {
