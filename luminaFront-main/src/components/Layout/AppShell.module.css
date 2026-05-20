@@ -92,6 +92,11 @@
   width: 240px;
 }
 
+:global(body[data-tour-sidebar='open']) .sidebarZone,
+:global(body[data-tour-sidebar='open']) .sidebarZone:hover {
+  width: 240px;
+}
+
 /* ── Sidebar panel ─────────────────────────────────────────────── */
 
 .sidebar {
@@ -158,6 +163,11 @@
 .sidebarZone:not(:hover) .brandText {
   opacity: 0;
   transition: opacity 120ms ease;
+}
+
+:global(body[data-tour-sidebar='open']) .sidebarZone:not(:hover) .brandText {
+  opacity: 1;
+  transition: opacity 180ms ease 80ms;
 }
 
 .brandTitle {
@@ -242,6 +252,11 @@
   transition: opacity 100ms ease;
 }
 
+:global(body[data-tour-sidebar='open']) .sidebarZone:not(:hover) .navLabel {
+  opacity: 1;
+  transition: opacity 180ms ease 80ms;
+}
+
 /* ── Sidebar footer ─────────────────────────────────────────────── */
 
 .sidebarFooter {
@@ -290,6 +305,11 @@
 .sidebarZone:not(:hover) .logoutLabel {
   opacity: 0;
   transition: opacity 100ms ease;
+}
+
+:global(body[data-tour-sidebar='open']) .sidebarZone:not(:hover) .logoutLabel {
+  opacity: 1;
+  transition: opacity 180ms ease 80ms;
 }
 
 /* ── Main ───────────────────────────────────────────────────────── */
@@ -570,6 +590,11 @@
     overflow: visible;
     z-index: 100;
     transition: none;
+  }
+
+  :global(body[data-tour-sidebar='open']) .sidebarZone,
+  :global(body[data-tour-sidebar='open']) .sidebarZone:hover {
+    width: 100%;
   }
 
   .sidebar {

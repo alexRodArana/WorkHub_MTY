@@ -28,7 +28,7 @@ type OnboardingTourProps = {
   restartKey: number
 }
 
-const STORAGE_PREFIX = 'workhub-onboarding-tour-v4'
+const STORAGE_PREFIX = 'workhub-onboarding-tour-v5'
 const CARD_WIDTH = 390
 const VIEWPORT_GAP = 18
 
@@ -40,6 +40,18 @@ function getTourRole(role?: string): TourRole {
   if (isGuardRole(role)) return 'guard'
   if (isAdminRole(role)) return 'admin'
   return 'employee'
+}
+
+function shouldOpenSidebar(step?: TourStep): boolean {
+  if (!step?.selector) return false
+  return step.selector.includes('main-navigation') ||
+    step.selector.includes('nav-') ||
+    step.selector.includes('brand')
+}
+
+function setSidebarTourState(open: boolean): void {
+  if (open) document.body.setAttribute('data-tour-sidebar', 'open')
+  else document.body.removeAttribute('data-tour-sidebar')
 }
 
 const employeeSteps: TourStep[] = [
@@ -57,8 +69,8 @@ const employeeSteps: TourStep[] = [
     route: '/dashboard',
     selector: tourSelector('main-navigation'),
     eyebrow: 'Navegación',
-    title: 'Tus pestañas principales',
-    body: 'Desde la barra lateral puedes moverte entre Inicio, Nueva Reserva, Mis Reservas, Logros y Perfil. En móvil esta navegación aparece abajo.',
+    title: 'Tus pestañas principales siempre a mano',
+    body: 'La barra se expande automáticamente durante esta guía para que veas los nombres. Aquí entras a Inicio, Nueva Reserva, Mis Reservas, Logros y Perfil.',
     placement: 'right',
   },
   {
@@ -84,45 +96,54 @@ const employeeSteps: TourStep[] = [
     route: '/dashboard',
     selector: tourSelector('nav-new-reservation'),
     eyebrow: 'Nueva Reserva',
-    title: 'Crea reservas desde aquí',
-    body: 'Esta pestaña concentra el flujo para reservar escritorio con estacionamiento, solo escritorio o solo estacionamiento.',
+    title: 'Empieza el flujo de reserva',
+    body: 'Para reservar, entra primero a Nueva Reserva. Ahí eliges el tipo de reserva, defines fecha y horario, revisas el mapa y confirmas.',
     placement: 'right',
   },
   {
     id: 'employee-reservation-modes',
     route: '/nueva-reserva',
     selector: tourSelector('reservation-modes'),
-    eyebrow: 'Tipo de reserva',
-    title: 'Elige el modo correcto',
-    body: 'Usa estas tabs para decidir si necesitas escritorio con estacionamiento, únicamente escritorio o únicamente estacionamiento.',
+    eyebrow: 'Paso 1',
+    title: 'Selecciona qué quieres reservar',
+    body: 'Elige una de las tres tabs: Escritorio + estacionamiento si necesitas ambos, Solo escritorio si no ocupas cajón, o Solo estacionamiento si únicamente necesitas acceso al parking.',
     placement: 'bottom',
   },
   {
     id: 'employee-reservation-filters',
     route: '/nueva-reserva',
     selector: tourSelector('reservation-filters'),
-    eyebrow: 'Filtros',
-    title: 'Fecha, horario y zona',
-    body: 'Define cuándo quieres asistir y, si aplica, filtra por zona. El mapa se actualiza con disponibilidad real sin tener que recargar.',
+    eyebrow: 'Paso 2',
+    title: 'Define fecha, horario y zona',
+    body: 'Después selecciona fecha, hora de inicio, hora de fin y una zona opcional. Con esos datos el sistema consulta disponibilidad real y actualiza el mapa sin recargar.',
     placement: 'bottom',
   },
   {
     id: 'employee-floor-tabs',
     route: '/nueva-reserva',
     selector: tourSelector('floor-tabs'),
-    eyebrow: 'Pisos',
-    title: 'Cambia de piso sin perder contexto',
-    body: 'Las tabs de piso cargan el plano completo. Si Gemini recomienda espacios en otro piso, verás el brillo en la tab correspondiente.',
+    eyebrow: 'Paso 3',
+    title: 'Revisa el piso que prefieras',
+    body: 'Cambia entre pisos para ver sus planos completos. Si Gemini recomienda escritorios en otro piso, la tab del piso muestra un brillo con el número de sugerencias.',
     placement: 'bottom',
   },
   {
     id: 'employee-map',
     route: '/nueva-reserva',
     selector: tourSelector('floor-map'),
-    eyebrow: 'Mapa interactivo',
-    title: 'Reserva directamente en el plano',
-    body: 'Los escritorios y salas muestran disponibilidad, ocupantes, fotos de perfil y horario ocupado. Las recomendaciones IA aparecen con un brillo animado.',
+    eyebrow: 'Paso 4',
+    title: 'Selecciona tu lugar en el mapa',
+    body: 'Haz clic sobre un escritorio disponible. El hover grande te muestra piso, nombre del lugar, ocupantes, foto y horario ocupado. Las recomendaciones de Gemini aparecen con brillo animado.',
     placement: 'left',
+  },
+  {
+    id: 'employee-reservation-confirm',
+    route: '/nueva-reserva',
+    selector: tourSelector('reservation-map'),
+    eyebrow: 'Paso 5',
+    title: 'Confirma según el tipo de reserva',
+    body: 'Si elegiste escritorio, al seleccionar un lugar se abre el panel lateral para confirmar. Si elegiste solo estacionamiento, no necesitas mapa: revisa fecha y horario y presiona Continuar.',
+    placement: 'top',
   },
   {
     id: 'employee-ai',
@@ -138,8 +159,8 @@ const employeeSteps: TourStep[] = [
     route: '/mis-reservas',
     selector: tourSelector('my-reservations-tabs'),
     eyebrow: 'Mis Reservas',
-    title: 'Activas e historial',
-    body: 'Aquí distingues reservas de escritorio, estacionamiento o ambas, haces check-in, cancelas cuando aplique y revisas tu historial.',
+    title: 'Consulta reservas activas e historial',
+    body: 'En Activas ves lo que aún puedes usar o cancelar. En Historial revisas reservas pasadas, canceladas, no-show y registros con check-in.',
     placement: 'bottom',
   },
   {
@@ -147,8 +168,8 @@ const employeeSteps: TourStep[] = [
     route: '/mis-reservas',
     selector: tourSelector('my-reservations-list'),
     eyebrow: 'Gestión',
-    title: 'Tarjetas con acciones claras',
-    body: 'Cada tarjeta muestra tipo de reserva, piso, horario, código, estacionamiento asignado y acciones disponibles según su estado.',
+    title: 'Identifica el tipo de cada reserva',
+    body: 'Cada tarjeta indica si es Solo estacionamiento, Solo escritorio o Escritorio + estacionamiento. También muestra piso, horario, código, cajón asignado y acciones disponibles.',
     placement: 'top',
   },
   {
@@ -432,6 +453,7 @@ export function OnboardingTour({ role, restartKey }: OnboardingTourProps): JSX.E
     }
     targetRef.current?.removeAttribute('data-tour-active-target')
     targetRef.current = null
+    setSidebarTourState(false)
     setActive(false)
   }, [storageKey])
 
@@ -451,7 +473,8 @@ export function OnboardingTour({ role, restartKey }: OnboardingTourProps): JSX.E
 
     let seen = false
     try {
-      seen = window.localStorage.getItem(storageKey) === 'done'
+      const seenValue = window.localStorage.getItem(storageKey)
+      seen = seenValue === 'done' || seenValue === '1'
     } catch {
       seen = false
     }
@@ -489,6 +512,8 @@ export function OnboardingTour({ role, restartKey }: OnboardingTourProps): JSX.E
 
     let cancelled = false
     let attempts = 0
+    const needsSidebar = shouldOpenSidebar(currentStep)
+    setSidebarTourState(needsSidebar)
     targetRef.current?.removeAttribute('data-tour-active-target')
     targetRef.current = null
     setTargetRect(null)
@@ -504,7 +529,8 @@ export function OnboardingTour({ role, restartKey }: OnboardingTourProps): JSX.E
         targetRef.current = element
         element.setAttribute('data-tour-active-target', 'true')
         element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
-        window.setTimeout(updateTargetRect, 260)
+        window.setTimeout(updateTargetRect, needsSidebar ? 320 : 220)
+        window.setTimeout(updateTargetRect, needsSidebar ? 460 : 340)
         return
       }
 
@@ -524,6 +550,7 @@ export function OnboardingTour({ role, restartKey }: OnboardingTourProps): JSX.E
       window.clearTimeout(id)
       targetRef.current?.removeAttribute('data-tour-active-target')
       targetRef.current = null
+      setSidebarTourState(false)
     }
   }, [active, currentStep, location.pathname, updateTargetRect])
 

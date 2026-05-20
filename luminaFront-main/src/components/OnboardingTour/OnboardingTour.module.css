@@ -64,10 +64,10 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 22% 16%, rgba(161, 0, 255, 0.2), transparent 30%),
-    radial-gradient(circle at 78% 76%, rgba(0, 140, 114, 0.16), transparent 26%),
-    rgba(15, 12, 20, 0.62);
-  backdrop-filter: blur(4px);
+    radial-gradient(circle at 22% 16%, rgba(161, 0, 255, 0.09), transparent 30%),
+    radial-gradient(circle at 78% 76%, rgba(0, 140, 114, 0.07), transparent 26%),
+    rgba(15, 12, 20, 0.28);
+  backdrop-filter: blur(0.8px);
 }
 
 .ambientOne,
@@ -85,6 +85,7 @@
   left: 8%;
   top: 10%;
   background: radial-gradient(circle, rgba(161, 0, 255, 0.16), transparent 67%);
+  opacity: 0.42;
 }
 
 .ambientTwo {
@@ -92,6 +93,7 @@
   bottom: 8%;
   background: radial-gradient(circle, rgba(255, 176, 0, 0.13), transparent 68%);
   animation-delay: 850ms;
+  opacity: 0.34;
 }
 
 .highlight {
@@ -99,7 +101,7 @@
   border-radius: 20px;
   border: 2px solid rgba(255, 176, 0, 0.96);
   box-shadow:
-    0 0 0 9999px rgba(0, 0, 0, 0.1),
+    0 0 0 9999px rgba(0, 0, 0, 0.045),
     0 0 0 7px rgba(255, 176, 0, 0.16),
     0 18px 48px rgba(0, 0, 0, 0.22),
     0 0 34px rgba(255, 176, 0, 0.34);
@@ -391,7 +393,11 @@
 
 @media (max-width: 760px) {
   .scrim {
-    backdrop-filter: blur(3px);
+    background:
+      radial-gradient(circle at 22% 16%, rgba(161, 0, 255, 0.08), transparent 32%),
+      radial-gradient(circle at 78% 76%, rgba(0, 140, 114, 0.06), transparent 30%),
+      rgba(15, 12, 20, 0.24);
+    backdrop-filter: blur(0.5px);
   }
 
   .highlight {
