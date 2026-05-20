@@ -258,7 +258,7 @@ export function DashboardPage(): JSX.Element {
         )}
 
         {/* Greeting */}
-        <div className={styles.greeting}>
+        <div className={styles.greeting} data-tour="dashboard-greeting">
           <p className={styles.greetingDate}>{formatTodayFull()}</p>
           <h2 className={styles.greetingName}>{getGreeting(firstName)}</h2>
         </div>
@@ -273,7 +273,7 @@ export function DashboardPage(): JSX.Element {
           <>
             {/* ── STREAK WIDGET ─────────────────────────────────── */}
             {streak && (
-              <div className={styles.streakCard}>
+              <div className={styles.streakCard} data-tour="dashboard-streak">
                 <span className={styles.streakFire}>
                   {streak.current_streak >= 10 ? '🔥' : streak.current_streak >= 3 ? '⚡' : '✨'}
                 </span>
@@ -291,7 +291,7 @@ export function DashboardPage(): JSX.Element {
             )}
 
             {/* ── TODAY SECTION ─────────────────────────────────── */}
-            <div className={styles.section}>
+            <div className={styles.section} data-tour="dashboard-today">
               <p className={styles.sectionLabel}>Hoy</p>
 
               {todayReservation ? (
@@ -389,7 +389,7 @@ export function DashboardPage(): JSX.Element {
             </div>
 
             {/* ── QUICK ACTIONS ─────────────────────────────────── */}
-            <div className={styles.quickActionsGrid}>
+            <div className={styles.quickActionsGrid} data-tour="dashboard-actions">
               <Link to="/nueva-reserva" className={styles.actionCard}>
                 <span className={styles.actionIcon}>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -423,7 +423,7 @@ export function DashboardPage(): JSX.Element {
 
             {/* ── RECENT HISTORY ────────────────────────────────── */}
             {recentHistory.length > 0 && (
-              <div className={styles.section}>
+              <div className={styles.section} data-tour="dashboard-history">
                 <div className={styles.sectionHeader}>
                   <p className={styles.sectionLabel}>Historial reciente</p>
                   <Link to="/mis-reservas" className={styles.sectionLink}>Ver todo →</Link>
@@ -451,7 +451,7 @@ export function DashboardPage(): JSX.Element {
             )}
 
             {/* ── BADGE PREVIEW ─────────────────────────────────── */}
-            <div className={styles.section}>
+            <div className={styles.section} data-tour="dashboard-badges">
               <div className={styles.sectionHeader}>
                 <p className={styles.sectionLabel}>Logros recientes</p>
                 <Link to="/logros" className={styles.sectionLink}>Ver todos →</Link>

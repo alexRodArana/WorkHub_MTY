@@ -422,7 +422,7 @@ export function FilterPanel({
   return (
     <form className={styles.panel} onSubmit={handleSubmit} noValidate>
       <div className={styles.grid}>
-        <div className={styles.field}>
+        <div className={styles.field} data-tour="reservation-date-field">
           <label className={`${styles.label} ${dateFilled ? styles.labelFilled : ''}`} htmlFor="filter-date">
             Fecha{dateFilled && <span className={styles.check}>✓</span>}
           </label>
@@ -457,7 +457,7 @@ export function FilterPanel({
           )}
         </div>
 
-        <div className={styles.field}>
+        <div className={styles.field} data-tour="reservation-start-field">
           <label className={`${styles.label} ${startFilled ? styles.labelFilled : ''}`} htmlFor="filter-start">
             Hora inicio{startFilled && <span className={styles.check}>✓</span>}
           </label>
@@ -479,7 +479,7 @@ export function FilterPanel({
           )}
         </div>
 
-        <div className={styles.field}>
+        <div className={styles.field} data-tour="reservation-end-field">
           <label className={`${styles.label} ${endFilled ? styles.labelFilled : ''}`} htmlFor="filter-end">
             Hora fin{endFilled && <span className={styles.check}>✓</span>}
           </label>
@@ -501,7 +501,7 @@ export function FilterPanel({
           )}
         </div>
 
-        <div className={styles.field}>
+        <div className={styles.field} data-tour="reservation-zone-field">
           <label className={`${styles.label} ${zonaFilled ? styles.labelFilled : ''}`} htmlFor="filter-category">
             Zona{zonaFilled && <span className={styles.check}>✓</span>}
           </label>

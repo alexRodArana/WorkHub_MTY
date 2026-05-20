@@ -170,7 +170,7 @@ export function AdminManagementPage(): JSX.Element {
   return (
     <AppShell title="Gestión" subtitle="Bloqueo de espacios por fecha y horario">
       <div className={styles.page}>
-        <section className={styles.controlPanel}>
+        <section className={styles.controlPanel} data-tour="management-controls">
           <div className={styles.controlCopy}>
             <span>Bloqueo operativo</span>
             <strong>Selecciona un espacio directamente en el mapa</strong>
@@ -206,7 +206,7 @@ export function AdminManagementPage(): JSX.Element {
         {error && <div className={styles.errorMsg}>{error}</div>}
         {message && <div className={styles.successMsg}>{message}</div>}
 
-        <section className={styles.mapPanel}>
+        <section className={styles.mapPanel} data-tour="management-map">
           <FloorMap
             floorId={null}
             availableSpaces={[]}
@@ -223,7 +223,7 @@ export function AdminManagementPage(): JSX.Element {
           />
         </section>
 
-        <section className={styles.blockPanel}>
+        <section className={styles.blockPanel} data-tour="management-blocks">
           <div className={styles.cardHeader}>
             <span>Bloqueos del día</span>
             <strong>{dateBlocks.length}</strong>

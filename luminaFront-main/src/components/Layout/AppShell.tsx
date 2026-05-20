@@ -4,6 +4,7 @@ import { clearSession, getSession } from '../../services/tokenStore'
 import { isAdminRole, isGuardRole } from '../../utils/roleRouting'
 import { applyTheme, getInitialTheme, type ThemeMode } from '../../utils/theme'
 import { AiAssistantWidget } from '../AiAssistant/AiAssistantWidget'
+import { OnboardingTour } from '../OnboardingTour/OnboardingTour'
 import styles from './AppShell.module.css'
 import accGtDimensional from '../../assets/Acc_GT_Dimensional_RGB.png'
 
@@ -19,6 +20,7 @@ const baseNavItems = [
   {
     to: '/dashboard',
     label: 'Dashboard',
+    tourId: 'nav-dashboard',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
@@ -29,6 +31,7 @@ const baseNavItems = [
   {
     to: '/nueva-reserva',
     label: 'Nueva Reserva',
+    tourId: 'nav-new-reservation',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -43,6 +46,7 @@ const baseNavItems = [
   {
     to: '/mis-reservas',
     label: 'Mis Reservas',
+    tourId: 'nav-my-reservations',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="8" y1="6" x2="21" y2="6"/>
@@ -57,6 +61,7 @@ const baseNavItems = [
   {
     to: '/logros',
     label: 'Logros',
+    tourId: 'nav-badges',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="8" r="6"/>
@@ -67,6 +72,7 @@ const baseNavItems = [
   {
     to: '/perfil',
     label: 'Perfil',
+    tourId: 'nav-profile',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 21a8 8 0 10-16 0"/>
@@ -79,6 +85,7 @@ const baseNavItems = [
 const adminDashboardNavItem = {
   to: '/admin',
   label: 'Dashboard',
+  tourId: 'nav-admin-dashboard',
   icon: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 3v18h18"/>
@@ -92,6 +99,7 @@ const adminDashboardNavItem = {
 const adminManagementNavItem = {
   to: '/admin/gestion',
   label: 'Gestión',
+  tourId: 'nav-admin-management',
   icon: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 8l9-5 9 5-9 5-9-5Z" />
@@ -104,6 +112,7 @@ const adminManagementNavItem = {
 const guardNavItem = {
   to: '/guardia',
   label: 'Guardia',
+  tourId: 'nav-guard',
   icon: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -119,6 +128,7 @@ export default function AppShell({ title, subtitle, children, action, noscroll }
   const isGuard = isGuardRole(role)
   const isAdmin = isAdminRole(role)
   const [theme, setTheme] = useState<ThemeMode>(() => getInitialTheme())
+  const [tourRestartKey, setTourRestartKey] = useState(0)
   const navItems = isGuard
     ? [guardNavItem]
     : isAdmin
@@ -145,7 +155,7 @@ export default function AppShell({ title, subtitle, children, action, noscroll }
         <div className={styles.sidebarZone}>
           <aside className={styles.sidebar}>
 
-            <div className={styles.brand}>
+            <div className={styles.brand} data-tour="brand">
               <div className={styles.brandIconArea}>
                 <div className={styles.brandMark}>
                   <img src={accGtDimensional} alt="" className={styles.brandMarkImg} />
@@ -157,13 +167,14 @@ export default function AppShell({ title, subtitle, children, action, noscroll }
               </div>
             </div>
 
-            <nav className={styles.nav}>
+            <nav className={styles.nav} data-tour="main-navigation">
               {navItems.map((item) => {
                 const isActive = location.pathname === item.to
                 return (
                   <Link
                     key={item.to}
                     to={item.to}
+                    data-tour={item.tourId}
                     className={`${styles.navLink} ${isActive ? styles.navLinkActive : ''}`}
                   >
                     <span className={styles.navIconWrap}>{item.icon}</span>
@@ -195,20 +206,36 @@ export default function AppShell({ title, subtitle, children, action, noscroll }
         </div>
 
         <main className={styles.main}>
-          <header className={styles.topbar}>
+          <header className={styles.topbar} data-tour="page-header">
             <div className={styles.topbarCopy}>
               <h2 className={styles.pageTitle}>{title}</h2>
               {subtitle ? <p className={styles.pageSubtitle}>{subtitle}</p> : null}
             </div>
             <div className={styles.topbarActions}>
               {action ? <div className={styles.actionSlot}>{action}</div> : null}
-              {!isGuard ? <AiAssistantWidget /> : null}
+              {!isGuard ? (
+                <div data-tour="ai-assistant">
+                  <AiAssistantWidget />
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className={styles.guideButton}
+                onClick={() => setTourRestartKey((value) => value + 1)}
+                aria-label="Abrir guía de uso"
+                title="Guía de uso"
+                data-tour="guide-button"
+              >
+                <span aria-hidden="true">?</span>
+                <b>Guía</b>
+              </button>
               <button
                 type="button"
                 className={styles.themeToggle}
                 onClick={toggleTheme}
                 aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
                 title={theme === 'dark' ? 'Tema claro' : 'Tema oscuro'}
+                data-tour="theme-toggle"
               >
                 {theme === 'dark' ? (
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -238,6 +265,8 @@ export default function AppShell({ title, subtitle, children, action, noscroll }
             {children}
           </section>
         </main>
+
+        <OnboardingTour role={role} restartKey={tourRestartKey} />
 
       </div>
     </div>

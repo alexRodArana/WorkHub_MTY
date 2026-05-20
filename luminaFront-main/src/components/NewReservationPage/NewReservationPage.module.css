@@ -29,82 +29,6 @@
   }
 }
 
-@keyframes modeTabSpotlight {
-  0% {
-    box-shadow: 0 0 0 rgba(161, 0, 255, 0);
-  }
-  38% {
-    box-shadow: 0 0 0 5px rgba(161, 0, 255, 0.08);
-  }
-  100% {
-    box-shadow: 0 0 0 rgba(161, 0, 255, 0);
-  }
-}
-
-@keyframes introIn {
-  from {
-    opacity: 0;
-    transform: translateY(18px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes introBackdropIn {
-  from {
-    opacity: 0;
-    backdrop-filter: blur(0);
-  }
-  to {
-    opacity: 1;
-    backdrop-filter: blur(7px);
-  }
-}
-
-@keyframes introFloat {
-  0%, 100% {
-    transform: translate3d(0, 0, 0) scale(1);
-    opacity: 0.38;
-  }
-  50% {
-    transform: translate3d(10px, -12px, 0) scale(1.08);
-    opacity: 0.68;
-  }
-}
-
-@keyframes introSpark {
-  0%, 100% {
-    opacity: 0.74;
-    transform: scale(0.92) rotate(-4deg);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.12) rotate(4deg);
-  }
-}
-
-@keyframes introStepIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes introShine {
-  from {
-    transform: translateX(-140%) rotate(12deg);
-  }
-  to {
-    transform: translateX(140%) rotate(12deg);
-  }
-}
-
 .filterSection {
   width: 100%;
   flex-shrink: 0;
@@ -156,12 +80,6 @@
   opacity: 0;
   transform: scaleX(0.4);
   transition: opacity 180ms ease, transform 180ms ease;
-}
-
-.modeTabsIntro .modeTab {
-  animation:
-    modeTabIn 280ms cubic-bezier(0.16, 1, 0.3, 1) var(--tab-delay, 0ms) both,
-    modeTabSpotlight 1.15s ease calc(var(--tab-delay, 0ms) + 360ms) both;
 }
 
 .modeTab span {
@@ -321,8 +239,7 @@
   font-weight: 900;
 }
 
-.parkingContinueBtn,
-.introModal button {
+.parkingContinueBtn {
   min-height: 46px;
   border: none;
   border-radius: 14px;
@@ -340,8 +257,7 @@
   padding: 0 34px;
 }
 
-.parkingContinueBtn:hover:not(:disabled),
-.introModal button:hover {
+.parkingContinueBtn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 16px 34px rgba(117, 0, 192, 0.32);
 }
@@ -350,121 +266,6 @@
   opacity: 0.55;
   cursor: not-allowed;
   transform: none;
-}
-
-.introBackdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1100;
-  display: grid;
-  place-items: center;
-  padding: 18px;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 28% 18%, rgba(161, 0, 255, 0.18), transparent 30%),
-    radial-gradient(circle at 72% 78%, rgba(0, 140, 114, 0.16), transparent 28%),
-    rgba(24, 21, 31, 0.64);
-  animation: introBackdropIn 220ms ease both;
-  backdrop-filter: blur(7px);
-}
-
-.introBackdrop::before,
-.introBackdrop::after {
-  content: '';
-  position: absolute;
-  width: 260px;
-  height: 260px;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(161, 0, 255, 0.18), transparent 64%);
-  pointer-events: none;
-  animation: introFloat 5s ease-in-out infinite;
-}
-
-.introBackdrop::before {
-  left: 10%;
-  top: 18%;
-}
-
-.introBackdrop::after {
-  right: 8%;
-  bottom: 12%;
-  background: radial-gradient(circle, rgba(0, 140, 114, 0.16), transparent 64%);
-  animation-delay: 900ms;
-}
-
-.introModal {
-  position: relative;
-  width: min(480px, 100%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 13px;
-  padding: 28px;
-  border: 1px solid rgba(161, 0, 255, 0.14);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 30px 80px rgba(24, 21, 31, 0.34);
-  text-align: center;
-  overflow: hidden;
-  animation: introIn 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.introModal::before {
-  content: '';
-  position: absolute;
-  inset: -60% auto auto -34%;
-  width: 44%;
-  height: 220%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.58), transparent);
-  animation: introShine 2.4s ease 260ms both;
-  pointer-events: none;
-}
-
-.introSpark {
-  font-size: 2rem;
-  line-height: 1;
-  filter: drop-shadow(0 0 14px rgba(255, 176, 0, 0.45));
-  animation: introSpark 1.8s ease-in-out infinite;
-}
-
-.introModal h2 {
-  margin: 0;
-  color: #18151f;
-  font-size: 1.35rem;
-  line-height: 1.1;
-}
-
-.introModal p {
-  margin: 0;
-  color: #6b6380;
-  font-size: 0.94rem;
-  font-weight: 650;
-  line-height: 1.5;
-}
-
-.introSteps {
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 2px;
-}
-
-.introSteps span {
-  padding: 7px 10px;
-  border: 1px solid rgba(117, 0, 192, 0.12);
-  border-radius: 999px;
-  background: rgba(161, 0, 255, 0.07);
-  color: #460073;
-  font-size: 0.76rem;
-  font-weight: 900;
-  animation: introStepIn 300ms cubic-bezier(0.16, 1, 0.3, 1) calc(260ms + var(--step-delay, 0ms)) both;
-}
-
-.introModal button {
-  margin-top: 6px;
-  padding: 0 28px;
 }
 
 :global([data-theme='dark']) .filterCard,
@@ -482,8 +283,7 @@
     0 0 0 3px rgba(255, 176, 0, 0.1);
 }
 
-:global([data-theme='dark']) .parkingOnlyPanel dl div,
-:global([data-theme='dark']) .introModal {
+:global([data-theme='dark']) .parkingOnlyPanel dl div {
   background: rgba(21, 28, 38, 0.9);
   border-color: rgba(161, 0, 255, 0.16);
 }
@@ -493,8 +293,7 @@
 }
 
 :global([data-theme='dark']) .parkingOnlyPanel p,
-:global([data-theme='dark']) .parkingOnlyPanel dt,
-:global([data-theme='dark']) .introModal p {
+:global([data-theme='dark']) .parkingOnlyPanel dt {
   color: #b9c3d0;
 }
 
@@ -517,14 +316,7 @@
 }
 
 :global([data-theme='dark']) .parkingOnlyPanel h2,
-:global([data-theme='dark']) .parkingOnlyPanel dd,
-:global([data-theme='dark']) .introModal h2 {
-  color: #f8f5ff;
-}
-
-:global([data-theme='dark']) .introSteps span {
-  background: rgba(161, 0, 255, 0.12);
-  border-color: rgba(161, 0, 255, 0.18);
+:global([data-theme='dark']) .parkingOnlyPanel dd {
   color: #f8f5ff;
 }
 
@@ -648,32 +440,19 @@
     grid-template-columns: 1fr;
   }
 
-  .introModal {
-    padding: 22px;
-    border-radius: 20px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .filterCard,
   .mapCard,
   .modeTab,
-  .modeTabsIntro .modeTab,
-  .parkingContinueBtn,
-  .introBackdrop,
-  .introBackdrop::before,
-  .introBackdrop::after,
-  .introModal::before,
-  .introSteps span,
-  .introModal,
-  .introSpark {
+  .parkingContinueBtn {
     animation: none;
     transition: none;
   }
 
   .modeTab:hover,
-  .parkingContinueBtn:hover:not(:disabled),
-  .introModal button:hover {
+  .parkingContinueBtn:hover:not(:disabled) {
     transform: none;
   }
 }

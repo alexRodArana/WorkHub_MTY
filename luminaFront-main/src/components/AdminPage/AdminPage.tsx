@@ -119,7 +119,7 @@ export function AdminPage(): JSX.Element {
   return (
     <AppShell title="Dashboard" subtitle="KPIs operativos del workspace">
       <div className={styles.page}>
-        <div className={styles.toolbar}>
+        <div className={styles.toolbar} data-tour="admin-date-filter">
           <label>
             <span>Fecha</span>
             <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
@@ -131,7 +131,7 @@ export function AdminPage(): JSX.Element {
           <div className={styles.loadingWrap}><LoadingSpinner /></div>
         ) : overview ? (
           <>
-            <section className={styles.kpiGrid}>
+            <section className={styles.kpiGrid} data-tour="admin-kpis">
               {kpis.map((kpi) => (
                 <article key={kpi.label} className={styles.kpiCard}>
                   <span>{kpi.label}</span>
@@ -141,7 +141,7 @@ export function AdminPage(): JSX.Element {
               ))}
             </section>
 
-            <section className={styles.insightGrid}>
+            <section className={styles.insightGrid} data-tour="admin-insights">
               <article className={`${styles.panel} ${styles.gaugePanel}`}>
                 <div className={styles.panelHeader}>
                   <h3>Salud operativa</h3>
@@ -203,7 +203,7 @@ export function AdminPage(): JSX.Element {
               </article>
             </section>
 
-            <section className={styles.panelGrid}>
+            <section className={styles.panelGrid} data-tour="admin-charts">
               <article className={styles.panel}>
                 <div className={styles.panelHeader}>
                   <h3>Ocupación por piso</h3>

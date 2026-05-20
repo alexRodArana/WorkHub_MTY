@@ -207,13 +207,13 @@ export function MyReservationsPage(): JSX.Element {
       title="Mis reservas"
       subtitle="Consulta y administra tus reservaciones"
       action={
-        <Link to="/nueva-reserva" className={styles.newReservationBtn}>
+        <Link to="/nueva-reserva" className={styles.newReservationBtn} data-tour="my-reservations-new">
           + Nueva reserva
         </Link>
       }
     >
       <div className={styles.wrapper}>
-        <div className={styles.tabs} role="tablist">
+        <div className={styles.tabs} role="tablist" data-tour="my-reservations-tabs">
           {STATUS_TABS.map((tab, index) => (
             <button
               key={index}
@@ -258,14 +258,14 @@ export function MyReservationsPage(): JSX.Element {
 
             if (displayed.length === 0) {
               return (
-                <p className={styles.emptyMsg}>
+                <p className={styles.emptyMsg} data-tour="my-reservations-list">
                   {activeTab === 0 ? 'No tienes reservas activas.' : 'No hay reservas en el historial.'}
                 </p>
               )
             }
 
             return (
-              <ul className={styles.list}>
+              <ul className={styles.list} data-tour="my-reservations-list">
                 {displayed.map((reservation) => {
                   const isHistorial = activeTab === 1
                   const displaySpace = reservation.space_number

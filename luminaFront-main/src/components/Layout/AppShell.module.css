@@ -359,11 +359,51 @@
   transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
-.themeToggle:hover {
+.guideButton {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  padding: 0 12px 0 10px;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 12px 26px rgba(24, 21, 31, 0.14);
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.guideButton span {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ffb000, #a100ff);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: 0 0 18px rgba(255, 176, 0, 0.24);
+}
+
+.guideButton b {
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.themeToggle:hover,
+.guideButton:hover {
   transform: translateY(-1px) rotate(-4deg);
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.28);
   box-shadow: 0 16px 30px rgba(24, 21, 31, 0.2);
+}
+
+.guideButton:hover {
+  transform: translateY(-1px);
 }
 
 /* ── Content (white panel) ─────────────────────────────────────── */
@@ -409,6 +449,11 @@
 }
 
 :global([data-theme='dark']) .themeToggle {
+  border-color: rgba(161, 0, 255, 0.2);
+  background: rgba(161, 0, 255, 0.12);
+}
+
+:global([data-theme='dark']) .guideButton {
   border-color: rgba(161, 0, 255, 0.2);
   background: rgba(161, 0, 255, 0.12);
 }
@@ -616,6 +661,15 @@
   .themeToggle {
     width: 42px;
     height: 42px;
+  }
+
+  .guideButton {
+    height: 42px;
+    padding: 0 10px;
+  }
+
+  .guideButton b {
+    display: none;
   }
 }
 

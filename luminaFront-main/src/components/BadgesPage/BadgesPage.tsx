@@ -64,7 +64,7 @@ export function BadgesPage(): JSX.Element {
           <p className={styles.errorMsg}>{error}</p>
         ) : (
           <>
-            <div className={styles.statsBar}>
+            <div className={styles.statsBar} data-tour="badges-progress">
               <div className={styles.statItem}>
                 <span className={styles.statValue}>{animatedStreak}</span>
                 <span className={styles.statLabel}>Racha actual</span>
@@ -86,7 +86,7 @@ export function BadgesPage(): JSX.Element {
               </div>
             </div>
 
-            <div className={styles.badgeGrid}>
+            <div className={styles.badgeGrid} data-tour="badges-grid">
               {sortedBadges.map((badge) => {
                 const earned = badge.earned_at !== null
                 return (

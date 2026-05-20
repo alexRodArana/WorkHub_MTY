@@ -127,7 +127,7 @@ export function ProfilePage(): JSX.Element {
           {error && <div className={styles.errorMsg}>{error}</div>}
           {message && <div className={styles.successMsg}>{message}</div>}
 
-          <section className={styles.profileCard}>
+          <section className={styles.profileCard} data-tour="profile-card">
             <div className={styles.avatarLg}>
               {profile.profile_photo_url ? (
                 <img src={profile.profile_photo_url} alt="" />
@@ -140,7 +140,7 @@ export function ProfilePage(): JSX.Element {
               <p>{profile.email}</p>
               <span>{profile.department || 'Sin departamento'} · {profile.role}</span>
             </div>
-            <div className={styles.photoActions}>
+            <div className={styles.photoActions} data-tour="profile-photo">
               <input
                 ref={fileInputRef}
                 className={styles.fileInput}
@@ -167,7 +167,7 @@ export function ProfilePage(): JSX.Element {
             </div>
           </section>
 
-          <section className={styles.infoGrid}>
+          <section className={styles.infoGrid} data-tour="profile-info">
             <div>
               <span className={styles.infoLabel}>ID empleado</span>
               <strong>{profile.employee_id}</strong>

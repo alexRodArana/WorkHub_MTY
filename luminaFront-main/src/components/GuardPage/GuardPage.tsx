@@ -80,7 +80,7 @@ export function GuardPage(): JSX.Element {
   return (
     <AppShell title="Guardia" subtitle="Reservas de estacionamiento del día">
       <div className={styles.page}>
-        <div className={styles.guardHero}>
+        <div className={styles.guardHero} data-tour="guard-hero">
           <div className={styles.heroCopy}>
             <span>Control de acceso</span>
             <h3>Estacionamiento reservado</h3>
@@ -92,7 +92,7 @@ export function GuardPage(): JSX.Element {
           </label>
         </div>
 
-        <div className={styles.summaryGrid}>
+        <div className={styles.summaryGrid} data-tour="guard-summary">
           <div className={styles.summaryCard}>
             <span>Total</span>
             <strong>{items.length}</strong>
@@ -120,9 +120,9 @@ export function GuardPage(): JSX.Element {
         {loading ? (
           <div className={styles.loadingWrap}><LoadingSpinner /></div>
         ) : items.length === 0 ? (
-          <div className={styles.emptyState}>No hay estacionamientos reservados para esta fecha.</div>
+          <div className={styles.emptyState} data-tour="guard-list">No hay estacionamientos reservados para esta fecha.</div>
         ) : (
-          <div className={styles.zoneGrid}>
+          <div className={styles.zoneGrid} data-tour="guard-list">
             {Object.entries(grouped).map(([zone, reservations]) => (
               <section key={zone} className={styles.zonePanel}>
                 <div className={styles.zoneHeader}>

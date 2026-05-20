@@ -22,7 +22,6 @@ import styles from './NewReservationPage.module.css'
 
 type ReservationMode = 'desk-parking' | 'desk-only' | 'parking-only'
 
-const MODE_INTRO_STORAGE_KEY = 'workhub-reservation-modes-intro-seen'
 const RESERVATION_MODES: Array<{
   value: ReservationMode
   label: string
@@ -111,14 +110,6 @@ function getRecommendationReason(item: RecommendationResult['recommendations'][n
 export function NewReservationPage(): JSX.Element {
   const navigate = useNavigate()
   const [mapRefreshKey, setMapRefreshKey] = useState(0)
-  const [showModeIntro, setShowModeIntro] = useState(() => {
-    try {
-      return window.localStorage.getItem(MODE_INTRO_STORAGE_KEY) !== '1'
-    } catch {
-      return true
-    }
-  })
-
   const [state, setState] = useState<ReservationFlowState>({
     filters: getDefaultFilters(),
     availableSpaces: [],
@@ -266,15 +257,6 @@ export function NewReservationPage(): JSX.Element {
     }))
   }
 
-  function handleCloseModeIntro() {
-    try {
-      window.localStorage.setItem(MODE_INTRO_STORAGE_KEY, '1')
-    } catch {
-      // Ignore storage errors; the modal can safely reappear next session.
-    }
-    setShowModeIntro(false)
-  }
-
   async function handleConfirm(requiresParking: boolean) {
     const token = getSession()?.access_token
     if (!token) {
@@ -399,8 +381,8 @@ export function NewReservationPage(): JSX.Element {
     <AppShell title="Nueva Reserva" noscroll>
       <div className={styles.pageContent}>
         <section className={styles.filterSection}>
-          <div className={styles.filterCard}>
-            <div className={`${styles.modeTabs} ${showModeIntro ? styles.modeTabsIntro : ''}`} role="tablist" aria-label="Tipo de reserva">
+          <div className={styles.filterCard} data-tour="reservation-filters">
+            <div className={styles.modeTabs} role="tablist" aria-label="Tipo de reserva" data-tour="reservation-modes">
               {RESERVATION_MODES.map((mode, index) => (
                 <button
                   key={mode.value}
@@ -444,9 +426,9 @@ export function NewReservationPage(): JSX.Element {
               </div>
             )}
 
-            <div className={`${styles.mapCard} ${recommendationCount > 0 ? styles.aiMapCard : ''}`}>
+            <div className={`${styles.mapCard} ${recommendationCount > 0 ? styles.aiMapCard : ''}`} data-tour="reservation-map">
               {isParkingOnlyMode ? (
-                <div className={styles.parkingOnlyPanel}>
+                <div className={styles.parkingOnlyPanel} data-tour="reservation-parking-only">
                   <span className={styles.parkingOnlyIcon} aria-hidden="true">P</span>
                   <h2>Reserva de estacionamiento</h2>
                   <p>
@@ -502,35 +484,6 @@ export function NewReservationPage(): JSX.Element {
           </aside>
         </section>
       </div>
-
-      {showModeIntro && (
-        <div className={styles.introBackdrop} role="presentation" onClick={handleCloseModeIntro}>
-          <section
-            className={styles.introModal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="reservation-mode-intro-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <span className={styles.introSpark} aria-hidden="true">✨</span>
-            <h2 id="reservation-mode-intro-title">Elige cómo quieres reservar</h2>
-            <p>
-              Nueva Reserva ahora se divide en tres modos: escritorio con estacionamiento,
-              solo escritorio o solo estacionamiento. Cambia de pestaña según lo que necesites antes de confirmar.
-            </p>
-            <div className={styles.introSteps} aria-hidden="true">
-              {RESERVATION_MODES.map((mode, index) => (
-                <span key={mode.value} style={{ '--step-delay': `${index * 120}ms` } as CSSProperties}>
-                  {mode.label}
-                </span>
-              ))}
-            </div>
-            <button type="button" onClick={handleCloseModeIntro}>
-              Entendido
-            </button>
-          </section>
-        </div>
-      )}
 
       {state.showConfirmationModal && (state.reservationMode === 'parking-only' || state.selectedSpace) && (
         <ConfirmationModal

@@ -262,7 +262,7 @@ export function FloorMap({
       {floorId === null && (
         <div className={styles.mapToolbar}>
           {floors.length > 0 ? (
-            <div className={styles.tabRow} role="tablist" aria-label="Seleccionar piso">
+            <div className={styles.tabRow} role="tablist" aria-label="Seleccionar piso" data-tour="floor-tabs">
               {floors.map((floor) => (
                 <button
                   key={floor.id}
@@ -293,7 +293,7 @@ export function FloorMap({
       )}
 
       {/* Map area */}
-      <div className={styles.mapArea}>
+      <div className={styles.mapArea} data-tour="floor-map">
         {isBusy && (
           <div className={styles.loadingOverlay}>
             <LoadingSpinner />
@@ -337,7 +337,7 @@ export function FloorMap({
         )}
       </div>
 
-      <div className={styles.legend}>
+      <div className={styles.legend} data-tour="map-legend">
         <SpaceLegend />
       </div>
 
