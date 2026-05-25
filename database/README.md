@@ -4,7 +4,7 @@ Estos archivos recrean la base de datos de Supabase para correr WorkHub MTY desd
 
 ## Archivos
 
-- `01_schema.sql`: estructura completa de tablas, constraints, indices y publicacion de Supabase Realtime.
+- `01_schema.sql`: estructura completa de tablas, constraints, indices, triggers anti-solape, extensiones de busqueda y publicacion de Supabase Realtime.
 - `02_seed_static.sql`: catalogos e inventario estatico exportado desde Supabase: roles, edificio, pisos, espacios, estacionamientos y badges.
 - `export_static_seed.cjs`: script para volver a exportar `02_seed_static.sql` desde la base configurada en `luminaBack-main/.env`.
 - `render-vercel-env.example`: variables requeridas para Render, Vercel y Supabase.
@@ -53,6 +53,19 @@ VITE_API_BASE_URL=https://tu-backend-render.onrender.com
 ## Realtime
 
 `01_schema.sql` intenta registrar `reservations`, `space_blocks` y `area_blocks` en la publicacion `supabase_realtime`. En Supabase, verifica tambien en Dashboard > Database > Replication que esas tablas esten habilitadas si el panel no refleja cambios en vivo.
+
+## Hardening de produccion
+
+La base queda protegida contra:
+
+- Dos reservas activas/confirmadas en el mismo escritorio y horario.
+- Dos reservas activas/confirmadas en el mismo cajon de estacionamiento y horario.
+- Dos reservas de escritorio simultaneas para el mismo usuario.
+- Dos reservas de estacionamiento simultaneas para el mismo usuario.
+- Bloquear un espacio que ya tiene una reserva activa/confirmada.
+- Asignar estacionamiento sin vehiculo registrado.
+
+Tambien incluye indices trigram para busqueda de usuarios, placas y auditoria, mas indices por fecha/estado para dashboard, guardia, recomendaciones IA y monitoreo en tiempo real.
 
 ## Regenerar semilla estatica
 
