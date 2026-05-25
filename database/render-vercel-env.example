@@ -3,10 +3,16 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
 JWT_SECRET=replace-with-a-strong-secret
 JWT_ALGORITHM=HS256
 JWT_EXPIRES_IN=3600
-GEMINI_API_KEY=replace-with-your-gemini-api-key
 NODE_ENV=production
-PORT=3000
-CORS_ORIGIN=https://your-frontend.vercel.app
+ALLOWED_ORIGINS=https://your-frontend.vercel.app
+TRUST_PROXY=1
+RESERVATION_TIMEZONE=America/Monterrey
+CHECK_IN_ALLOWED_CIDRS=10.0.0.0/8,192.168.0.0/16
+AI_PROVIDER=gemini
+GEMINI_API_KEY=replace-with-your-gemini-api-key
+GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_FALLBACK_MODELS=gemini-2.5-flash,gemini-2.0-flash-lite
 
 # Vercel frontend
-VITE_API_BASE_URL=https://your-backend.onrender.com
+VITE_API_URL=https://your-backend.onrender.com
+# VITE_API_BASE_URL is also supported as a backward-compatible alias.

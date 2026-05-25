@@ -19,6 +19,7 @@ La solución cubre tres perfiles principales:
 - [Instalación](#instalación)
 - [Base de Datos y Migraciones](#base-de-datos-y-migraciones)
 - [Ejecución Local](#ejecución-local)
+- [Deploy en Producción](#deploy-en-producción)
 - [Scripts](#scripts)
 - [Roles y Accesos](#roles-y-accesos)
 - [Flujos Principales](#flujos-principales)
@@ -180,6 +181,8 @@ Crear `luminaFront-main/.env` si la API no corre en `http://localhost:3000`:
 VITE_API_URL=http://localhost:3000
 ```
 
+`VITE_API_BASE_URL` tambien esta soportada como alias para compatibilidad con configuraciones de deploy anteriores.
+
 No subas archivos `.env` ni claves reales al repositorio.
 
 ## Instalación
@@ -254,6 +257,76 @@ URLs por defecto:
 
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:3000`
+
+## Deploy en Producción
+
+El proyecto real vive en:
+
+- Backend: `luminaBack-main`
+- Frontend: `luminaFront-main`
+
+Las carpetas `LuminaBackDeploy` y `LuminaFrontDeploy` fueron usadas solo como referencia para portar la configuracion de deploy. No deben subirse como parte del producto final.
+
+### Backend en Render
+
+Opcion recomendada: crear el servicio desde el blueprint `render.yaml` incluido en la raiz del repositorio.
+
+Configuracion equivalente si se crea manualmente:
+
+- Root Directory: `luminaBack-main`
+- Runtime: `Node`
+- Build Command: `npm ci && npm run build`
+- Start Command: `npm start`
+- Health Check Path: `/health`
+- Auto Deploy: habilitado contra `main`
+
+Variables requeridas en Render:
+
+```env
+NODE_ENV=production
+DATABASE_URL=postgresql://<usuario>:<password>@<host>:<puerto>/<database>
+JWT_SECRET=<secret-largo-y-seguro>
+JWT_ALGORITHM=HS256
+JWT_EXPIRES_IN=3600
+ALLOWED_ORIGINS=https://tu-frontend.vercel.app
+TRUST_PROXY=1
+RESERVATION_TIMEZONE=America/Monterrey
+AI_PROVIDER=gemini
+GEMINI_API_KEY=<gemini-api-key>
+GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_FALLBACK_MODELS=gemini-2.5-flash,gemini-2.0-flash-lite
+```
+
+`CORS_ORIGIN` tambien esta soportada como alias de `ALLOWED_ORIGINS`, pero la variable preferida para produccion es `ALLOWED_ORIGINS`. Si el check-in debe restringirse a redes de oficina, agrega `CHECK_IN_ALLOWED_CIDRS`.
+
+### Frontend en Vercel
+
+Crear el proyecto apuntando al mismo repositorio y configurar:
+
+- Root Directory: `luminaFront-main`
+- Framework Preset: `Vite`
+- Build Command: `npm run build`
+- Output Directory: `dist`
+- Install Command: `npm ci`
+
+Variable requerida en Vercel:
+
+```env
+VITE_API_URL=https://tu-backend.onrender.com
+```
+
+El archivo `luminaFront-main/vercel.json` mantiene el fallback de rutas de la SPA hacia `index.html`, necesario para que rutas como `/admin`, `/guardia` o `/nueva-reserva` funcionen al refrescar el navegador.
+
+### Supabase
+
+Para recrear la base desde cero:
+
+```bash
+psql "$DATABASE_URL" -f database/01_schema.sql
+psql "$DATABASE_URL" -f database/02_seed_static.sql
+```
+
+Despues ejecuta desde `luminaBack-main` las migraciones que apliquen al ambiente, especialmente `migrate_hu24_production_db_hardening.ts`, y valida que Supabase Realtime tenga habilitadas `reservations`, `space_blocks` y `area_blocks`.
 
 ## Scripts
 
@@ -517,6 +590,6 @@ La cobertura incluye:
 
 ## Estado Actual
 
-- Rama de trabajo: `admin-space-management-badges`.
+- Rama publicada: `main`.
 - Repositorio remoto: `https://github.com/alexRodArana/WorkHub_MTY`.
 - La aplicación está preparada para correr localmente con backend en `3000` y frontend en `5173`.

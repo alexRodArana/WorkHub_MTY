@@ -1,5 +1,5 @@
 function resolveApiBaseUrl(): string {
-  const configured = import.meta.env.VITE_API_URL?.trim()
+  const configured = (import.meta.env.VITE_API_URL ?? import.meta.env.VITE_API_BASE_URL)?.trim()
   if (configured) return configured.replace(/\/$/, '')
 
   if (typeof window !== 'undefined' && window.location.hostname) {

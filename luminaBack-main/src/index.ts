@@ -9,8 +9,9 @@ const PORT = process.env.PORT ?? 3000
 const rawProxy = process.env.TRUST_PROXY ?? '0'
 const trustProxy: number | boolean = /^\d+$/.test(rawProxy) ? Number(rawProxy) : rawProxy === 'true'
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+const rawAllowedOrigins = process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGIN
+const allowedOrigins = rawAllowedOrigins
+  ? rawAllowedOrigins.split(',').map((o) => o.trim()).filter(Boolean)
   : true  // true = all origins (dev fallback)
 
 app.use(cors({ origin: allowedOrigins }))
