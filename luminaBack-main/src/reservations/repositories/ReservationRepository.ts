@@ -1,6 +1,8 @@
 import { DbClient } from "../../shared/db"
 import {
   AdminKpiOverview,
+  AdminReservationDetail,
+  AuditLogEntry,
   AreaBlock,
   AvailabilityFilter,
   ParkingReservationForGuard,
@@ -15,12 +17,170 @@ import {
   SpaceOccupancy,
   UserPreferenceSignals,
   UserReservation,
+  UserSearchResult,
+  UserVehicle,
 } from "../interfaces"
 import { ReservationError } from "../errors"
 import { getCheckInWindowOverrideMinutes } from "../config"
 
 export class ReservationRepository {
   constructor(private readonly db: DbClient) {}
+
+  async findVehiclesByUser(userId: number): Promise<UserVehicle[]> {
+    const result = await this.db.query<UserVehicle>(
+      `SELECT id, user_id, alias, plate, make, model, color, is_default, is_active, created_at, updated_at
+       FROM user_vehicles
+       WHERE user_id = $1
+         AND is_active = true
+       ORDER BY is_default DESC, created_at DESC, id DESC`,
+      [userId]
+    )
+    return result.rows
+  }
+
+  async findVehicleByUser(userId: number, vehicleId: number): Promise<UserVehicle | null> {
+    const result = await this.db.query<UserVehicle>(
+      `SELECT id, user_id, alias, plate, make, model, color, is_default, is_active, created_at, updated_at
+       FROM user_vehicles
+       WHERE id = $1
+         AND user_id = $2
+         AND is_active = true
+       LIMIT 1`,
+      [vehicleId, userId]
+    )
+    return result.rows[0] ?? null
+  }
+
+  async createVehicle(
+    userId: number,
+    vehicle: { alias?: string | null; plate: string; make?: string | null; model?: string | null; color?: string | null; is_default?: boolean }
+  ): Promise<UserVehicle> {
+    const plate = vehicle.plate.trim().toUpperCase()
+    if (vehicle.is_default) {
+      await this.db.query("UPDATE user_vehicles SET is_default = false, updated_at = NOW() WHERE user_id = $1", [userId])
+    }
+
+    const result = await this.db.query<UserVehicle>(
+      `INSERT INTO user_vehicles (user_id, alias, plate, make, model, color, is_default, is_active, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW(), NOW())
+       ON CONFLICT (user_id, plate)
+       DO UPDATE SET alias = EXCLUDED.alias,
+                     make = EXCLUDED.make,
+                     model = EXCLUDED.model,
+                     color = EXCLUDED.color,
+                     is_default = EXCLUDED.is_default,
+                     is_active = true,
+                     updated_at = NOW()
+       RETURNING id, user_id, alias, plate, make, model, color, is_default, is_active, created_at, updated_at`,
+      [
+        userId,
+        vehicle.alias?.trim() || null,
+        plate,
+        vehicle.make?.trim() || null,
+        vehicle.model?.trim() || null,
+        vehicle.color?.trim() || null,
+        vehicle.is_default === true,
+      ]
+    )
+    return result.rows[0]
+  }
+
+  async updateVehicle(
+    userId: number,
+    vehicleId: number,
+    vehicle: { alias?: string | null; plate: string; make?: string | null; model?: string | null; color?: string | null; is_default?: boolean }
+  ): Promise<UserVehicle | null> {
+    const plate = vehicle.plate.trim().toUpperCase()
+    if (vehicle.is_default) {
+      await this.db.query("UPDATE user_vehicles SET is_default = false, updated_at = NOW() WHERE user_id = $1", [userId])
+    }
+
+    const result = await this.db.query<UserVehicle>(
+      `UPDATE user_vehicles
+       SET alias = $3,
+           plate = $4,
+           make = $5,
+           model = $6,
+           color = $7,
+           is_default = CASE WHEN $8::boolean THEN true ELSE is_default END,
+           is_active = true,
+           updated_at = NOW()
+       WHERE id = $1
+         AND user_id = $2
+         AND is_active = true
+       RETURNING id, user_id, alias, plate, make, model, color, is_default, is_active, created_at, updated_at`,
+      [
+        vehicleId,
+        userId,
+        vehicle.alias?.trim() || null,
+        plate,
+        vehicle.make?.trim() || null,
+        vehicle.model?.trim() || null,
+        vehicle.color?.trim() || null,
+        vehicle.is_default === true,
+      ]
+    )
+    return result.rows[0] ?? null
+  }
+
+  async setDefaultVehicle(userId: number, vehicleId: number): Promise<UserVehicle | null> {
+    const existing = await this.findVehicleByUser(userId, vehicleId)
+    if (!existing) return null
+
+    await this.db.query("UPDATE user_vehicles SET is_default = false, updated_at = NOW() WHERE user_id = $1", [userId])
+    const result = await this.db.query<UserVehicle>(
+      `UPDATE user_vehicles
+       SET is_default = true,
+           updated_at = NOW()
+       WHERE id = $1
+         AND user_id = $2
+       RETURNING id, user_id, alias, plate, make, model, color, is_default, is_active, created_at, updated_at`,
+      [vehicleId, userId]
+    )
+    return result.rows[0] ?? null
+  }
+
+  async deactivateVehicle(userId: number, vehicleId: number): Promise<boolean> {
+    const result = await this.db.query<{ id: number }>(
+      `UPDATE user_vehicles
+       SET is_active = false,
+           is_default = false,
+           updated_at = NOW()
+       WHERE id = $1
+         AND user_id = $2
+         AND is_active = true
+         AND NOT EXISTS (
+           SELECT 1
+           FROM reservations r
+           WHERE r.vehicle_id = user_vehicles.id
+             AND r.status IN ('confirmada', 'activa')
+             AND r.reservation_date >= CURRENT_DATE
+         )
+       RETURNING id`,
+      [vehicleId, userId]
+    )
+    return result.rows.length > 0
+  }
+
+  async addAuditLog(input: {
+    actorUserId: number | null
+    action: string
+    entityType: string
+    entityId?: string | number | null
+    metadata?: Record<string, unknown>
+  }): Promise<void> {
+    await this.db.query(
+      `INSERT INTO audit_logs (actor_user_id, action, entity_type, entity_id, metadata, created_at)
+       VALUES ($1, $2, $3, $4, $5::jsonb, NOW())`,
+      [
+        input.actorUserId,
+        input.action,
+        input.entityType,
+        input.entityId == null ? null : String(input.entityId),
+        JSON.stringify(input.metadata ?? {}),
+      ]
+    )
+  }
 
   async hasOverlappingOfficeForUser(
     userId: number,
@@ -278,13 +438,14 @@ export class ReservationRepository {
         end_time: string
         status: string
         requiere_estacionamiento: boolean
+        vehicle_id: number | null
       }>(
         `INSERT INTO reservations
            (user_id, space_id, reservation_date, start_time, end_time,
             status, grace_period_minutes, requiere_estacionamiento,
-            check_in_time, check_out_time, reservation_code, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
-         RETURNING id, space_id, reservation_date, start_time, end_time, status, requiere_estacionamiento`,
+            check_in_time, check_out_time, reservation_code, vehicle_id, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+         RETURNING id, space_id, reservation_date, start_time, end_time, status, requiere_estacionamiento, vehicle_id`,
         [
           record.user_id,
           record.space_id,
@@ -297,6 +458,7 @@ export class ReservationRepository {
           record.check_in_time,
           record.check_out_time,
           record.reservation_code,
+          record.vehicle_id ?? null,
         ]
       )
 
@@ -310,6 +472,7 @@ export class ReservationRepository {
         end_time: row.end_time,
         status: row.status as ReservationResult["status"],
         requiere_estacionamiento: row.requiere_estacionamiento,
+        vehicle_id: row.vehicle_id,
         parking_spot: null,
       }
     } catch (err) {
@@ -343,12 +506,15 @@ export class ReservationRepository {
                 r.grace_period_minutes,
                 r.check_in_time,
                 ps.spot_number  AS parking_spot_number,
-                pz.name         AS parking_zone_name
+                pz.name         AS parking_zone_name,
+                uv.plate        AS vehicle_plate,
+                COALESCE(uv.alias, NULLIF(TRIM(CONCAT_WS(' ', uv.make, uv.model)), ''), uv.plate) AS vehicle_label
          FROM reservations r
          LEFT JOIN spaces s ON s.id = r.space_id
          LEFT JOIN floors f ON f.id = s.floor_id
          LEFT JOIN parking_spots ps ON ps.id = r.parking_spot_id
          LEFT JOIN parking_zones pz ON pz.id = ps.zone_id
+         LEFT JOIN user_vehicles uv ON uv.id = r.vehicle_id
          WHERE r.user_id = $1
            ${statusClause}
          ORDER BY r.reservation_date DESC, r.start_time DESC`,
@@ -604,7 +770,7 @@ export class ReservationRepository {
   }
 
   async getAdminOverview(date: string): Promise<AdminKpiOverview> {
-    const [totals, byFloor, byCategory, areaBlocks, spaceBlocks, statusBreakdown, hourlyDistribution, topUsers] = await Promise.all([
+    const [totals, byFloor, byCategory, areaBlocks, spaceBlocks, statusBreakdown, hourlyDistribution, topUsers, topSpaces, underusedSpaces, adminDetails] = await Promise.all([
       this.db.query<{
         total_reservations: string
         active_reservations: string
@@ -612,40 +778,36 @@ export class ReservationRepository {
         cancelled_reservations: string
         no_show_reservations: string
         parking_reservations: string
+        workspace_reservations: string
+        desk_only_reservations: string
+        desk_parking_reservations: string
+        parking_only_reservations: string
+        average_duration_minutes: string | null
         unique_users: string
         total_spaces: string
         occupied_spaces: string
       }>(
         `WITH daily_reservations AS (
-           SELECT *
+           SELECT user_id, space_id, parking_spot_id, requiere_estacionamiento, status, start_time, end_time
            FROM reservations
            WHERE reservation_date = $1
-         ),
-         active_reservations AS (
-           SELECT *
-           FROM daily_reservations
-           WHERE status IN ('confirmada', 'activa')
-         ),
-         active_workspace_reservations AS (
-           SELECT *
-           FROM active_reservations
-           WHERE space_id IS NOT NULL
-         ),
-         counted_reservations AS (
-           SELECT *
-           FROM daily_reservations
-           WHERE status IN ('confirmada', 'activa', 'no_show')
          )
          SELECT
-           (SELECT COUNT(*) FROM counted_reservations)::text AS total_reservations,
-           (SELECT COUNT(*) FROM active_reservations WHERE status = 'activa')::text AS active_reservations,
-           (SELECT COUNT(*) FROM active_reservations WHERE status = 'confirmada')::text AS confirmed_reservations,
-           (SELECT COUNT(*) FROM daily_reservations WHERE status = 'cancelada')::text AS cancelled_reservations,
-           (SELECT COUNT(*) FROM daily_reservations WHERE status = 'no_show')::text AS no_show_reservations,
-           (SELECT COUNT(*) FROM active_reservations WHERE parking_spot_id IS NOT NULL)::text AS parking_reservations,
-           (SELECT COUNT(DISTINCT user_id) FROM active_reservations)::text AS unique_users,
+           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa', 'no_show'))::text AS total_reservations,
+           COUNT(*) FILTER (WHERE status = 'activa')::text AS active_reservations,
+           COUNT(*) FILTER (WHERE status = 'confirmada')::text AS confirmed_reservations,
+           COUNT(*) FILTER (WHERE status = 'cancelada')::text AS cancelled_reservations,
+           COUNT(*) FILTER (WHERE status = 'no_show')::text AS no_show_reservations,
+           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa') AND parking_spot_id IS NOT NULL)::text AS parking_reservations,
+           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa') AND space_id IS NOT NULL)::text AS workspace_reservations,
+           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa') AND space_id IS NOT NULL AND parking_spot_id IS NULL)::text AS desk_only_reservations,
+           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa') AND space_id IS NOT NULL AND parking_spot_id IS NOT NULL)::text AS desk_parking_reservations,
+           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa') AND space_id IS NULL AND (parking_spot_id IS NOT NULL OR requiere_estacionamiento = true))::text AS parking_only_reservations,
+           ROUND(AVG(EXTRACT(EPOCH FROM (end_time - start_time)) / 60) FILTER (WHERE status IN ('confirmada', 'activa')))::text AS average_duration_minutes,
+           COUNT(DISTINCT user_id) FILTER (WHERE status IN ('confirmada', 'activa'))::text AS unique_users,
            (SELECT COUNT(*) FROM spaces WHERE is_active = true AND visual_only = false)::text AS total_spaces,
-           (SELECT COUNT(DISTINCT space_id) FROM active_workspace_reservations)::text AS occupied_spaces`,
+           COUNT(DISTINCT space_id) FILTER (WHERE status IN ('confirmada', 'activa') AND space_id IS NOT NULL)::text AS occupied_spaces
+         FROM daily_reservations`,
         [date]
       ),
       this.db.query<{
@@ -728,6 +890,95 @@ export class ReservationRepository {
          LIMIT 5`,
         [date]
       ),
+      this.db.query<{
+        space_id: number
+        space_number: string
+        display_name: string | null
+        floor_name: string
+        reservations: string
+      }>(
+        `SELECT s.id AS space_id,
+                s.space_number,
+                s.display_name,
+                f.name AS floor_name,
+                COUNT(r.id)::text AS reservations
+         FROM reservations r
+         JOIN spaces s ON s.id = r.space_id
+         JOIN floors f ON f.id = s.floor_id
+         WHERE r.reservation_date BETWEEN ($1::date - INTERVAL '30 days') AND $1::date
+           AND r.status IN ('confirmada', 'activa', 'no_show')
+           AND r.space_id IS NOT NULL
+         GROUP BY s.id, s.space_number, s.display_name, f.name
+         ORDER BY COUNT(r.id) DESC, s.space_number
+         LIMIT 8`,
+        [date]
+      ),
+      this.db.query<{
+        space_id: number
+        space_number: string
+        display_name: string | null
+        floor_name: string
+        reservations: string
+        last_reservation_date: string | null
+      }>(
+        `SELECT s.id AS space_id,
+                s.space_number,
+                s.display_name,
+                f.name AS floor_name,
+                COUNT(r.id)::text AS reservations,
+                MAX(r.reservation_date)::text AS last_reservation_date
+         FROM spaces s
+         JOIN floors f ON f.id = s.floor_id
+         LEFT JOIN reservations r ON r.space_id = s.id
+          AND r.reservation_date BETWEEN ($1::date - INTERVAL '30 days') AND $1::date
+          AND r.status IN ('confirmada', 'activa', 'no_show')
+         WHERE s.is_active = true
+           AND COALESCE(s.visual_only, false) = false
+         GROUP BY s.id, s.space_number, s.display_name, f.name
+         ORDER BY COUNT(r.id) ASC, MAX(r.reservation_date) NULLS FIRST, s.space_number
+         LIMIT 8`,
+        [date]
+      ),
+      this.db.query<AdminReservationDetail>(
+        `SELECT r.id AS reservation_id,
+                r.reservation_code,
+                r.reservation_date::text AS reservation_date,
+                r.start_time::text AS start_time,
+                r.end_time::text AS end_time,
+                r.status,
+                CASE
+                  WHEN r.space_id IS NULL THEN 'parking_only'
+                  WHEN r.parking_spot_id IS NOT NULL OR r.requiere_estacionamiento = true THEN 'desk_parking'
+                  ELSE 'desk_only'
+                END AS type,
+                u.id AS user_id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.department,
+                r.space_id,
+                COALESCE(s.space_number, 'Solo estacionamiento') AS space_number,
+                s.display_name,
+                f.id AS floor_id,
+                COALESCE(f.name, 'Estacionamiento') AS floor_name,
+                f.floor_number,
+                ps.spot_number AS parking_spot_number,
+                pz.name AS parking_zone_name,
+                r.vehicle_id,
+                uv.plate AS vehicle_plate,
+                COALESCE(uv.alias, NULLIF(TRIM(CONCAT_WS(' ', uv.make, uv.model)), ''), uv.plate) AS vehicle_label
+         FROM reservations r
+         JOIN users u ON u.id = r.user_id
+         LEFT JOIN spaces s ON s.id = r.space_id
+         LEFT JOIN floors f ON f.id = s.floor_id
+         LEFT JOIN parking_spots ps ON ps.id = r.parking_spot_id
+         LEFT JOIN parking_zones pz ON pz.id = ps.zone_id
+         LEFT JOIN user_vehicles uv ON uv.id = r.vehicle_id
+         WHERE r.reservation_date = $1
+         ORDER BY r.start_time, u.first_name, u.last_name
+         LIMIT 500`,
+        [date]
+      ),
     ])
 
     const total = totals.rows[0] ?? {
@@ -737,6 +988,11 @@ export class ReservationRepository {
       cancelled_reservations: "0",
       no_show_reservations: "0",
       parking_reservations: "0",
+      workspace_reservations: "0",
+      desk_only_reservations: "0",
+      desk_parking_reservations: "0",
+      parking_only_reservations: "0",
+      average_duration_minutes: "0",
       unique_users: "0",
       total_spaces: "0",
       occupied_spaces: "0",
@@ -755,6 +1011,21 @@ export class ReservationRepository {
       parking_rate: Number(total.total_reservations) > 0
         ? Number(total.parking_reservations) / Number(total.total_reservations)
         : 0,
+      workspace_reservations: Number(total.workspace_reservations),
+      desk_only_reservations: Number(total.desk_only_reservations),
+      desk_parking_reservations: Number(total.desk_parking_reservations),
+      parking_only_reservations: Number(total.parking_only_reservations),
+      available_spaces: Math.max(0, totalSpaces - occupiedSpaces),
+      average_duration_minutes: Number(total.average_duration_minutes ?? 0),
+      check_in_rate: Number(total.workspace_reservations) > 0
+        ? Number(total.active_reservations) / Number(total.workspace_reservations)
+        : 0,
+      cancellation_rate: Number(total.total_reservations) + Number(total.cancelled_reservations) > 0
+        ? Number(total.cancelled_reservations) / (Number(total.total_reservations) + Number(total.cancelled_reservations))
+        : 0,
+      no_show_rate: Number(total.total_reservations) > 0
+        ? Number(total.no_show_reservations) / Number(total.total_reservations)
+        : 0,
       unique_users: Number(total.unique_users),
       total_spaces: totalSpaces,
       occupied_spaces: occupiedSpaces,
@@ -765,6 +1036,11 @@ export class ReservationRepository {
         status: row.status,
         count: Number(row.count),
       })),
+      reservation_type_breakdown: [
+        { type: "desk_only", count: Number(total.desk_only_reservations) },
+        { type: "desk_parking", count: Number(total.desk_parking_reservations) },
+        { type: "parking_only", count: Number(total.parking_only_reservations) },
+      ],
       hourly_distribution: hourlyDistribution.rows.map((row) => ({
         hour: row.hour,
         reservations: Number(row.reservations),
@@ -775,6 +1051,21 @@ export class ReservationRepository {
         last_name: row.last_name,
         email: row.email,
         reservations: Number(row.reservations),
+      })),
+      top_spaces: topSpaces.rows.map((row) => ({
+        space_id: row.space_id,
+        space_number: row.space_number,
+        display_name: row.display_name,
+        floor_name: row.floor_name,
+        reservations: Number(row.reservations),
+      })),
+      underused_spaces: underusedSpaces.rows.map((row) => ({
+        space_id: row.space_id,
+        space_number: row.space_number,
+        display_name: row.display_name,
+        floor_name: row.floor_name,
+        reservations: Number(row.reservations),
+        last_reservation_date: row.last_reservation_date,
       })),
       by_floor: byFloor.rows.map((row) => {
         const floorTotal = Number(row.total_spaces)
@@ -799,6 +1090,11 @@ export class ReservationRepository {
       }),
       blocked_areas: areaBlocks,
       blocked_spaces: spaceBlocks,
+      reservations_detail: adminDetails.rows.map((row) => ({
+        ...row,
+        start_time: row.start_time.slice(0, 5),
+        end_time: row.end_time.slice(0, 5),
+      })),
     }
   }
 
@@ -815,6 +1111,42 @@ export class ReservationRepository {
        JOIN floors f ON f.id = ab.floor_id
        WHERE ab.is_active = true
        ORDER BY f.floor_number, ab.priority_category`
+    )
+    return result.rows
+  }
+
+  async searchUsers(query: string): Promise<UserSearchResult[]> {
+    const normalized = `%${query.trim().toLowerCase()}%`
+    const result = await this.db.query<UserSearchResult>(
+      `SELECT u.id,
+              u.first_name,
+              u.last_name,
+              u.email,
+              u.role,
+              u.department,
+              u.profile_photo_url,
+              COUNT(DISTINCT r.id)::int AS reservation_count,
+              COUNT(DISTINCT r.id) FILTER (WHERE r.status IN ('confirmada', 'activa'))::int AS active_reservation_count,
+              COUNT(DISTINCT r.id) FILTER (WHERE r.parking_spot_id IS NOT NULL OR r.requiere_estacionamiento = true)::int AS parking_reservation_count,
+              COUNT(DISTINCT uv.id)::int AS vehicle_count,
+              MAX(r.reservation_date)::text AS last_reservation_date
+       FROM users u
+       LEFT JOIN reservations r ON r.user_id = u.id
+       LEFT JOIN user_vehicles uv ON uv.user_id = u.id AND uv.is_active = true
+       WHERE u.is_active = true
+         AND (
+           LOWER(u.first_name) LIKE $1
+           OR LOWER(u.last_name) LIKE $1
+           OR LOWER(u.email) LIKE $1
+           OR LOWER(COALESCE(u.department, '')) LIKE $1
+           OR LOWER(COALESCE(u.employee_id, '')) LIKE $1
+           OR LOWER(COALESCE(uv.plate, '')) LIKE $1
+           OR LOWER(COALESCE(uv.alias, '')) LIKE $1
+         )
+       GROUP BY u.id, u.first_name, u.last_name, u.email, u.role, u.department, u.profile_photo_url
+       ORDER BY u.first_name, u.last_name
+       LIMIT 25`,
+      [normalized]
     )
     return result.rows
   }
@@ -966,7 +1298,8 @@ export class ReservationRepository {
     return result.rows.length > 0
   }
 
-  async findParkingReservationsByDate(date: string): Promise<ParkingReservationForGuard[]> {
+  async findParkingReservationsByDate(date: string, query?: string): Promise<ParkingReservationForGuard[]> {
+    const normalized = query?.trim().toLowerCase()
     const result = await this.db.query<ParkingReservationForGuard>(
       `SELECT r.id AS reservation_id,
               r.reservation_code,
@@ -976,6 +1309,8 @@ export class ReservationRepository {
               r.status,
               ps.spot_number AS parking_spot_number,
               pz.name AS parking_zone_name,
+              uv.plate AS vehicle_plate,
+              COALESCE(uv.alias, NULLIF(TRIM(CONCAT_WS(' ', uv.make, uv.model)), ''), uv.plate) AS vehicle_label,
               COALESCE(s.space_number, 'Solo estacionamiento') AS space_number,
               COALESCE(f.name, 'Estacionamiento') AS floor_name,
               json_build_object(
@@ -992,16 +1327,60 @@ export class ReservationRepository {
        LEFT JOIN floors f ON f.id = s.floor_id
        JOIN parking_spots ps ON ps.id = r.parking_spot_id
        JOIN parking_zones pz ON pz.id = ps.zone_id
+       LEFT JOIN user_vehicles uv ON uv.id = r.vehicle_id
        WHERE r.reservation_date = $1
          AND r.status IN ('confirmada', 'activa')
          AND r.parking_spot_id IS NOT NULL
+         AND (
+           $2::text IS NULL
+           OR LOWER(u.first_name) LIKE $2
+           OR LOWER(u.last_name) LIKE $2
+           OR LOWER(u.email) LIKE $2
+           OR LOWER(COALESCE(u.department, '')) LIKE $2
+           OR LOWER(COALESCE(uv.plate, '')) LIKE $2
+           OR LOWER(COALESCE(uv.alias, '')) LIKE $2
+           OR LOWER(COALESCE(ps.spot_number, '')) LIKE $2
+           OR LOWER(COALESCE(pz.name, '')) LIKE $2
+         )
        ORDER BY pz.priority_order, ps.spot_number, r.start_time`,
-      [date]
+      [date, normalized ? `%${normalized}%` : null]
     )
     return result.rows.map((row) => ({
       ...row,
       start_time: row.start_time.slice(0, 5),
       end_time: row.end_time.slice(0, 5),
     }))
+  }
+
+  async findAuditLogs(options: { query?: string; limit?: number }): Promise<AuditLogEntry[]> {
+    const query = options.query?.trim().toLowerCase()
+    const limit = Math.max(1, Math.min(100, options.limit ?? 50))
+    const result = await this.db.query<AuditLogEntry>(
+      `SELECT al.id::int AS id,
+              al.actor_user_id,
+              u.first_name AS actor_first_name,
+              u.last_name AS actor_last_name,
+              u.email AS actor_email,
+              al.action,
+              al.entity_type,
+              al.entity_id,
+              al.metadata,
+              al.created_at
+       FROM audit_logs al
+       LEFT JOIN users u ON u.id = al.actor_user_id
+       WHERE (
+         $1::text IS NULL
+         OR LOWER(al.action) LIKE $1
+         OR LOWER(al.entity_type) LIKE $1
+         OR LOWER(COALESCE(al.entity_id, '')) LIKE $1
+         OR LOWER(COALESCE(u.email, '')) LIKE $1
+         OR LOWER(COALESCE(u.first_name, '')) LIKE $1
+         OR LOWER(COALESCE(u.last_name, '')) LIKE $1
+       )
+       ORDER BY al.created_at DESC
+       LIMIT $2`,
+      [query ? `%${query}%` : null, limit]
+    )
+    return result.rows
   }
 }

@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { NewReservationPage } from './NewReservationPage'
 import { getSession } from '../../services/tokenStore'
-import { createReservation, fetchAvailability, fetchFloorOccupancy, fetchRecommendations } from '../../services/reservationService'
+import { createReservation, createVehicle, fetchAvailability, fetchFloorOccupancy, fetchMyVehicles, fetchRecommendations } from '../../services/reservationService'
 import { fetchFloors, fetchFloorSpaces } from '../../services/floorService'
 
 vi.mock('../../services/tokenStore', () => ({
@@ -15,6 +15,8 @@ vi.mock('../../services/reservationService', () => ({
   fetchAvailability: vi.fn(),
   fetchFloorOccupancy: vi.fn(),
   fetchRecommendations: vi.fn(),
+  fetchMyVehicles: vi.fn(),
+  createVehicle: vi.fn(),
   createReservation: vi.fn(),
   askReservationAssistant: vi.fn(),
 }))
@@ -95,6 +97,38 @@ describe('NewReservationPage integration', () => {
 
     vi.mocked(fetchAvailability).mockResolvedValue({ success: true, data: [recommendationSpace, ninthFloorSpace] })
     vi.mocked(fetchFloorOccupancy).mockResolvedValue({ success: true, data: [] })
+    vi.mocked(fetchMyVehicles).mockResolvedValue({
+      success: true,
+      data: [{
+        id: 3,
+        user_id: 7,
+        alias: 'Demo principal',
+        plate: 'ABC-123',
+        make: 'Honda',
+        model: 'Civic',
+        color: 'Gris',
+        is_default: true,
+        is_active: true,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      }],
+    })
+    vi.mocked(createVehicle).mockResolvedValue({
+      success: true,
+      data: {
+        id: 4,
+        user_id: 7,
+        alias: 'Nuevo',
+        plate: 'XYZ-789',
+        make: 'Mazda',
+        model: '3',
+        color: 'Rojo',
+        is_default: false,
+        is_active: true,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      },
+    })
     vi.mocked(fetchRecommendations).mockResolvedValue({
       success: true,
       data: {
@@ -148,6 +182,7 @@ describe('NewReservationPage integration', () => {
         end_time: '11:00',
         status: 'confirmada',
         requiere_estacionamiento: true,
+        vehicle_id: 3,
         parking_spot: { zone_name: 'T1', spot_number: 'T1-01' },
       },
     })
@@ -185,6 +220,7 @@ describe('NewReservationPage integration', () => {
         space_id: 21,
         reservation_date: '2099-06-01',
         requiere_estacionamiento: true,
+        vehicle_id: 3,
       }), 'token-123')
     })
   })
@@ -201,6 +237,7 @@ describe('NewReservationPage integration', () => {
         end_time: '11:00',
         status: 'confirmada',
         requiere_estacionamiento: true,
+        vehicle_id: 3,
         parking_spot: { zone_name: 'T1', spot_number: 'T1-02' },
       },
     })
@@ -227,6 +264,7 @@ describe('NewReservationPage integration', () => {
         space_id: null,
         reservation_date: '2099-06-01',
         requiere_estacionamiento: true,
+        vehicle_id: 3,
       }), 'token-123')
     })
   })

@@ -121,6 +121,32 @@ describe("ReservationService", () => {
       hasOverlappingParkingForUser: vi.fn().mockResolvedValue(false),
       hasOverlappingForSpace: vi.fn().mockResolvedValue(false),
       hasOverlappingBlockForSpace: vi.fn().mockResolvedValue(false),
+      findVehiclesByUser: vi.fn().mockResolvedValue([{
+        id: 3,
+        user_id: 7,
+        alias: "Demo principal",
+        plate: "ABC-123",
+        make: "Honda",
+        model: "Civic",
+        color: "Gris",
+        is_default: true,
+        is_active: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      }]),
+      findVehicleByUser: vi.fn().mockResolvedValue({
+        id: 3,
+        user_id: 7,
+        alias: "Demo principal",
+        plate: "ABC-123",
+        make: "Honda",
+        model: "Civic",
+        color: "Gris",
+        is_default: true,
+        is_active: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      }),
       findByCode: vi.fn().mockResolvedValue(null),
       findById: vi.fn(),
       findByUserId: vi.fn().mockResolvedValue([]),
@@ -203,7 +229,9 @@ describe("ReservationService", () => {
     }, 7)
 
     expect(reservationRepository.hasOverlappingParkingForUser).toHaveBeenCalledWith(7, FUTURE_DATE, "09:00", "10:00")
+    expect(reservationRepository.findVehiclesByUser).toHaveBeenCalledWith(7)
     expect(parkingRepository.assignSpot).toHaveBeenCalledWith(10, FUTURE_DATE, "09:00", "10:00")
+    expect(reservationRepository.create).toHaveBeenCalledWith(expect.objectContaining({ vehicle_id: 3 }))
     expect(result.parking_spot).toMatchObject({ zone_name: "T1", spot_number: "T1-01" })
   })
 
@@ -229,6 +257,7 @@ describe("ReservationService", () => {
       user_id: 7,
       space_id: null,
       requiere_estacionamiento: true,
+      vehicle_id: 3,
     }))
     expect(parkingRepository.assignSpot).toHaveBeenCalledWith(10, FUTURE_DATE, "09:00", "10:00")
     expect(result).toMatchObject({
@@ -265,6 +294,38 @@ describe("ReservationService", () => {
     }, 7)).rejects.toMatchObject({ code: "PARKING_UNAVAILABLE" })
 
     expect(reservationRepository.update).toHaveBeenCalledWith(10, { status: "cancelada" })
+  })
+
+  it("requires a registered vehicle before assigning parking", async () => {
+    vi.mocked(reservationRepository.findVehiclesByUser).mockResolvedValue([])
+
+    await expect(service.createReservation({
+      space_id: 5,
+      reservation_date: FUTURE_DATE,
+      start_time: "09:00",
+      end_time: "10:00",
+      requiere_estacionamiento: true,
+    }, 7)).rejects.toMatchObject({ code: "VEHICLE_REQUIRED" })
+
+    expect(reservationRepository.create).not.toHaveBeenCalled()
+    expect(parkingRepository.assignSpot).not.toHaveBeenCalled()
+  })
+
+  it("requires explicit vehicle selection when the user has multiple vehicles", async () => {
+    vi.mocked(reservationRepository.findVehiclesByUser).mockResolvedValue([
+      { id: 3, user_id: 7, alias: "Civic", plate: "ABC-123", make: "Honda", model: "Civic", color: "Gris", is_default: true, is_active: true, created_at: new Date(), updated_at: new Date() },
+      { id: 4, user_id: 7, alias: "Mazda", plate: "XYZ-789", make: "Mazda", model: "3", color: "Rojo", is_default: false, is_active: true, created_at: new Date(), updated_at: new Date() },
+    ])
+
+    await expect(service.createReservation({
+      space_id: 5,
+      reservation_date: FUTURE_DATE,
+      start_time: "09:00",
+      end_time: "10:00",
+      requiere_estacionamiento: true,
+    }, 7)).rejects.toMatchObject({ code: "VEHICLE_SELECTION_REQUIRED" })
+
+    expect(reservationRepository.create).not.toHaveBeenCalled()
   })
 
   it("returns intelligent recommendations near frequent collaborators", async () => {

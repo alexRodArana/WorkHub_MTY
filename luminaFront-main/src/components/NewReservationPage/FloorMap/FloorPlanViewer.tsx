@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { SpaceWithLayout, LayoutDirection } from '../../../types/floor'
 import type { AiSpaceRecommendationMarker, SpaceOccupancy } from '../../../types/reservation'
 import styles from './FloorPlanViewer.module.css'
@@ -120,7 +120,7 @@ function getSpaceAnchor(space: SpaceWithLayout, vbW: number): { x: number; y: nu
   }
 }
 
-function getDeskSeatAnchor(space: SpaceWithLayout, vbW: number): { x: number; y: number; direction: LayoutDirection } | null {
+function getDeskBodyAnchor(space: SpaceWithLayout, vbW: number): { x: number; y: number; bodyHeight: number; direction: LayoutDirection } | null {
   if (space.layout_type !== 'desk' || !space.layout_points || space.layout_points.length < 2) return null
   const p0 = space.layout_points[0]
   const p1 = space.layout_points[1]
@@ -128,29 +128,28 @@ function getDeskSeatAnchor(space: SpaceWithLayout, vbW: number): { x: number; y:
   const y1 = p0.y * 100
   const x2 = p1.x * vbW
   const y2 = p1.y * 100
-  const dw = x2 - x1
   const dh = y2 - y1
   const dir = space.layout_direction ?? 'up'
-  const offset = seatOffset(dir, dw, dh)
 
   return {
-    x: (x1 + x2) / 2 + offset.dx,
-    y: (y1 + y2) / 2 + offset.dy,
+    x: (x1 + x2) / 2,
+    y: (y1 + y2) / 2,
+    bodyHeight: Math.abs(dh),
     direction: dir,
   }
 }
 
 function getOccupantMarkerAnchor(space: SpaceWithLayout, vbW: number): { x: number; y: number } | null {
-  const seatAnchor = getDeskSeatAnchor(space, vbW)
-  if (seatAnchor) {
-    const verticalOffset = seatAnchor.direction === 'down'
-      ? 5.2
-      : seatAnchor.direction === 'up'
-        ? -5.2
-        : seatAnchor.y < 52 ? 5.2 : -5.2
+  const deskAnchor = getDeskBodyAnchor(space, vbW)
+  if (deskAnchor) {
+    const verticalOffset = deskAnchor.direction === 'down'
+      ? Math.max(5.2, deskAnchor.bodyHeight + 2.4)
+      : deskAnchor.direction === 'up'
+        ? -Math.max(5.2, deskAnchor.bodyHeight + 2.4)
+        : deskAnchor.y < 52 ? Math.max(5.2, deskAnchor.bodyHeight + 2.4) : -Math.max(5.2, deskAnchor.bodyHeight + 2.4)
     return {
-      x: seatAnchor.x,
-      y: Math.max(4, Math.min(96, seatAnchor.y + verticalOffset)),
+      x: deskAnchor.x,
+      y: Math.max(4, Math.min(96, deskAnchor.y + verticalOffset)),
     }
   }
 
@@ -160,6 +159,24 @@ function getOccupantMarkerAnchor(space: SpaceWithLayout, vbW: number): { x: numb
     x: anchor.x,
     y: anchor.y < 52 ? Math.min(96, anchor.y + 7) : Math.max(4, anchor.y - 7),
   }
+}
+
+const ROOM_DISPLAY_NAMES: Record<string, string> = {
+  'PB-A1': 'Fundidora',
+  'PB-A2': 'La Huasteca',
+  'PB-A3': 'Monterrey',
+  'MZ-A1': 'Sala Mitras',
+  'MZ-A2': 'Chipinque',
+  'MZ-AREA-72': 'Santa Lucia',
+  'P3-A1': 'Sierra Madre',
+  'P3-AREA-33': 'La Silla',
+  'P9-A1': 'Estanzuela',
+  'P9-A2': 'Area Colaborativa AC-9091',
+  'P9-A3': 'Area D.T. SJ-9088',
+}
+
+function getSpaceDisplayName(space: SpaceWithLayout): string {
+  return space.display_name || ROOM_DISPLAY_NAMES[space.space_number] || space.space_number
 }
 
 interface ShapeProps {
@@ -297,7 +314,7 @@ function AreaShape({
       onMouseLeave={onMouseLeave}
       style={{ cursor: clickable ? 'pointer' : 'default' }}
       role={clickable ? 'button' : undefined}
-      aria-label={space.space_number}
+      aria-label={getSpaceDisplayName(space)}
     >
       {aiRecommendation && status === 'available' && (
         <polygon
@@ -368,7 +385,7 @@ function DeskShape({
       onMouseLeave={onMouseLeave}
       style={{ cursor: clickable ? 'pointer' : 'default' }}
       role={clickable ? 'button' : undefined}
-      aria-label={space.space_number}
+      aria-label={getSpaceDisplayName(space)}
     >
       {aiRecommendation && status === 'available' && (
         <>
@@ -476,6 +493,7 @@ export function FloorPlanViewer({
     desks: spaces.filter((s) => !s.visual_only && s.layout_type === 'desk'),
     visuals: spaces.filter((s) => s.visual_only),
   }), [spaces])
+  const spaceSignature = useMemo(() => spaces.map((space) => space.id).join('|'), [spaces])
   const spacesById = useMemo(() => new Map(spaces.map((space) => [space.id, space])), [spaces])
   const hoveredSpace = hoveredId !== null ? spacesById.get(hoveredId) ?? null : null
   const hoveredIntervals = hoveredId !== null ? occupancyBySpace.get(hoveredId) ?? [] : []
@@ -490,7 +508,13 @@ export function FloorPlanViewer({
     ? styles.mapPopupAbove
     : styles.mapPopupBelow
 
+  useEffect(() => {
+    setHoveredId(null)
+  }, [hasSearched, selectedId, spaceSignature])
+
   function handleShapeClick(space: SpaceWithLayout, status: SpaceStatus) {
+    setHoveredId(null)
+
     if (status === 'unavailable') {
       onClickUnavailableSpace(space.id)
       return
@@ -502,7 +526,15 @@ export function FloorPlanViewer({
   }
 
   return (
-    <div className={styles.container}>
+    <div
+      className={styles.container}
+      onPointerLeave={() => setHoveredId(null)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setHoveredId(null)
+        }
+      }}
+    >
       <img
         src={imageUrl}
         alt="Plano del piso"
@@ -535,7 +567,15 @@ export function FloorPlanViewer({
           const pts = space.layout_points
             .map((p) => `${(p.x * vbW).toFixed(3)},${(p.y * 100).toFixed(3)}`)
             .join(' ')
-          return <polygon key={space.id} points={pts} fill="#e4e4de" stroke="#d0d0ca" strokeWidth={0.15} />
+          return (
+            <polygon
+              key={space.id}
+              points={pts}
+              fill="var(--floor-visual-fill)"
+              stroke="var(--floor-visual-stroke)"
+              strokeWidth={0.15}
+            />
+          )
         })}
 
         {/* Areas (polygons) — rendered first, behind desks */}
@@ -595,7 +635,7 @@ export function FloorPlanViewer({
           style={{ left: popupLeft, top: popupTop }}
         >
           <div className={styles.popupHeader}>
-            <strong>{hoveredSpace.space_number}</strong>
+            <strong>{getSpaceDisplayName(hoveredSpace)}</strong>
             <span>{floorName}</span>
           </div>
           {hoveredRecommendation && (

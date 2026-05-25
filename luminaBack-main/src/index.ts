@@ -17,6 +17,15 @@ app.use(cors({ origin: allowedOrigins }))
 app.use(express.json({ limit: "1mb" }))
 app.set("trust proxy", trustProxy)
 
+app.get("/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    service: "workhub-mty-api",
+    timestamp: new Date().toISOString(),
+    uptime_seconds: Math.round(process.uptime()),
+  })
+})
+
 app.use("/auth", authRouter)
 app.use("/reservations", reservationsRouter)
 

@@ -6,11 +6,11 @@
 @keyframes tourCardIn {
   from {
     opacity: 0;
-    filter: blur(6px);
+    transform: translate3d(0, 8px, 0) scale(0.985);
   }
   to {
     opacity: 1;
-    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
@@ -63,17 +63,8 @@
 .scrim {
   position: fixed;
   z-index: 1;
-  background:
-    radial-gradient(circle at 22% 16%, rgba(161, 0, 255, 0.09), transparent 30%),
-    radial-gradient(circle at 78% 76%, rgba(0, 140, 114, 0.07), transparent 26%),
-    rgba(15, 12, 20, 0.3);
-  backdrop-filter: blur(1.4px);
-  transition:
-    left 300ms cubic-bezier(0.16, 1, 0.3, 1),
-    top 300ms cubic-bezier(0.16, 1, 0.3, 1),
-    width 300ms cubic-bezier(0.16, 1, 0.3, 1),
-    height 300ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 180ms ease;
+  background: rgba(15, 12, 20, 0.25);
+  transition: opacity 160ms ease;
 }
 
 .scrimPiece {
@@ -86,14 +77,7 @@
 
 .ambientOne,
 .ambientTwo {
-  position: absolute;
-  z-index: 0;
-  width: 320px;
-  height: 320px;
-  border-radius: 999px;
-  pointer-events: none;
-  filter: blur(10px);
-  animation: tourAmbient 6s ease-in-out infinite;
+  display: none;
 }
 
 .ambientOne {
@@ -117,17 +101,17 @@
   border-radius: 20px;
   border: 2px solid rgba(255, 176, 0, 0.96);
   box-shadow:
-    0 0 0 9999px rgba(0, 0, 0, 0.045),
+    0 0 0 9999px rgba(0, 0, 0, 0.035),
     0 0 0 7px rgba(255, 176, 0, 0.16),
-    0 18px 48px rgba(0, 0, 0, 0.22),
-    0 0 34px rgba(255, 176, 0, 0.34);
+    0 14px 36px rgba(0, 0, 0, 0.2),
+    0 0 26px rgba(255, 176, 0, 0.28);
   overflow: hidden;
   pointer-events: none;
   transition:
-    left 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    top 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    width 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    height 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    left 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    top 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    width 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    height 180ms cubic-bezier(0.16, 1, 0.3, 1),
     border-radius 220ms ease;
   will-change: left, top, width, height;
 }
@@ -152,6 +136,7 @@
   position: fixed;
   z-index: 4;
   width: min(390px, calc(100vw - 36px));
+  max-height: calc(100dvh - 36px);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -164,15 +149,17 @@
   box-shadow:
     0 30px 88px rgba(15, 12, 20, 0.42),
     0 0 0 1px rgba(255, 255, 255, 0.56) inset;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
   pointer-events: auto;
   animation: tourCardIn 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
   transition:
-    left 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    top 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    left 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    top 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 160ms ease,
     box-shadow 180ms ease;
-  will-change: left, top, transform;
+  contain: layout paint;
+  will-change: left, top, opacity;
 }
 
 .cardGlow {
@@ -418,11 +405,7 @@
 
 @media (max-width: 760px) {
   .scrim {
-    background:
-      radial-gradient(circle at 22% 16%, rgba(161, 0, 255, 0.08), transparent 32%),
-      radial-gradient(circle at 78% 76%, rgba(0, 140, 114, 0.06), transparent 30%),
-      rgba(15, 12, 20, 0.24);
-    backdrop-filter: blur(0.5px);
+    background: rgba(15, 12, 20, 0.22);
   }
 
   .highlight {
@@ -438,9 +421,9 @@
     left: 14px !important;
     right: 14px !important;
     top: auto !important;
-    bottom: calc(86px + env(safe-area-inset-bottom)) !important;
+    bottom: calc(14px + env(safe-area-inset-bottom)) !important;
     width: auto;
-    max-height: min(62vh, 430px);
+    max-height: calc(100dvh - 28px - env(safe-area-inset-bottom));
     overflow-y: auto;
     transform: none !important;
   }
@@ -454,11 +437,13 @@
 
   .actions {
     align-items: stretch;
+    flex-wrap: wrap;
   }
 
   .actions > div {
     flex: 1;
     justify-content: flex-end;
+    min-width: 190px;
   }
 }
 
@@ -481,6 +466,24 @@
   .primaryBtn {
     padding: 0 11px;
     font-size: 0.78rem;
+  }
+
+  .actions {
+    gap: 9px;
+  }
+
+  .actions > div {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .skipBtn {
+    flex: 1 1 100%;
+  }
+
+  .secondaryBtn,
+  .primaryBtn {
+    flex: 1 1 0;
   }
 
   .dots {

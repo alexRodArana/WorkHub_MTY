@@ -6,9 +6,10 @@ import type {
   RecommendationResult,
   SpaceAvailability,
   ReservationResponse,
+  UserVehicle,
 } from '../../types/reservation'
 import { getSession } from '../../services/tokenStore'
-import { fetchAvailability, createReservation, fetchRecommendations } from '../../services/reservationService'
+import { fetchAvailability, createReservation, fetchRecommendations, fetchMyVehicles, createVehicle } from '../../services/reservationService'
 import { mapReservationError } from '../../utils/reservationValidator'
 import { useReservationRealtime } from '../../hooks/useReservationRealtime'
 import { FilterPanel } from './FilterPanel/FilterPanel'
@@ -60,6 +61,18 @@ interface ReservationFlowState {
   confirmedReservation: ReservationResponse | null
   confirmError: string | null
   isConfirming: boolean
+  vehicles: UserVehicle[]
+  selectedVehicleId: number | null
+  showVehiclePrompt: boolean
+  vehicleError: string | null
+  vehicleForm: {
+    plate: string
+    alias: string
+    make: string
+    model: string
+    color: string
+  }
+  isSavingVehicle: boolean
 }
 
 function getDefaultFilters(): FilterValues {
@@ -126,13 +139,33 @@ export function NewReservationPage(): JSX.Element {
     confirmedReservation: null,
     confirmError: null,
     isConfirming: false,
+    vehicles: [],
+    selectedVehicleId: null,
+    showVehiclePrompt: false,
+    vehicleError: null,
+    vehicleForm: { plate: '', alias: '', make: '', model: '', color: '' },
+    isSavingVehicle: false,
   })
 
   useEffect(() => {
     const token = getSession()?.access_token
     if (!token) {
       navigate('/login', { replace: true })
+      return
     }
+
+    fetchMyVehicles(token).then((result) => {
+      if (result.success) {
+        const defaultVehicle = result.data.find((vehicle) => vehicle.is_default) ?? result.data[0] ?? null
+        setState((prev) => ({
+          ...prev,
+          vehicles: result.data,
+          selectedVehicleId: prev.selectedVehicleId ?? defaultVehicle?.id ?? null,
+        }))
+      } else if (result.unauthorized) {
+        navigate('/login', { replace: true })
+      }
+    })
   }, [navigate])
 
   // Stable ref so auto-search effect doesn't re-register when handleSearch identity changes
@@ -225,8 +258,32 @@ export function NewReservationPage(): JSX.Element {
     })
   }
 
-  function handleContinue() {
+  function requiresVehicleForCurrentMode(mode = state.reservationMode): boolean {
+    return mode === 'desk-parking' || mode === 'parking-only'
+  }
+
+  function continueWithVehicleGate() {
+    if (!requiresVehicleForCurrentMode()) {
+      setState((prev) => ({ ...prev, showConfirmationModal: true }))
+      return
+    }
+
+    if (state.vehicles.length === 0 || !state.selectedVehicleId) {
+      setState((prev) => ({
+        ...prev,
+        showVehiclePrompt: true,
+        vehicleError: state.vehicles.length === 0
+          ? 'Agrega un vehículo antes de reservar estacionamiento.'
+          : 'Selecciona el vehículo que usarás para esta reserva.',
+      }))
+      return
+    }
+
     setState((prev) => ({ ...prev, showConfirmationModal: true }))
+  }
+
+  function handleContinue() {
+    continueWithVehicleGate()
   }
 
   function handleParkingOnlyContinue() {
@@ -239,12 +296,8 @@ export function NewReservationPage(): JSX.Element {
       return
     }
 
-    setState((prev) => ({
-      ...prev,
-      selectedSpace: null,
-      confirmError: null,
-      showConfirmationModal: true,
-    }))
+    setState((prev) => ({ ...prev, selectedSpace: null, confirmError: null }))
+    continueWithVehicleGate()
   }
 
   function handleModeChange(mode: ReservationMode) {
@@ -254,6 +307,65 @@ export function NewReservationPage(): JSX.Element {
       selectedSpace: mode === 'parking-only' ? null : prev.selectedSpace,
       confirmError: null,
       searchError: null,
+    }))
+  }
+
+  async function handleSaveVehicle() {
+    const token = getSession()?.access_token
+    if (!token) {
+      navigate('/login', { replace: true })
+      return
+    }
+
+    const plate = state.vehicleForm.plate.trim()
+    if (plate.length < 4) {
+      setState((prev) => ({ ...prev, vehicleError: 'La placa debe tener al menos 4 caracteres.' }))
+      return
+    }
+
+    setState((prev) => ({ ...prev, isSavingVehicle: true, vehicleError: null }))
+    const result = await createVehicle(token, {
+      plate,
+      alias: state.vehicleForm.alias,
+      make: state.vehicleForm.make,
+      model: state.vehicleForm.model,
+      color: state.vehicleForm.color,
+      is_default: state.vehicles.length === 0,
+    })
+
+    if (!result.success) {
+      if (result.unauthorized) navigate('/login', { replace: true })
+      else {
+        setState((prev) => ({
+          ...prev,
+          isSavingVehicle: false,
+          vehicleError: 'No se pudo guardar el vehículo. Revisa los datos e intenta de nuevo.',
+        }))
+      }
+      return
+    }
+
+    setState((prev) => ({
+      ...prev,
+      isSavingVehicle: false,
+      vehicles: [result.data, ...prev.vehicles.filter((vehicle) => vehicle.id !== result.data.id)],
+      selectedVehicleId: result.data.id,
+      vehicleError: null,
+      vehicleForm: { plate: '', alias: '', make: '', model: '', color: '' },
+    }))
+  }
+
+  function handleVehiclePromptContinue() {
+    if (!state.selectedVehicleId) {
+      setState((prev) => ({ ...prev, vehicleError: 'Selecciona o registra un vehículo para continuar.' }))
+      return
+    }
+
+    setState((prev) => ({
+      ...prev,
+      showVehiclePrompt: false,
+      vehicleError: null,
+      showConfirmationModal: true,
     }))
   }
 
@@ -276,6 +388,15 @@ export function NewReservationPage(): JSX.Element {
       start_time: state.filters.start_time,
       end_time: state.filters.end_time,
       requiere_estacionamiento: modeRequiresParking || requiresParking,
+      vehicle_id: modeRequiresParking ? state.selectedVehicleId : null,
+    }
+
+    const optimisticSpace = state.selectedSpace
+    if (optimisticSpace && !isParkingOnly) {
+      setState((prev) => ({
+        ...prev,
+        availableSpaces: prev.availableSpaces.filter((space) => space.id !== optimisticSpace.id),
+      }))
     }
 
     const result = await createReservation(payload, token)
@@ -299,6 +420,22 @@ export function NewReservationPage(): JSX.Element {
 
     const errorCode = result.error
 
+    if (errorCode === 'VEHICLE_REQUIRED' || errorCode === 'VEHICLE_SELECTION_REQUIRED' || errorCode === 'VEHICLE_NOT_FOUND') {
+      setState((prev) => ({
+        ...prev,
+        isConfirming: false,
+        showConfirmationModal: false,
+        showVehiclePrompt: true,
+        vehicleError: errorCode === 'VEHICLE_NOT_FOUND'
+          ? 'El vehículo seleccionado ya no está disponible. Selecciona otro o registra uno nuevo.'
+          : 'Selecciona o registra un vehículo antes de continuar.',
+        availableSpaces: optimisticSpace && !isParkingOnly
+          ? [optimisticSpace, ...prev.availableSpaces]
+          : prev.availableSpaces,
+      }))
+      return
+    }
+
     if ((errorCode === 'SPACE_NOT_FOUND' || errorCode === 'SPACE_UNAVAILABLE') && state.selectedSpace) {
       const removedId = state.selectedSpace?.id
       setState((prev) => ({
@@ -315,6 +452,9 @@ export function NewReservationPage(): JSX.Element {
       ...prev,
       isConfirming: false,
       confirmError: mapReservationError(errorCode),
+      availableSpaces: optimisticSpace && !isParkingOnly
+        ? [optimisticSpace, ...prev.availableSpaces]
+        : prev.availableSpaces,
     }))
   }
 
@@ -376,6 +516,10 @@ export function NewReservationPage(): JSX.Element {
   )
   const recommendationCount = state.recommendations?.recommendations.length ?? 0
   const isParkingOnlyMode = state.reservationMode === 'parking-only'
+  const selectedVehicle = state.vehicles.find((vehicle) => vehicle.id === state.selectedVehicleId) ?? null
+  const selectedVehicleLabel = selectedVehicle
+    ? `${selectedVehicle.alias || [selectedVehicle.make, selectedVehicle.model].filter(Boolean).join(' ') || 'Vehículo'} · ${selectedVehicle.plate}`
+    : null
 
   return (
     <AppShell title="Nueva Reserva" noscroll>
@@ -435,6 +579,13 @@ export function NewReservationPage(): JSX.Element {
                     Se asignará automáticamente el primer cajón disponible según la prioridad de zonas.
                     Esta reserva no requiere seleccionar asiento ni hacer check-in.
                   </p>
+                  <div className={styles.vehicleInline}>
+                    <span>Vehículo</span>
+                    <strong>{selectedVehicleLabel ?? 'Pendiente de registrar'}</strong>
+                    <button type="button" onClick={() => setState((prev) => ({ ...prev, showVehiclePrompt: true, vehicleError: null }))}>
+                      {selectedVehicleLabel ? 'Cambiar' : 'Agregar'}
+                    </button>
+                  </div>
                   <dl>
                     <div>
                       <dt>Fecha</dt>
@@ -497,6 +648,101 @@ export function NewReservationPage(): JSX.Element {
           isLoading={state.isConfirming}
           error={state.confirmError}
         />
+      )}
+
+      {state.showVehiclePrompt && (
+        <div
+          className={styles.vehicleBackdrop}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setState((prev) => ({ ...prev, showVehiclePrompt: false, vehicleError: null }))
+            }
+          }}
+        >
+          <section className={styles.vehicleModal} role="dialog" aria-modal="true" aria-label="Vehículo para estacionamiento">
+            <div className={styles.vehicleHeader}>
+              <span>Estacionamiento</span>
+              <h2>Selecciona un vehículo</h2>
+              <p>Para asignarte un cajón necesitamos saber qué vehículo usarás. Puedes tener varios registrados.</p>
+            </div>
+
+            {state.vehicles.length > 0 && (
+              <div className={styles.vehicleList}>
+                {state.vehicles.map((vehicle) => (
+                  <button
+                    key={vehicle.id}
+                    type="button"
+                    className={`${styles.vehicleOption} ${state.selectedVehicleId === vehicle.id ? styles.vehicleOptionActive : ''}`}
+                    onClick={() => setState((prev) => ({ ...prev, selectedVehicleId: vehicle.id, vehicleError: null }))}
+                  >
+                    <strong>{vehicle.alias || [vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehículo'}</strong>
+                    <span>{vehicle.plate}{vehicle.color ? ` · ${vehicle.color}` : ''}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className={styles.vehicleForm}>
+              <label>
+                <span>Placa</span>
+                <input
+                  value={state.vehicleForm.plate}
+                  onChange={(event) => setState((prev) => ({ ...prev, vehicleForm: { ...prev.vehicleForm, plate: event.target.value.toUpperCase() } }))}
+                  placeholder="ABC-123"
+                />
+              </label>
+              <label>
+                <span>Alias</span>
+                <input
+                  value={state.vehicleForm.alias}
+                  onChange={(event) => setState((prev) => ({ ...prev, vehicleForm: { ...prev.vehicleForm, alias: event.target.value } }))}
+                  placeholder="Mi carro"
+                />
+              </label>
+              <label>
+                <span>Marca</span>
+                <input
+                  value={state.vehicleForm.make}
+                  onChange={(event) => setState((prev) => ({ ...prev, vehicleForm: { ...prev.vehicleForm, make: event.target.value } }))}
+                  placeholder="Honda"
+                />
+              </label>
+              <label>
+                <span>Modelo</span>
+                <input
+                  value={state.vehicleForm.model}
+                  onChange={(event) => setState((prev) => ({ ...prev, vehicleForm: { ...prev.vehicleForm, model: event.target.value } }))}
+                  placeholder="Civic"
+                />
+              </label>
+              <label>
+                <span>Color</span>
+                <input
+                  value={state.vehicleForm.color}
+                  onChange={(event) => setState((prev) => ({ ...prev, vehicleForm: { ...prev.vehicleForm, color: event.target.value } }))}
+                  placeholder="Gris"
+                />
+              </label>
+            </div>
+
+            {state.vehicleError && <div className={styles.vehicleError}>{state.vehicleError}</div>}
+
+            <div className={styles.vehicleActions}>
+              <button
+                type="button"
+                onClick={() => setState((prev) => ({ ...prev, showVehiclePrompt: false, vehicleError: null }))}
+              >
+                Cancelar
+              </button>
+              <button type="button" onClick={() => void handleSaveVehicle()} disabled={state.isSavingVehicle}>
+                {state.isSavingVehicle ? 'Guardando...' : 'Guardar vehículo'}
+              </button>
+              <button type="button" onClick={handleVehiclePromptContinue} disabled={!state.selectedVehicleId}>
+                Continuar
+              </button>
+            </div>
+          </section>
+        </div>
       )}
 
       {state.showSuccessModal && state.confirmedReservation && (

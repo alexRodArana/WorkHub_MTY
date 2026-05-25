@@ -160,6 +160,32 @@
   text-align: left;
 }
 
+.centralNotice {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 13px 14px;
+  border: 1px solid rgba(255, 176, 0, 0.32);
+  border-radius: 14px;
+  background: rgba(255, 176, 0, 0.12);
+  text-align: left;
+  animation: badgeUnlockIn 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.centralNotice strong {
+  color: #7a5800;
+  font-size: 0.86rem;
+}
+
+.centralNotice p {
+  margin: 0;
+  color: #6d5200;
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .badgeUnlockPanel {
   width: 100%;
   display: flex;
@@ -334,6 +360,19 @@
 :global([data-theme='dark']) .code {
   background: rgba(161, 0, 255, 0.09);
   border-color: rgba(161, 0, 255, 0.14);
+}
+
+:global([data-theme='dark']) .centralNotice {
+  background: rgba(255, 176, 0, 0.12);
+  border-color: rgba(255, 176, 0, 0.28);
+}
+
+:global([data-theme='dark']) .centralNotice strong {
+  color: #ffd36a;
+}
+
+:global([data-theme='dark']) .centralNotice p {
+  color: #ffe3a0;
 }
 
 :global([data-theme='dark']) .badgeUnlockPanel {

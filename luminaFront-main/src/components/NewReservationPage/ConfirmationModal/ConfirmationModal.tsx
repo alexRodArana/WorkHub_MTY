@@ -116,7 +116,7 @@ export function ConfirmationModal({
         <div className={styles.summary}>
           <div className={styles.row}>
             <span className={styles.rowLabel}>{isParkingOnly ? 'Reserva' : 'Espacio'}</span>
-            <span className={styles.rowValue}>{space?.space_number ?? 'Solo estacionamiento'}</span>
+            <span className={styles.rowValue}>{space ? (space.display_name || space.space_number) : 'Solo estacionamiento'}</span>
           </div>
           <div className={styles.row}>
             <span className={styles.rowLabel}>Tipo</span>

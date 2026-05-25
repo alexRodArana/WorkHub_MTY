@@ -92,6 +92,7 @@ export class ReservationService {
     const { space_id, reservation_date, start_time, end_time } = input
     const requiresParking = input.requiere_estacionamiento === true
     const hasSpaceId = typeof space_id === "number" && space_id > 0
+    let resolvedVehicleId: number | null = null
 
     if (!reservation_date || !start_time || !end_time || (!hasSpaceId && !requiresParking)) {
       throw new ReservationError(400, "MISSING_FIELDS", "Selecciona un espacio o solicita estacionamiento, además de fecha y horario")
@@ -148,6 +149,23 @@ export class ReservationService {
     }
 
     if (requiresParking) {
+      const vehicles = await this.reservationRepository.findVehiclesByUser(userId)
+      if (vehicles.length === 0) {
+        throw new ReservationError(422, "VEHICLE_REQUIRED", "Agrega un vehículo antes de reservar estacionamiento")
+      }
+
+      if (typeof input.vehicle_id === "number" && input.vehicle_id > 0) {
+        const vehicle = await this.reservationRepository.findVehicleByUser(userId, input.vehicle_id)
+        if (!vehicle) {
+          throw new ReservationError(422, "VEHICLE_NOT_FOUND", "El vehículo seleccionado no existe o no pertenece al usuario")
+        }
+        resolvedVehicleId = vehicle.id
+      } else if (vehicles.length === 1) {
+        resolvedVehicleId = vehicles[0].id
+      } else {
+        throw new ReservationError(422, "VEHICLE_SELECTION_REQUIRED", "Selecciona el vehículo que usarás para el estacionamiento")
+      }
+
       const hasParkingConflict = await this.reservationRepository.hasOverlappingParkingForUser(
         userId, reservation_date, start_time, end_time
       )
@@ -174,6 +192,7 @@ export class ReservationService {
       status: "confirmada",
       grace_period_minutes: this.getEffectiveGracePeriodMinutes(15),
       requiere_estacionamiento: requiresParking,
+      vehicle_id: resolvedVehicleId,
       check_in_time: null,
       check_out_time: null,
     })

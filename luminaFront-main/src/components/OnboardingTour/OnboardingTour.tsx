@@ -29,10 +29,17 @@ type OnboardingTourProps = {
   restartKey: number
 }
 
-const STORAGE_PREFIX = 'workhub-onboarding-tour-v6'
+const STORAGE_PREFIX = 'workhub-onboarding-tour-v8'
 const ACTIVE_SESSION_KEY = 'workhub-onboarding-tour-active'
 const CARD_WIDTH = 390
+const CARD_ESTIMATED_HEIGHT = 310
 const VIEWPORT_GAP = 18
+const AUTO_ADVANCE_MS = 8500
+
+type CardSize = {
+  width: number
+  height: number
+}
 
 type ActiveTourState = {
   role: TourRole
@@ -288,7 +295,7 @@ const adminSteps: TourStep[] = [
     selector: tourSelector('admin-kpis'),
     eyebrow: 'KPIs',
     title: 'Indicadores clave',
-    body: 'Aquí ves reservas, ocupación, usuarios únicos, estacionamiento, cancelaciones, no-shows y espacios bloqueados.',
+    body: 'Aquí ves reservas, ocupación, usuarios únicos, estacionamiento, cancelaciones, no-shows y bloqueos. Haz click en cualquier KPI para abrir su detalle.',
     placement: 'bottom',
   },
   {
@@ -297,7 +304,7 @@ const adminSteps: TourStep[] = [
     selector: tourSelector('admin-insights'),
     eyebrow: 'Análisis',
     title: 'Salud operativa',
-    body: 'Las gráficas muestran ocupación total, uso de estacionamiento, pico de demanda y piso más activo.',
+    body: 'Las gráficas muestran ocupación total, uso de estacionamiento, pico de demanda y piso más activo. También puedes expandirlas para ver métricas completas.',
     placement: 'top',
   },
   {
@@ -306,7 +313,7 @@ const adminSteps: TourStep[] = [
     selector: tourSelector('admin-charts'),
     eyebrow: 'Gráficas',
     title: 'Demanda y comportamiento',
-    body: 'Revisa distribución por piso, tipo de espacio, demanda por hora y usuarios con más actividad.',
+    body: 'Revisa distribución por piso, tipo de espacio, demanda por hora y usuarios con más actividad. Cada componente abre una vista detallada al seleccionarlo.',
     placement: 'top',
   },
   {
@@ -420,46 +427,80 @@ function getTooltipPlacement(step: TourStep, rect: TargetRect | null): TourPlace
   return rect.top > window.innerHeight * 0.52 ? 'top' : 'bottom'
 }
 
-function getTooltipStyle(rect: TargetRect | null, placement: TourPlacement): CSSProperties {
+function getCardSize(cardSize: CardSize): CardSize {
+  return {
+    width: Math.min(CARD_WIDTH, Math.max(240, window.innerWidth - VIEWPORT_GAP * 2)),
+    height: Math.min(Math.max(180, cardSize.height || CARD_ESTIMATED_HEIGHT), Math.max(180, window.innerHeight - VIEWPORT_GAP * 2)),
+  }
+}
+
+function getResolvedTooltipPlacement(
+  rect: TargetRect | null,
+  preferredPlacement: TourPlacement,
+  cardSize: CardSize
+): TourPlacement {
+  if (!rect || preferredPlacement === 'center') return preferredPlacement
+
+  const card = getCardSize(cardSize)
+  const available = {
+    top: rect.top - VIEWPORT_GAP,
+    right: window.innerWidth - (rect.left + rect.width) - VIEWPORT_GAP,
+    bottom: window.innerHeight - (rect.top + rect.height) - VIEWPORT_GAP,
+    left: rect.left - VIEWPORT_GAP,
+  }
+
+  if (preferredPlacement === 'top' && available.top >= card.height + 18) return 'top'
+  if (preferredPlacement === 'bottom' && available.bottom >= card.height + 18) return 'bottom'
+  if (preferredPlacement === 'left' && available.left >= card.width + 18) return 'left'
+  if (preferredPlacement === 'right' && available.right >= card.width + 18) return 'right'
+
+  if (available.bottom >= card.height + 18) return 'bottom'
+  if (available.top >= card.height + 18) return 'top'
+  if (available.right >= card.width + 18) return 'right'
+  if (available.left >= card.width + 18) return 'left'
+  return 'center'
+}
+
+function getTooltipStyle(rect: TargetRect | null, placement: TourPlacement, cardSize: CardSize): CSSProperties {
+  const card = getCardSize(cardSize)
+  const maxLeft = window.innerWidth - card.width - VIEWPORT_GAP
+  const maxTop = window.innerHeight - card.height - VIEWPORT_GAP
+
   if (!rect || placement === 'center') {
     return {
-      left: '50%',
-      top: '50%',
-      transform: 'translate(-50%, -50%)',
+      left: clamp((window.innerWidth - card.width) / 2, VIEWPORT_GAP, Math.max(VIEWPORT_GAP, maxLeft)),
+      top: clamp((window.innerHeight - card.height) / 2, VIEWPORT_GAP, Math.max(VIEWPORT_GAP, maxTop)),
     }
   }
 
-  const maxLeft = window.innerWidth - CARD_WIDTH - VIEWPORT_GAP
-  const centerLeft = rect.left + rect.width / 2 - CARD_WIDTH / 2
+  const centerLeft = rect.left + rect.width / 2 - card.width / 2
   const left = clamp(centerLeft, VIEWPORT_GAP, Math.max(VIEWPORT_GAP, maxLeft))
-  const sideTop = clamp(rect.top + rect.height / 2 - 140, VIEWPORT_GAP, Math.max(VIEWPORT_GAP, window.innerHeight - 300))
+  const sideTop = clamp(rect.top + rect.height / 2 - card.height / 2, VIEWPORT_GAP, Math.max(VIEWPORT_GAP, maxTop))
 
   if (placement === 'top') {
     return {
       left,
-      top: Math.max(VIEWPORT_GAP, rect.top - 18),
-      transform: 'translateY(-100%)',
+      top: clamp(rect.top - card.height - 18, VIEWPORT_GAP, Math.max(VIEWPORT_GAP, maxTop)),
     }
   }
 
   if (placement === 'left') {
     return {
-      left: Math.max(VIEWPORT_GAP, rect.left - 18),
+      left: clamp(rect.left - card.width - 18, VIEWPORT_GAP, Math.max(VIEWPORT_GAP, maxLeft)),
       top: sideTop,
-      transform: 'translateX(-100%)',
     }
   }
 
   if (placement === 'right') {
     return {
-      left: Math.min(window.innerWidth - CARD_WIDTH - VIEWPORT_GAP, rect.left + rect.width + 18),
+      left: clamp(rect.left + rect.width + 18, VIEWPORT_GAP, Math.max(VIEWPORT_GAP, maxLeft)),
       top: sideTop,
     }
   }
 
   return {
     left,
-    top: Math.min(window.innerHeight - 260, rect.top + rect.height + 18),
+    top: clamp(rect.top + rect.height + 18, VIEWPORT_GAP, Math.max(VIEWPORT_GAP, maxTop)),
   }
 }
 
@@ -534,7 +575,10 @@ export function OnboardingTour({ role, userId, restartKey }: OnboardingTourProps
   const [active, setActive] = useState(() => resumedTour !== null)
   const [stepIndex, setStepIndex] = useState(() => resumedTour ?? 0)
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null)
+  const [cardSize, setCardSize] = useState<CardSize>({ width: CARD_WIDTH, height: CARD_ESTIMATED_HEIGHT })
   const targetRef = useRef<HTMLElement | null>(null)
+  const cardRef = useRef<HTMLElement | null>(null)
+  const rectFrameRef = useRef<number | null>(null)
   const autoStartedRef = useRef(false)
 
   const currentStep = steps[stepIndex]
@@ -602,7 +646,7 @@ export function OnboardingTour({ role, userId, restartKey }: OnboardingTourProps
     }
   }, [active, currentStep, location.pathname, navigate])
 
-  const updateTargetRect = useCallback(() => {
+  const measureTargetRect = useCallback(() => {
     const target = targetRef.current
     if (!target) {
       setTargetRect(null)
@@ -616,6 +660,45 @@ export function OnboardingTour({ role, userId, restartKey }: OnboardingTourProps
       width: rect.width,
       height: rect.height,
     })
+  }, [])
+
+  const updateTargetRect = useCallback(() => {
+    if (rectFrameRef.current !== null) return
+    rectFrameRef.current = window.requestAnimationFrame(() => {
+      rectFrameRef.current = null
+      measureTargetRect()
+    })
+  }, [measureTargetRect])
+
+  useEffect(() => {
+    if (!active) return
+    const card = cardRef.current
+    if (!card) return
+
+    const measureCard = () => {
+      const rect = card.getBoundingClientRect()
+      setCardSize((previous) => {
+        const next = {
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+        }
+        return previous.width === next.width && previous.height === next.height ? previous : next
+      })
+    }
+
+    measureCard()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measureCard)
+    observer.observe(card)
+    return () => observer.disconnect()
+  }, [active, stepIndex])
+
+  useEffect(() => {
+    return () => {
+      if (rectFrameRef.current !== null) {
+        window.cancelAnimationFrame(rectFrameRef.current)
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -638,7 +721,7 @@ export function OnboardingTour({ role, userId, restartKey }: OnboardingTourProps
       if (element) {
         targetRef.current = element
         element.setAttribute('data-tour-active-target', 'true')
-        element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
+        element.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' })
         window.requestAnimationFrame(() => {
           updateTargetRect()
           window.setTimeout(updateTargetRect, needsSidebar ? 300 : 180)
@@ -701,10 +784,27 @@ export function OnboardingTour({ role, userId, restartKey }: OnboardingTourProps
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [active, finishTour, steps.length, tourRole, userKey])
 
+  useEffect(() => {
+    if (!active || !currentStep) return
+    const id = window.setTimeout(() => {
+      setStepIndex((index) => {
+        if (index >= steps.length - 1) {
+          finishTour()
+          return index
+        }
+        const next = index + 1
+        writeActiveTour({ role: tourRole, userKey, stepIndex: next })
+        return next
+      })
+    }, AUTO_ADVANCE_MS)
+    return () => window.clearTimeout(id)
+  }, [active, currentStep, finishTour, steps.length, tourRole, userKey])
+
   if (!active || !currentStep) return null
 
-  const placement = getTooltipPlacement(currentStep, targetRect)
-  const tooltipStyle = getTooltipStyle(targetRect, placement)
+  const preferredPlacement = getTooltipPlacement(currentStep, targetRect)
+  const placement = getResolvedTooltipPlacement(targetRect, preferredPlacement, cardSize)
+  const tooltipStyle = getTooltipStyle(targetRect, placement, cardSize)
   const highlightStyle = getHighlightStyle(targetRect)
   const scrimStyles = getScrimStyles(targetRect)
   const isLastStep = stepIndex === steps.length - 1
@@ -730,6 +830,7 @@ export function OnboardingTour({ role, userId, restartKey }: OnboardingTourProps
       )}
 
       <section
+        ref={cardRef}
         className={`${styles.card} ${styles[`placement_${placement}`]}`}
         style={tooltipStyle}
         role="dialog"

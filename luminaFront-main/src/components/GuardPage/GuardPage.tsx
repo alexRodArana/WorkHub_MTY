@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../Layout/AppShell'
 import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner'
-import { fetchGuardParking } from '../../services/reservationService'
+import { fetchGuardParking, searchUsers } from '../../services/reservationService'
 import { getSession } from '../../services/tokenStore'
 import { useReservationRealtime } from '../../hooks/useReservationRealtime'
-import type { ParkingReservationForGuard, PublicUserProfile } from '../../types/reservation'
+import type { ParkingReservationForGuard, PublicUserProfile, UserSearchResult } from '../../types/reservation'
 import styles from './GuardPage.module.css'
 
 function today(): string {
@@ -22,6 +22,8 @@ export function GuardPage(): JSX.Element {
   const [items, setItems] = useState<ParkingReservationForGuard[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userQuery, setUserQuery] = useState('')
+  const [userResults, setUserResults] = useState<UserSearchResult[]>([])
 
   const token = getSession()?.access_token
 
@@ -33,7 +35,7 @@ export function GuardPage(): JSX.Element {
 
     if (showLoading) setLoading(true)
     setError(null)
-    const result = await fetchGuardParking(token, date)
+    const result = await fetchGuardParking(token, date, userQuery)
     if (showLoading) setLoading(false)
     if (!result.success) {
       if (result.unauthorized) navigate('/login', { replace: true })
@@ -41,7 +43,7 @@ export function GuardPage(): JSX.Element {
       return
     }
     setItems(result.data)
-  }, [date, navigate, token])
+  }, [date, navigate, token, userQuery])
 
   useEffect(() => {
     void loadParking()
@@ -64,18 +66,53 @@ export function GuardPage(): JSX.Element {
     return () => window.clearTimeout(id)
   }, [error])
 
+  useEffect(() => {
+    if (!token || userQuery.trim().length < 2) {
+      setUserResults([])
+      return
+    }
+    let cancelled = false
+    const id = window.setTimeout(() => {
+      searchUsers(token, userQuery).then((result) => {
+        if (cancelled) return
+        if (result.success) setUserResults(result.data)
+        else if (result.unauthorized) navigate('/login', { replace: true })
+      })
+    }, 180)
+    return () => {
+      cancelled = true
+      window.clearTimeout(id)
+    }
+  }, [navigate, token, userQuery])
+
+  const filteredItems = useMemo(() => {
+    const query = userQuery.trim().toLowerCase()
+    if (!query) return items
+    return items.filter((item) => [
+      item.user.first_name,
+      item.user.last_name,
+      item.user.email,
+      item.user.department,
+      item.vehicle_plate,
+      item.vehicle_label,
+      item.parking_spot_number,
+      item.parking_zone_name,
+      item.reservation_code,
+    ].filter(Boolean).join(' ').toLowerCase().includes(query))
+  }, [items, userQuery])
+
   const grouped = useMemo(() => {
-    return items.reduce<Record<string, ParkingReservationForGuard[]>>((acc, item) => {
+    return filteredItems.reduce<Record<string, ParkingReservationForGuard[]>>((acc, item) => {
       const key = item.parking_zone_name
       acc[key] = acc[key] ?? []
       acc[key].push(item)
       return acc
     }, {})
-  }, [items])
+  }, [filteredItems])
 
-  const activeCount = items.filter((item) => item.status === 'activa').length
+  const activeCount = filteredItems.filter((item) => item.status === 'activa').length
   const zoneCount = Object.keys(grouped).length
-  const nextReservation = items[0] ?? null
+  const nextReservation = filteredItems[0] ?? null
 
   return (
     <AppShell title="Guardia" subtitle="Reservas de estacionamiento del día">
@@ -90,12 +127,28 @@ export function GuardPage(): JSX.Element {
             <span>Fecha</span>
             <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
           </label>
+          <label className={styles.searchControl}>
+            <span>Buscar usuario</span>
+            <input value={userQuery} onChange={(event) => setUserQuery(event.target.value)} placeholder="Nombre, placa, cajón o zona" />
+          </label>
         </div>
+
+        {userResults.length > 0 && (
+          <section className={styles.userResults}>
+            {userResults.map((user) => (
+              <article key={user.id}>
+                <strong>{user.first_name} {user.last_name}</strong>
+                <span>{user.email} · {user.role}</span>
+                <b>{user.parking_reservation_count} parking</b>
+              </article>
+            ))}
+          </section>
+        )}
 
         <div className={styles.summaryGrid} data-tour="guard-summary">
           <div className={styles.summaryCard}>
             <span>Total</span>
-            <strong>{items.length}</strong>
+            <strong>{filteredItems.length}</strong>
             <small>reservas con cajón</small>
           </div>
           <div className={styles.summaryCard}>
@@ -119,7 +172,7 @@ export function GuardPage(): JSX.Element {
 
         {loading ? (
           <div className={styles.loadingWrap}><LoadingSpinner /></div>
-        ) : items.length === 0 ? (
+        ) : filteredItems.length === 0 ? (
           <div className={styles.emptyState} data-tour="guard-list">No hay estacionamientos reservados para esta fecha.</div>
         ) : (
           <div className={styles.zoneGrid} data-tour="guard-list">
@@ -147,6 +200,7 @@ export function GuardPage(): JSX.Element {
                         <div className={styles.meta}>
                           <span>{reservation.start_time} - {reservation.end_time}</span>
                           <span>{reservation.floor_name} · {reservation.space_number}</span>
+                          {reservation.vehicle_plate && <span>{reservation.vehicle_label ?? 'Vehículo'} · {reservation.vehicle_plate}</span>}
                           <span>#{reservation.reservation_code}</span>
                         </div>
                         <span className={`${styles.statusChip} ${reservation.status === 'activa' ? styles.statusActive : ''}`}>

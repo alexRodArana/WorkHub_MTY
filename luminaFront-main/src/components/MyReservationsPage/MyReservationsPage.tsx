@@ -310,6 +310,11 @@ export function MyReservationsPage(): JSX.Element {
                             🚗 {reservation.parking_zone_name} · {reservation.parking_spot_number}
                           </span>
                         )}
+                        {reservation.vehicle_plate && (
+                          <span className={styles.vehicleBadge}>
+                            {reservation.vehicle_label ?? 'Vehículo'} · {reservation.vehicle_plate}
+                          </span>
+                        )}
                         {isHistorial && reservation.status === 'activa' && reservation.check_in_time && (
                           <span className={styles.checkInRecord}>
                             ✓ Check-in {formatCheckInTimestamp(reservation.check_in_time)}

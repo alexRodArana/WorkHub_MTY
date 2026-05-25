@@ -1,21 +1,61 @@
-/* LoadingSpinner — brand purple, smooth spin animation */
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+@keyframes layoutSweep {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(120%); }
 }
 
-.spinner {
-  width: 22px;
-  height: 22px;
-  border: 3px solid rgba(161, 0, 255, 0.2);   /* Core Purple 1 at low opacity */
-  border-top-color: var(--color-purple-1, #a100ff);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  display: inline-block;
-  flex-shrink: 0;
+.layoutBox {
+  width: min(420px, 100%);
+  min-width: 180px;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(117, 0, 192, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 12px 30px rgba(70, 0, 115, 0.06);
+}
+
+.layoutBox span {
+  position: relative;
+  display: block;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(117, 0, 192, 0.08);
+}
+
+.layoutBox span:nth-child(1) {
+  width: 62%;
+}
+
+.layoutBox span:nth-child(2) {
+  width: 100%;
+}
+
+.layoutBox span:nth-child(3) {
+  width: 78%;
+}
+
+.layoutBox span::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(161, 0, 255, 0.18), transparent);
+  animation: layoutSweep 1.3s ease-in-out infinite;
+}
+
+:global([data-theme='dark']) .layoutBox {
+  background: rgba(35, 47, 61, 0.72);
+  border-color: rgba(161, 0, 255, 0.14);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+}
+
+:global([data-theme='dark']) .layoutBox span {
+  background: rgba(161, 0, 255, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layoutBox span::after {
+    animation: none;
+  }
 }

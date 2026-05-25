@@ -282,6 +282,12 @@
   color: #7500c0;
 }
 
+.vehicleBadge {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #0b7a63;
+}
+
 .cancelBtn {
   align-self: flex-start;
   background: transparent;

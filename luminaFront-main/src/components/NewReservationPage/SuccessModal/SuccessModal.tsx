@@ -103,7 +103,7 @@ export function SuccessModal({
         <div className={styles.summary}>
           <div className={styles.row}>
             <span className={styles.rowLabel}>{space ? 'Espacio' : 'Reserva'}</span>
-            <span className={styles.rowValue}>{space?.space_number ?? 'Solo estacionamiento'}</span>
+            <span className={styles.rowValue}>{space ? (space.display_name || space.space_number) : 'Solo estacionamiento'}</span>
           </div>
           <div className={styles.row}>
             <span className={styles.rowLabel}>Tipo</span>
@@ -135,7 +135,20 @@ export function SuccessModal({
               </span>
             </div>
           )}
+          {reservation.vehicle_id && (
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>Vehículo</span>
+              <span className={styles.rowValue}>Registrado para esta reserva</span>
+            </div>
+          )}
         </div>
+
+        {reservation.parking_spot?.zone_name.toLowerCase() === 'central' && (
+          <div className={styles.centralNotice} role="status">
+            <strong>Acceso a Central</strong>
+            <p>Antes de entrar, avisa a los guardias de T1 o T2 que tienes cajón asignado en Central. Así evitas realizar un pago innecesario.</p>
+          </div>
+        )}
 
         {newBadges.length > 0 && (
           <section className={styles.badgeUnlockPanel} aria-label="Logros desbloqueados">

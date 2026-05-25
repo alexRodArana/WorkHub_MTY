@@ -1,3 +1,37 @@
+const badgeImages = import.meta.glob('../assets/Badges/*.png', {
+  eager: true,
+  import: 'default',
+}) as Record<string, string>
+
+const BADGE_IMAGE_FILES: Record<string, { earned: string; locked: string }> = {
+  bienvenido_colega: { earned: 'Bienvenido.png', locked: 'bienvenidoGris.png' },
+  cafecito_en_la_mano: { earned: '5reservas.png', locked: '5reservasGris.png' },
+  diez_de_diez: { earned: '10reservas.png', locked: '10reservasGris.png' },
+  criatura_de_habitos: { earned: '5dias.png', locked: '5diasGris.png' },
+  ya_me_ubico: { earned: '20reservas.png', locked: '20reservasGris.png' },
+  la_misma_silla: { earned: 'mismasilla.png', locked: 'mismasillaGris.png' },
+  el_madrugador: { earned: 'madrugador.png', locked: 'madrugadorGris.png' },
+  asiduo_del_edificio: { earned: '50reservas.png', locked: '50reservasGris.png' },
+  racha_de_acero: { earned: '15dias.png', locked: '15diasGris.png' },
+  ciudadano_del_edificio: { earned: '4pisos.png', locked: '4pisosGris.png' },
+  semana_completa: { earned: 'semana.png', locked: 'semanaGris.png' },
+  sin_faltas: { earned: 'sinfaltas.png', locked: 'sinfaltasGris.png' },
+  inquilino_de_honor: { earned: '100reservas.png', locked: '100reservasGris.png' },
+  el_mes_perfecto: { earned: '20dias.png', locked: '20diasGris.png' },
+  sin_fronteras: { earned: 'sinfronteras.png', locked: 'sinfronterasGris.png' },
+  planificador_de_elite: { earned: 'anticipacion.png', locked: 'anticipacionGris.png' },
+  el_constante: { earned: 'constante.png', locked: 'constanteGris.png' },
+  el_edificio_es_mio: { earned: '200reservas.png', locked: '200reservasGris.png' },
+  imparable: { earned: '30dias.png', locked: '30diasGris.png' },
+  la_leyenda_del_edificio: { earned: '50dias.png', locked: '50diasGris.png' },
+  inmortal: { earned: '100dias.png', locked: '100diasGris.png' },
+  el_dueno_del_edificio: { earned: 'todosespacios.png', locked: 'todosespaciosGris.png' },
+}
+
+function findBadgeAsset(filename: string): string | undefined {
+  return badgeImages[`../assets/Badges/${filename}`]
+}
+
 export function getBadgeGlyph(key: string): string {
   const normalized = key.trim()
   if (!normalized) return 'WH'
@@ -5,6 +39,12 @@ export function getBadgeGlyph(key: string): string {
 }
 
 export function getBadgeImage(key: string, earned: boolean): string {
+  const imageFiles = BADGE_IMAGE_FILES[key]
+  if (imageFiles) {
+    const asset = findBadgeAsset(earned ? imageFiles.earned : imageFiles.locked)
+    if (asset) return asset
+  }
+
   const hue = Math.abs([...key].reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 360
   const colorA = earned ? `hsl(${hue} 82% 48%)` : '#d8d8d8'
   const colorB = earned ? `hsl(${(hue + 54) % 360} 86% 54%)` : '#f2f2f2'

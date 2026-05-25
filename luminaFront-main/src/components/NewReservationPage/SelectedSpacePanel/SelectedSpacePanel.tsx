@@ -42,7 +42,7 @@ export function SelectedSpacePanel({ space, filters, mode = 'desk-parking', onCo
       {space ? (
         <>
           <div className={styles.spaceBadge}>
-            <span className={styles.spaceNumber}>{space.space_number}</span>
+            <span className={styles.spaceNumber}>{space.display_name || space.space_number}</span>
             <span className={styles.spaceType}>{categoryLabel}</span>
           </div>
 

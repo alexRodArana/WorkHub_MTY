@@ -102,6 +102,19 @@ export class ReservationController {
     try {
       const userId = (req as AuthRequest).userId
       const result = await this.reservationService.createReservation(req.body, userId)
+      await this.reservationRepository.addAuditLog?.({
+        actorUserId: userId,
+        action: "reservation.created",
+        entityType: "reservation",
+        entityId: result.reservation_id,
+        metadata: {
+          space_id: result.space_id,
+          reservation_date: result.reservation_date,
+          start_time: result.start_time,
+          end_time: result.end_time,
+          parking: result.parking_spot !== null || result.requiere_estacionamiento,
+        },
+      })
       if (this.eventHub) {
         const eventDetails = await this.reservationRepository.findEventDetails(result.reservation_id)
         this.eventHub.publish({
@@ -173,6 +186,12 @@ export class ReservationController {
       const clientIp = typeof forwardedFor === "string" ? forwardedFor : req.ip
 
       const result = await this.reservationService.checkIn(reservationId, userId, clientIp)
+      await this.reservationRepository.addAuditLog?.({
+        actorUserId: userId,
+        action: "reservation.checked_in",
+        entityType: "reservation",
+        entityId: reservationId,
+      })
       if (this.eventHub) {
         const eventDetails = await this.reservationRepository.findEventDetails(reservationId)
         this.eventHub.publish({
@@ -210,6 +229,12 @@ export class ReservationController {
         ? await this.reservationRepository.findEventDetails(reservationId)
         : null
       await this.reservationService.cancelReservation(reservationId, userId)
+      await this.reservationRepository.addAuditLog?.({
+        actorUserId: userId,
+        action: "reservation.cancelled",
+        entityType: "reservation",
+        entityId: reservationId,
+      })
       this.eventHub?.publish({
         type: "reservation.cancelled",
         actor_user_id: userId,
@@ -259,6 +284,153 @@ export class ReservationController {
       })
     } catch (err) {
       console.error("getMyStats error:", err)
+      res.status(500).json({ error: "INTERNAL_ERROR", message: "Error interno del servidor" })
+    }
+  }
+
+  async getMyVehicles(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as AuthRequest).userId
+      res.json(await this.reservationRepository.findVehiclesByUser(userId))
+    } catch (err) {
+      console.error("getMyVehicles error:", err)
+      res.status(500).json({ error: "INTERNAL_ERROR", message: "Error interno del servidor" })
+    }
+  }
+
+  async createVehicle(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as AuthRequest).userId
+      const plate = typeof req.body?.plate === "string" ? req.body.plate.trim() : ""
+      if (plate.length < 4 || plate.length > 20) {
+        res.status(400).json({ error: "INVALID_VEHICLE", message: "La placa debe tener entre 4 y 20 caracteres" })
+        return
+      }
+
+      const vehicle = await this.reservationRepository.createVehicle(userId, {
+        plate,
+        alias: typeof req.body?.alias === "string" ? req.body.alias : null,
+        make: typeof req.body?.make === "string" ? req.body.make : null,
+        model: typeof req.body?.model === "string" ? req.body.model : null,
+        color: typeof req.body?.color === "string" ? req.body.color : null,
+        is_default: req.body?.is_default === true,
+      })
+      await this.reservationRepository.addAuditLog?.({
+        actorUserId: userId,
+        action: "vehicle.created",
+        entityType: "user_vehicle",
+        entityId: vehicle.id,
+        metadata: { plate: vehicle.plate },
+      })
+      res.status(201).json(vehicle)
+    } catch (err) {
+      const pgErr = err as { code?: string }
+      if (pgErr.code === "23505") {
+        res.status(409).json({ error: "INVALID_VEHICLE", message: "Ya existe un vehículo con esa placa en tu perfil" })
+        return
+      }
+      console.error("createVehicle error:", err)
+      res.status(500).json({ error: "INTERNAL_ERROR", message: "Error interno del servidor" })
+    }
+  }
+
+  async updateVehicle(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as AuthRequest).userId
+      const vehicleId = Number(req.params.id)
+      const plate = typeof req.body?.plate === "string" ? req.body.plate.trim() : ""
+      if (!Number.isInteger(vehicleId) || vehicleId <= 0) {
+        res.status(400).json({ error: "INVALID_ID", message: "ID de vehículo inválido" })
+        return
+      }
+      if (plate.length < 4 || plate.length > 20) {
+        res.status(400).json({ error: "INVALID_VEHICLE", message: "La placa debe tener entre 4 y 20 caracteres" })
+        return
+      }
+
+      const vehicle = await this.reservationRepository.updateVehicle(userId, vehicleId, {
+        plate,
+        alias: typeof req.body?.alias === "string" ? req.body.alias : null,
+        make: typeof req.body?.make === "string" ? req.body.make : null,
+        model: typeof req.body?.model === "string" ? req.body.model : null,
+        color: typeof req.body?.color === "string" ? req.body.color : null,
+        is_default: req.body?.is_default === true,
+      })
+      if (!vehicle) {
+        res.status(404).json({ error: "VEHICLE_NOT_FOUND", message: "Vehículo no encontrado" })
+        return
+      }
+      await this.reservationRepository.addAuditLog?.({
+        actorUserId: userId,
+        action: "vehicle.updated",
+        entityType: "user_vehicle",
+        entityId: vehicle.id,
+        metadata: { plate: vehicle.plate, is_default: vehicle.is_default },
+      })
+      res.json(vehicle)
+    } catch (err) {
+      const pgErr = err as { code?: string }
+      if (pgErr.code === "23505") {
+        res.status(409).json({ error: "INVALID_VEHICLE", message: "Ya existe un vehículo con esa placa en tu perfil" })
+        return
+      }
+      console.error("updateVehicle error:", err)
+      res.status(500).json({ error: "INTERNAL_ERROR", message: "Error interno del servidor" })
+    }
+  }
+
+  async setDefaultVehicle(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as AuthRequest).userId
+      const vehicleId = Number(req.params.id)
+      if (!Number.isInteger(vehicleId) || vehicleId <= 0) {
+        res.status(400).json({ error: "INVALID_ID", message: "ID de vehículo inválido" })
+        return
+      }
+      const vehicle = await this.reservationRepository.setDefaultVehicle(userId, vehicleId)
+      if (!vehicle) {
+        res.status(404).json({ error: "VEHICLE_NOT_FOUND", message: "Vehículo no encontrado" })
+        return
+      }
+      await this.reservationRepository.addAuditLog?.({
+        actorUserId: userId,
+        action: "vehicle.default_set",
+        entityType: "user_vehicle",
+        entityId: vehicle.id,
+        metadata: { plate: vehicle.plate },
+      })
+      res.json(vehicle)
+    } catch (err) {
+      console.error("setDefaultVehicle error:", err)
+      res.status(500).json({ error: "INTERNAL_ERROR", message: "Error interno del servidor" })
+    }
+  }
+
+  async deleteVehicle(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as AuthRequest).userId
+      const vehicleId = Number(req.params.id)
+      if (!Number.isInteger(vehicleId) || vehicleId <= 0) {
+        res.status(400).json({ error: "INVALID_ID", message: "ID de vehículo inválido" })
+        return
+      }
+      const deleted = await this.reservationRepository.deactivateVehicle(userId, vehicleId)
+      if (!deleted) {
+        res.status(409).json({
+          error: "INVALID_VEHICLE",
+          message: "No se puede eliminar un vehículo con reservas activas o futuras",
+        })
+        return
+      }
+      await this.reservationRepository.addAuditLog?.({
+        actorUserId: userId,
+        action: "vehicle.deleted",
+        entityType: "user_vehicle",
+        entityId: vehicleId,
+      })
+      res.json({ status: "deleted" })
+    } catch (err) {
+      console.error("deleteVehicle error:", err)
       res.status(500).json({ error: "INTERNAL_ERROR", message: "Error interno del servidor" })
     }
   }

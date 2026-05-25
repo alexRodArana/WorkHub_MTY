@@ -3,6 +3,7 @@ import { ReservationRepository } from "../repositories/ReservationRepository"
 import { ReservationError } from "../errors"
 import { ReservationEventHub } from "../realtime/ReservationEventHub"
 import type { PriorityCategory } from "../interfaces"
+import type { AuthRequest } from "../../shared/auth"
 
 const VALID_PRIORITY_CATEGORIES = new Set<PriorityCategory>([
   "escritorio", "colaborativo", "work_lab", "phone_booth", "garage",
@@ -47,6 +48,13 @@ export class AdminController {
       }
 
       const block = await this.reservationRepository.blockArea(floorId, category as PriorityCategory, reason)
+      await this.reservationRepository.addAuditLog?.({
+        actorUserId: (req as AuthRequest).userId,
+        action: "area_block.created",
+        entityType: "area_block",
+        entityId: block.id,
+        metadata: { floor_id: block.floor_id, priority_category: block.priority_category, reason },
+      })
       this.eventHub?.publish({
         type: "area_block.created",
         floor_id: block.floor_id,
@@ -71,6 +79,12 @@ export class AdminController {
         return
       }
 
+      await this.reservationRepository.addAuditLog?.({
+        actorUserId: (req as AuthRequest).userId,
+        action: "area_block.deleted",
+        entityType: "area_block",
+        entityId: blockId,
+      })
       this.eventHub?.publish({
         type: "area_block.deleted",
       })
@@ -101,6 +115,13 @@ export class AdminController {
       }
 
       const block = await this.reservationRepository.blockSpace(spaceId, blockDate, startTime, endTime, reason)
+      await this.reservationRepository.addAuditLog?.({
+        actorUserId: (req as AuthRequest).userId,
+        action: "space_block.created",
+        entityType: "space_block",
+        entityId: block.id,
+        metadata: { space_id: block.space_id, block_date: block.block_date, start_time: block.start_time, end_time: block.end_time, reason },
+      })
       this.eventHub?.publish({
         type: "space_block.created",
         floor_id: block.floor_id,
@@ -127,10 +148,39 @@ export class AdminController {
         return
       }
 
+      await this.reservationRepository.addAuditLog?.({
+        actorUserId: (req as AuthRequest).userId,
+        action: "space_block.deleted",
+        entityType: "space_block",
+        entityId: blockId,
+      })
       this.eventHub?.publish({
         type: "space_block.deleted",
       })
       res.json({ status: "unblocked" })
+    } catch (err) {
+      this.handleError(err, res)
+    }
+  }
+
+  async searchUsers(req: Request, res: Response): Promise<void> {
+    try {
+      const query = typeof req.query.q === "string" ? req.query.q.trim() : ""
+      if (query.length < 2) {
+        res.json([])
+        return
+      }
+      res.json(await this.reservationRepository.searchUsers(query))
+    } catch (err) {
+      this.handleError(err, res)
+    }
+  }
+
+  async getAuditLogs(req: Request, res: Response): Promise<void> {
+    try {
+      const query = typeof req.query.q === "string" ? req.query.q : undefined
+      const limit = typeof req.query.limit === "string" ? Number(req.query.limit) : undefined
+      res.json(await this.reservationRepository.findAuditLogs({ query, limit }))
     } catch (err) {
       this.handleError(err, res)
     }

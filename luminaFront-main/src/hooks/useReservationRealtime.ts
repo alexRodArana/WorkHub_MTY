@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { subscribeReservationEvents } from '../services/reservationService'
+import { clearReservationCache, subscribeReservationEvents } from '../services/reservationService'
 import { getSession } from '../services/tokenStore'
 import type { ReservationRealtimeEvent } from '../types/reservation'
 
@@ -28,16 +28,21 @@ export function useReservationRealtime(
     if (!token) return
 
     let syncTimeoutId: number | null = null
+    const dispatchEvent = (event: ReservationRealtimeEvent) => {
+      clearReservationCache()
+      onEventRef.current(event)
+    }
+
     const scheduleSync = () => {
       if (syncTimeoutId !== null) window.clearTimeout(syncTimeoutId)
       syncTimeoutId = window.setTimeout(() => {
-        onEventRef.current(syncEvent())
+        dispatchEvent(syncEvent())
       }, 120)
     }
 
     const unsubscribe = subscribeReservationEvents(
       token,
-      (event) => onEventRef.current(event),
+      dispatchEvent,
       scheduleSync,
       scheduleSync
     )

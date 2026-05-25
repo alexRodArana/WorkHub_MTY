@@ -25,6 +25,177 @@
   padding: 20px;
 }
 
+.vehicleSection {
+  padding: 20px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(117, 0, 192, 0.1);
+  box-shadow: 0 12px 30px rgba(70, 0, 115, 0.08);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sectionHeader span,
+.vehicleForm label span {
+  display: block;
+  color: #7500c0;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sectionHeader h3 {
+  margin: 3px 0 0;
+  color: #18151f;
+  font-size: 1.12rem;
+}
+
+.sectionHeader small {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(117, 0, 192, 0.08);
+  color: #7500c0;
+  font-weight: 900;
+}
+
+.vehicleGrid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(300px, 1.2fr);
+  gap: 16px;
+}
+
+.vehicleForm {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(246, 243, 255, 0.58);
+  border: 1px solid rgba(117, 0, 192, 0.08);
+}
+
+.vehicleForm label {
+  display: grid;
+  gap: 5px;
+}
+
+.vehicleForm input {
+  min-height: 40px;
+  border: 1px solid rgba(117, 0, 192, 0.14);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #18151f;
+  font: inherit;
+  padding: 0 12px;
+}
+
+.vehicleForm input:focus {
+  outline: none;
+  border-color: rgba(161, 0, 255, 0.42);
+  box-shadow: 0 0 0 3px rgba(161, 0, 255, 0.1);
+}
+
+.vehicleFormActions,
+.vehicleActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vehicleList {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.vehicleCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(117, 0, 192, 0.08);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.vehicleCard:hover {
+  transform: translateY(-1px);
+  border-color: rgba(161, 0, 255, 0.18);
+  box-shadow: 0 12px 24px rgba(70, 0, 115, 0.08);
+}
+
+.vehicleCard strong,
+.vehicleCard span,
+.vehicleCard small {
+  display: block;
+}
+
+.vehicleCard strong {
+  color: #18151f;
+  font-size: 0.94rem;
+}
+
+.vehicleCard span {
+  margin-top: 3px;
+  color: #7500c0;
+  font-weight: 900;
+}
+
+.vehicleCard small,
+.vehicleEmpty {
+  margin: 5px 0 0;
+  color: #6b6380;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.vehicleActions button,
+.defaultChip,
+.dangerBtn {
+  min-height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(117, 0, 192, 0.16);
+  background: rgba(117, 0, 192, 0.06);
+  color: #7500c0;
+  padding: 0 11px;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 150ms ease, background 150ms ease;
+}
+
+.vehicleActions button:hover:not(:disabled),
+.dangerBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(161, 0, 255, 0.11);
+}
+
+.defaultChip {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 140, 114, 0.12);
+  color: #087b64;
+  border-color: rgba(0, 140, 114, 0.18);
+  cursor: default;
+}
+
+.dangerBtn {
+  color: #c12d44 !important;
+  border-color: rgba(193, 45, 68, 0.2) !important;
+  background: rgba(193, 45, 68, 0.06) !important;
+}
+
 .avatarLg {
   flex-shrink: 0;
   border-radius: 50%;
@@ -206,23 +377,31 @@
 }
 
 :global([data-theme='dark']) .profileCard,
-:global([data-theme='dark']) .infoGrid > div {
+:global([data-theme='dark']) .infoGrid > div,
+:global([data-theme='dark']) .vehicleSection {
   background: rgba(35, 47, 61, 0.94);
   border-color: rgba(161, 0, 255, 0.14);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
 }
 
 :global([data-theme='dark']) .profileCopy h3,
-:global([data-theme='dark']) .infoGrid strong {
+:global([data-theme='dark']) .infoGrid strong,
+:global([data-theme='dark']) .sectionHeader h3,
+:global([data-theme='dark']) .vehicleCard strong {
   color: #f8f5ff;
 }
 
-:global([data-theme='dark']) .profileCopy p {
+:global([data-theme='dark']) .profileCopy p,
+:global([data-theme='dark']) .vehicleCard small,
+:global([data-theme='dark']) .vehicleEmpty {
   color: #b9c3d0;
 }
 
 :global([data-theme='dark']) .profileCopy span,
-:global([data-theme='dark']) .infoLabel {
+:global([data-theme='dark']) .infoLabel,
+:global([data-theme='dark']) .sectionHeader span,
+:global([data-theme='dark']) .vehicleForm label span,
+:global([data-theme='dark']) .vehicleCard span {
   color: #a100ff;
 }
 
@@ -230,6 +409,18 @@
   border-color: rgba(161, 0, 255, 0.2);
   background: rgba(161, 0, 255, 0.09);
   color: #a100ff;
+}
+
+:global([data-theme='dark']) .vehicleForm,
+:global([data-theme='dark']) .vehicleCard {
+  background: rgba(161, 0, 255, 0.08);
+  border-color: rgba(161, 0, 255, 0.14);
+}
+
+:global([data-theme='dark']) .vehicleForm input {
+  border-color: rgba(161, 0, 255, 0.18);
+  background: rgba(21, 28, 38, 0.9);
+  color: #f8f5ff;
 }
 
 :global([data-theme='dark']) .errorMsg {
@@ -254,6 +445,21 @@
     flex-direction: column;
     padding: 16px;
     border-radius: 18px;
+  }
+
+  .vehicleGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .vehicleCard {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .vehicleActions,
+  .vehicleFormActions {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .photoActions {

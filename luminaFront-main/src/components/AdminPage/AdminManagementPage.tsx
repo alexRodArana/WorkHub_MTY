@@ -114,12 +114,30 @@ export function AdminManagementPage(): JSX.Element {
 
   function handleSelectManagementSpace(space: SpaceWithLayout) {
     setSelectedSpace(space)
+    setError(null)
     if (endTime <= startTime) {
       setError('La hora de fin debe ser mayor a la hora de inicio.')
       return
     }
 
     setConfirming(true)
+  }
+
+  function handleUnavailableManagementSpace(
+    space: SpaceWithLayout,
+    reason: 'occupied' | 'blocked' | 'unavailable'
+  ) {
+    setSelectedSpace(space)
+    setConfirming(false)
+    if (reason === 'occupied') {
+      setError(`${space.space_number} ya tiene una reserva en ese horario. No se puede bloquear un espacio ocupado.`)
+      return
+    }
+    if (reason === 'blocked') {
+      setError(`${space.space_number} ya está bloqueado en ese horario.`)
+      return
+    }
+    setError(`${space.space_number} no está disponible para bloqueo en ese horario.`)
   }
 
   async function handleConfirmBlock() {
@@ -219,6 +237,7 @@ export function AdminManagementPage(): JSX.Element {
             refreshKey={refreshKey}
             mode="management"
             onSelectLayoutSpace={handleSelectManagementSpace}
+            onUnavailableLayoutSpace={handleUnavailableManagementSpace}
             managementUnavailableSpaceIds={blockedSpaceIdsForRange}
           />
         </section>

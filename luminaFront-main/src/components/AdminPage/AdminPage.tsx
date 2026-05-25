@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../Layout/AppShell'
 import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner'
-import { fetchAdminOverview } from '../../services/reservationService'
+import { fetchAdminOverview, fetchAuditLogs, searchUsers } from '../../services/reservationService'
 import { getSession } from '../../services/tokenStore'
 import { useReservationRealtime } from '../../hooks/useReservationRealtime'
-import type { AdminKpiOverview } from '../../types/reservation'
+import type { AdminKpiOverview, AdminReservationDetail, AuditLogEntry, UserSearchResult } from '../../types/reservation'
 import { PRIORITY_CATEGORY_LABELS } from '../../data/floorLayouts'
 import styles from './AdminPage.module.css'
 
@@ -15,6 +16,23 @@ const STATUS_LABELS: Record<AdminKpiOverview['status_breakdown'][number]['status
   cancelada: 'Canceladas',
   no_show: 'No show',
 }
+
+const RESERVATION_TYPE_LABELS: Record<AdminKpiOverview['reservation_type_breakdown'][number]['type'], string> = {
+  desk_only: 'Solo escritorio',
+  desk_parking: 'Escritorio + estacionamiento',
+  parking_only: 'Solo estacionamiento',
+}
+
+type DetailKey =
+  | `kpi:${string}`
+  | 'panel:health'
+  | 'panel:status'
+  | 'panel:floors'
+  | 'panel:categories'
+  | 'panel:types'
+  | 'panel:risk'
+  | 'panel:hours'
+  | 'panel:users'
 
 function today(): string {
   return new Date().toISOString().slice(0, 10)
@@ -28,8 +46,35 @@ function safeBarWidth(value: number): string {
   return `${Math.max(0, Math.min(100, Math.round(value * 100)))}%`
 }
 
+function formatMinutes(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return 'Sin datos'
+  if (value < 60) return `${Math.round(value)} min`
+  const hours = Math.floor(value / 60)
+  const minutes = Math.round(value % 60)
+  return minutes > 0 ? `${hours} h ${minutes} min` : `${hours} h`
+}
+
 function initials(firstName: string, lastName: string): string {
   return `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase()
+}
+
+function reservationMatchesKey(reservation: AdminReservationDetail, key: DetailKey): boolean {
+  if (key === 'panel:status' || key === 'panel:types' || key === 'panel:hours' || key === 'panel:users') return true
+  if (key === 'panel:health') return reservation.status === 'confirmada' || reservation.status === 'activa'
+  if (!key.startsWith('kpi:')) return true
+  const kpi = key.slice(4)
+  if (kpi === 'active') return reservation.status === 'activa'
+  if (kpi === 'confirmed') return reservation.status === 'confirmada'
+  if (kpi === 'parking') return reservation.parking_spot_number !== null
+  if (kpi === 'central-parking') return reservation.parking_zone_name === 'Central'
+  if (kpi === 'vehicles') return reservation.vehicle_id !== null
+  if (kpi === 'parking-only') return reservation.type === 'parking_only'
+  if (kpi === 'desk-parking') return reservation.type === 'desk_parking'
+  if (kpi === 'desk-only') return reservation.type === 'desk_only'
+  if (kpi === 'cancel') return reservation.status === 'cancelada'
+  if (kpi === 'no-show') return reservation.status === 'no_show'
+  if (kpi === 'occupancy') return reservation.space_id !== null && (reservation.status === 'confirmada' || reservation.status === 'activa')
+  return true
 }
 
 export function AdminPage(): JSX.Element {
@@ -38,6 +83,15 @@ export function AdminPage(): JSX.Element {
   const [overview, setOverview] = useState<AdminKpiOverview | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [expandedKey, setExpandedKey] = useState<DetailKey | null>(null)
+  const [detailQuery, setDetailQuery] = useState('')
+  const [detailStatus, setDetailStatus] = useState('all')
+  const [detailType, setDetailType] = useState('all')
+  const [detailFloor, setDetailFloor] = useState('all')
+  const [userQuery, setUserQuery] = useState('')
+  const [userResults, setUserResults] = useState<UserSearchResult[]>([])
+  const [auditQuery, setAuditQuery] = useState('')
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([])
 
   const token = getSession()?.access_token
 
@@ -66,20 +120,52 @@ export function AdminPage(): JSX.Element {
     return () => window.clearTimeout(id)
   }, [error])
 
-  const kpis = useMemo(() => {
-    if (!overview) return []
-    return [
-      { label: 'Reservas del día', value: overview.total_reservations.toString(), detail: `${overview.confirmed_reservations} confirmadas` },
-      { label: 'Ocupación', value: percent(overview.occupancy_rate), detail: `${overview.occupied_spaces}/${overview.total_spaces} espacios` },
-      { label: 'En uso ahora', value: overview.active_reservations.toString(), detail: 'Check-ins activos' },
-      { label: 'Estacionamiento', value: percent(overview.parking_rate), detail: `${overview.parking_reservations} cajones reservados` },
-      { label: 'Usuarios únicos', value: overview.unique_users.toString(), detail: 'Personas con reserva' },
-      { label: 'Espacios bloqueados', value: overview.blocked_space_count.toString(), detail: 'Bloqueos por horario' },
-      { label: 'Áreas bloqueadas', value: overview.blocked_area_count.toString(), detail: 'Bloqueos generales activos' },
-      { label: 'Cancelaciones', value: overview.cancelled_reservations.toString(), detail: 'Reservas canceladas' },
-      { label: 'No show', value: overview.no_show_reservations.toString(), detail: 'Reservas vencidas' },
-    ]
-  }, [overview])
+  useEffect(() => {
+    if (!expandedKey) return
+    setDetailQuery('')
+    setDetailStatus('all')
+    setDetailType('all')
+    setDetailFloor('all')
+    function closeOnEscape(event: globalThis.KeyboardEvent) {
+      if (event.key === 'Escape') setExpandedKey(null)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [expandedKey])
+
+  useEffect(() => {
+    if (!token || userQuery.trim().length < 2) {
+      setUserResults([])
+      return
+    }
+    let cancelled = false
+    const id = window.setTimeout(() => {
+      searchUsers(token, userQuery).then((result) => {
+        if (cancelled) return
+        if (result.success) setUserResults(result.data)
+        else if (result.unauthorized) navigate('/login', { replace: true })
+      })
+    }, 180)
+    return () => {
+      cancelled = true
+      window.clearTimeout(id)
+    }
+  }, [navigate, token, userQuery])
+
+  useEffect(() => {
+    if (!token) return
+    let cancelled = false
+    const id = window.setTimeout(() => {
+      fetchAuditLogs(token, auditQuery).then((result) => {
+        if (cancelled) return
+        if (result.success) setAuditLogs(result.data)
+      })
+    }, 220)
+    return () => {
+      cancelled = true
+      window.clearTimeout(id)
+    }
+  }, [auditQuery, token])
 
   const statusTotal = useMemo(() => (
     overview?.status_breakdown.reduce((sum, item) => sum + item.count, 0) ?? 0
@@ -103,6 +189,318 @@ export function AdminPage(): JSX.Element {
     ), overview.by_floor[0])
   }, [overview])
 
+  const topCategory = useMemo(() => {
+    if (!overview || overview.by_category.length === 0) return null
+    return overview.by_category.reduce((peak, item) => (
+      item.occupancy_rate > peak.occupancy_rate ? item : peak
+    ), overview.by_category[0])
+  }, [overview])
+
+  const reservationTypeTotal = useMemo(() => (
+    overview?.reservation_type_breakdown.reduce((sum, item) => sum + item.count, 0) ?? 0
+  ), [overview])
+
+  const kpis = useMemo(() => {
+    if (!overview) return []
+    return [
+      {
+        key: 'total',
+        label: 'Reservas del día',
+        value: overview.total_reservations.toString(),
+        detail: `${overview.confirmed_reservations} confirmadas · ${overview.active_reservations} en uso`,
+        description: 'Mide la demanda total operativa para la fecha seleccionada.',
+      },
+      {
+        key: 'occupancy',
+        label: 'Ocupación',
+        value: percent(overview.occupancy_rate),
+        detail: `${overview.occupied_spaces}/${overview.total_spaces} espacios ocupados`,
+        description: 'Relación entre espacios ocupados y espacios disponibles en el inventario activo.',
+      },
+      {
+        key: 'available',
+        label: 'Disponibles',
+        value: overview.available_spaces.toString(),
+        detail: `${overview.blocked_space_count} bloqueos por horario`,
+        description: 'Espacios libres después de considerar reservas y bloqueos vigentes.',
+      },
+      {
+        key: 'active',
+        label: 'En uso ahora',
+        value: overview.active_reservations.toString(),
+        detail: `${percent(overview.check_in_rate)} de check-in`,
+        description: 'Reservas activas que ya tienen check-in registrado.',
+      },
+      {
+        key: 'parking',
+        label: 'Estacionamiento',
+        value: percent(overview.parking_rate),
+        detail: `${overview.parking_reservations} cajones reservados`,
+        description: 'Porcentaje de reservas del día que usan estacionamiento.',
+      },
+      {
+        key: 'central-parking',
+        label: 'Central',
+        value: overview.reservations_detail.filter((item) => item.parking_zone_name === 'Central').length.toString(),
+        detail: 'Reservas con flujo especial de acceso',
+        description: 'Reservas asignadas a Central que requieren aviso previo con guardias de T1 o T2.',
+      },
+      {
+        key: 'vehicles',
+        label: 'Vehículos',
+        value: new Set(overview.reservations_detail.filter((item) => item.vehicle_id !== null).map((item) => item.vehicle_id)).size.toString(),
+        detail: 'Vehículos únicos en reservas',
+        description: 'Vehículos registrados y asociados a reservas de estacionamiento del día.',
+      },
+      {
+        key: 'parking-only',
+        label: 'Solo parking',
+        value: overview.parking_only_reservations.toString(),
+        detail: 'Reservas sin escritorio asociado',
+        description: 'Casos donde el usuario solo necesitó un cajón de estacionamiento.',
+      },
+      {
+        key: 'desk-parking',
+        label: 'Desk + parking',
+        value: overview.desk_parking_reservations.toString(),
+        detail: 'Reservas combinadas',
+        description: 'Usuarios que reservaron escritorio y estacionamiento en el mismo flujo.',
+      },
+      {
+        key: 'desk-only',
+        label: 'Solo escritorio',
+        value: overview.desk_only_reservations.toString(),
+        detail: `${overview.workspace_reservations} reservas con escritorio`,
+        description: 'Reservas de escritorio que no requieren estacionamiento.',
+      },
+      {
+        key: 'duration',
+        label: 'Duración media',
+        value: formatMinutes(overview.average_duration_minutes),
+        detail: 'Promedio de las reservas del día',
+        description: 'Ayuda a detectar uso parcial, jornadas completas y ventanas de alta rotación.',
+      },
+      {
+        key: 'users',
+        label: 'Usuarios únicos',
+        value: overview.unique_users.toString(),
+        detail: 'Personas con reserva',
+        description: 'Cantidad de colaboradores distintos con actividad en la fecha.',
+      },
+      {
+        key: 'confirmed',
+        label: 'Pendientes',
+        value: overview.confirmed_reservations.toString(),
+        detail: 'Reservas confirmadas sin check-in',
+        description: 'Reservas que todavía no pasan a estado activo.',
+      },
+      {
+        key: 'peak-hour',
+        label: 'Pico de demanda',
+        value: peakHour?.hour ?? '--',
+        detail: peakHour ? `${peakHour.reservations} reservas` : 'Sin datos suficientes',
+        description: 'Horario con mayor concentración de reservas confirmadas o activas.',
+      },
+      {
+        key: 'busiest-floor',
+        label: 'Piso más activo',
+        value: busiestFloor?.floor_name ?? '--',
+        detail: busiestFloor ? percent(busiestFloor.occupancy_rate) : 'Sin datos suficientes',
+        description: 'Piso con mayor ocupación relativa en la fecha seleccionada.',
+      },
+      {
+        key: 'blocked',
+        label: 'Bloqueos',
+        value: overview.blocked_space_count.toString(),
+        detail: `${overview.blocked_area_count} áreas bloqueadas`,
+        description: 'Espacios y áreas no disponibles por mantenimiento, eventos u operación.',
+      },
+      {
+        key: 'cancel',
+        label: 'Cancelaciones',
+        value: percent(overview.cancellation_rate),
+        detail: `${overview.cancelled_reservations} reservas canceladas`,
+        description: 'Indicador de cambios de último momento que afectan capacidad y planeación.',
+      },
+      {
+        key: 'no-show',
+        label: 'No show',
+        value: percent(overview.no_show_rate),
+        detail: `${overview.no_show_reservations} reservas vencidas`,
+        description: 'Reservas que no se usaron y pueden indicar fricción o sobre-reserva.',
+      },
+      {
+        key: 'top-category',
+        label: 'Tipo más usado',
+        value: topCategory ? (PRIORITY_CATEGORY_LABELS[topCategory.priority_category] ?? topCategory.priority_category) : '--',
+        detail: topCategory ? percent(topCategory.occupancy_rate) : 'Sin datos suficientes',
+        description: 'Categoría de espacio con mayor presión de ocupación.',
+      },
+    ]
+  }, [busiestFloor, overview, peakHour, topCategory])
+
+  const selectedKpi = expandedKey?.startsWith('kpi:')
+    ? kpis.find((item) => item.key === expandedKey.slice(4))
+    : undefined
+
+  function openPanel(key: DetailKey) {
+    setExpandedKey(key)
+  }
+
+  function handlePanelKeyDown(event: KeyboardEvent<HTMLElement>, key: DetailKey) {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    openPanel(key)
+  }
+
+  const detailRows = useMemo(() => {
+    if (!overview || !expandedKey) return []
+    const query = detailQuery.trim().toLowerCase()
+    return overview.reservations_detail
+      .filter((reservation) => reservationMatchesKey(reservation, expandedKey))
+      .filter((reservation) => detailStatus === 'all' || reservation.status === detailStatus)
+      .filter((reservation) => detailType === 'all' || reservation.type === detailType)
+      .filter((reservation) => detailFloor === 'all' || String(reservation.floor_id ?? 'parking') === detailFloor)
+      .filter((reservation) => {
+        if (!query) return true
+        const haystack = [
+          reservation.first_name,
+          reservation.last_name,
+          reservation.email,
+          reservation.department,
+          reservation.space_number,
+          reservation.display_name,
+          reservation.floor_name,
+          reservation.parking_zone_name,
+          reservation.parking_spot_number,
+          reservation.vehicle_plate,
+          reservation.vehicle_label,
+          reservation.reservation_code,
+        ].filter(Boolean).join(' ').toLowerCase()
+        return haystack.includes(query)
+      })
+      .slice(0, 120)
+  }, [detailFloor, detailQuery, detailStatus, detailType, expandedKey, overview])
+
+  function exportOverviewCsv(): void {
+    if (!overview) return
+    const rows = [
+      ['metric', 'value'],
+      ['date', overview.date],
+      ['total_reservations', overview.total_reservations],
+      ['occupancy_rate', percent(overview.occupancy_rate)],
+      ['parking_rate', percent(overview.parking_rate)],
+      ['active_reservations', overview.active_reservations],
+      ['unique_users', overview.unique_users],
+      ['cancelled_reservations', overview.cancelled_reservations],
+      ['no_show_reservations', overview.no_show_reservations],
+      [],
+      ['reservation_code', 'user', 'email', 'type', 'space', 'floor', 'parking', 'vehicle', 'status', 'start', 'end'],
+      ...overview.reservations_detail.map((reservation) => [
+        reservation.reservation_code,
+        `${reservation.first_name} ${reservation.last_name}`,
+        reservation.email,
+        RESERVATION_TYPE_LABELS[reservation.type],
+        reservation.display_name || reservation.space_number,
+        reservation.floor_name,
+        [reservation.parking_zone_name, reservation.parking_spot_number].filter(Boolean).join(' '),
+        [reservation.vehicle_label, reservation.vehicle_plate].filter(Boolean).join(' '),
+        reservation.status,
+        reservation.start_time,
+        reservation.end_time,
+      ]),
+    ]
+    const csv = rows
+      .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `workhub-kpis-${overview.date}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function renderReservationTable(rows: AdminReservationDetail[]): JSX.Element {
+    return (
+      <div className={styles.detailTableWrap}>
+        <div className={styles.detailFilters}>
+          <input
+            value={detailQuery}
+            onChange={(event) => setDetailQuery(event.target.value)}
+            placeholder="Buscar usuario, espacio, vehículo, código..."
+          />
+          <select value={detailStatus} onChange={(event) => setDetailStatus(event.target.value)}>
+            <option value="all">Todos los estados</option>
+            <option value="confirmada">Confirmadas</option>
+            <option value="activa">Activas</option>
+            <option value="cancelada">Canceladas</option>
+            <option value="no_show">No show</option>
+          </select>
+          <select value={detailType} onChange={(event) => setDetailType(event.target.value)}>
+            <option value="all">Todos los tipos</option>
+            <option value="desk_only">Solo escritorio</option>
+            <option value="desk_parking">Escritorio + parking</option>
+            <option value="parking_only">Solo parking</option>
+          </select>
+          <select value={detailFloor} onChange={(event) => setDetailFloor(event.target.value)}>
+            <option value="all">Todos los pisos</option>
+            <option value="parking">Solo estacionamiento</option>
+            {overview?.by_floor.map((floor) => (
+              <option key={floor.floor_id} value={String(floor.floor_id)}>
+                {floor.floor_name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className={styles.detailTable}>
+          <table>
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Reserva</th>
+                <th>Espacio</th>
+                <th>Parking</th>
+                <th>Vehículo</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr><td colSpan={6}>Sin resultados para estos filtros.</td></tr>
+              ) : rows.map((reservation) => (
+                <tr key={reservation.reservation_id}>
+                  <td>
+                    <strong>{reservation.first_name} {reservation.last_name}</strong>
+                    <span>{reservation.email}</span>
+                  </td>
+                  <td>
+                    <strong>{reservation.start_time} - {reservation.end_time}</strong>
+                    <span>#{reservation.reservation_code}</span>
+                  </td>
+                  <td>
+                    <strong>{reservation.display_name || reservation.space_number}</strong>
+                    <span>{reservation.floor_name}</span>
+                  </td>
+                  <td>
+                    <strong>{reservation.parking_zone_name ?? 'Sin parking'}</strong>
+                    <span>{reservation.parking_spot_number ?? '—'}</span>
+                  </td>
+                  <td>
+                    <strong>{reservation.vehicle_plate ?? '—'}</strong>
+                    <span>{reservation.vehicle_label ?? 'Sin vehículo'}</span>
+                  </td>
+                  <td><span className={styles.statusBadge}>{STATUS_LABELS[reservation.status] ?? reservation.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
+
   async function refresh() {
     if (!token) return
     const result = await fetchAdminOverview(token, date)
@@ -116,15 +514,211 @@ export function AdminPage(): JSX.Element {
     }
   }, Boolean(token))
 
+  function renderExpandedDetail(): JSX.Element | null {
+    if (!overview || !expandedKey) return null
+
+    if (selectedKpi) {
+      return (
+        <>
+          <p>{selectedKpi.description}</p>
+          <div className={styles.detailHero}>
+            <span>{selectedKpi.label}</span>
+            <strong>{selectedKpi.value}</strong>
+            <small>{selectedKpi.detail}</small>
+          </div>
+          <div className={styles.detailMetricGrid}>
+            <div><span>Fecha</span><strong>{date}</strong></div>
+            <div><span>Reservas activas</span><strong>{overview.active_reservations}</strong></div>
+            <div><span>Ocupación</span><strong>{percent(overview.occupancy_rate)}</strong></div>
+            <div><span>Estacionamiento</span><strong>{overview.parking_reservations}</strong></div>
+          </div>
+        </>
+      )
+    }
+
+    if (expandedKey === 'panel:health') {
+      return (
+        <>
+          <p>Lectura combinada de capacidad, estacionamiento y presión de demanda para la fecha seleccionada.</p>
+          <div className={styles.detailMetricGrid}>
+            <div><span>Espacios totales</span><strong>{overview.total_spaces}</strong></div>
+            <div><span>Ocupados</span><strong>{overview.occupied_spaces}</strong></div>
+            <div><span>Disponibles</span><strong>{overview.available_spaces}</strong></div>
+            <div><span>Bloqueados</span><strong>{overview.blocked_space_count}</strong></div>
+            <div><span>Uso parking</span><strong>{percent(overview.parking_rate)}</strong></div>
+            <div><span>Duración promedio</span><strong>{formatMinutes(overview.average_duration_minutes)}</strong></div>
+          </div>
+        </>
+      )
+    }
+
+    if (expandedKey === 'panel:status') {
+      return (
+        <>
+          <p>Distribución del ciclo de vida de las reservas para detectar carga actual, cancelaciones y no-shows.</p>
+          <div className={styles.detailList}>
+            {overview.status_breakdown.map((item) => (
+              <div key={item.status}>
+                <span>{STATUS_LABELS[item.status] ?? item.status}</span>
+                <strong>{item.count}</strong>
+              </div>
+            ))}
+          </div>
+        </>
+      )
+    }
+
+    if (expandedKey === 'panel:floors') {
+      return (
+        <>
+          <p>Comparativo de ocupación por piso, útil para balancear demanda y decidir bloqueos operativos.</p>
+          <div className={styles.detailList}>
+            {overview.by_floor.map((floor) => (
+              <div key={floor.floor_id}>
+                <span>{floor.floor_name}</span>
+                <strong>{floor.occupied_spaces}/{floor.total_spaces} · {percent(floor.occupancy_rate)}</strong>
+              </div>
+            ))}
+          </div>
+        </>
+      )
+    }
+
+    if (expandedKey === 'panel:categories') {
+      return (
+        <>
+          <p>Ocupación por categoría de espacio para identificar qué tipo de recurso está bajo mayor presión.</p>
+          <div className={styles.detailList}>
+            {overview.by_category.map((category) => (
+              <div key={category.priority_category}>
+                <span>{PRIORITY_CATEGORY_LABELS[category.priority_category] ?? category.priority_category}</span>
+                <strong>{category.occupied_spaces}/{category.total_spaces} · {percent(category.occupancy_rate)}</strong>
+              </div>
+            ))}
+          </div>
+        </>
+      )
+    }
+
+    if (expandedKey === 'panel:types') {
+      return (
+        <>
+          <p>Mezcla de uso entre escritorio, estacionamiento y reservas combinadas.</p>
+          <div className={styles.detailList}>
+            {overview.reservation_type_breakdown.map((item) => (
+              <div key={item.type}>
+                <span>{RESERVATION_TYPE_LABELS[item.type]}</span>
+                <strong>{item.count}</strong>
+              </div>
+            ))}
+          </div>
+        </>
+      )
+    }
+
+    if (expandedKey === 'panel:risk') {
+      return (
+        <>
+          <p>Indicadores que ayudan a detectar fricción operativa y posible desperdicio de capacidad.</p>
+          <div className={styles.detailMetricGrid}>
+            <div><span>Check-in</span><strong>{percent(overview.check_in_rate)}</strong></div>
+            <div><span>Cancelación</span><strong>{percent(overview.cancellation_rate)}</strong></div>
+            <div><span>No show</span><strong>{percent(overview.no_show_rate)}</strong></div>
+            <div><span>Canceladas</span><strong>{overview.cancelled_reservations}</strong></div>
+            <div><span>No show</span><strong>{overview.no_show_reservations}</strong></div>
+            <div><span>Usuarios únicos</span><strong>{overview.unique_users}</strong></div>
+          </div>
+        </>
+      )
+    }
+
+    if (expandedKey === 'panel:hours') {
+      return (
+        <>
+          <p>Concentración de demanda por hora de inicio para anticipar saturación en accesos y áreas comunes.</p>
+          <div className={styles.detailList}>
+            {overview.hourly_distribution.map((item) => (
+              <div key={item.hour}>
+                <span>{item.hour}</span>
+                <strong>{item.reservations} reservas</strong>
+              </div>
+            ))}
+          </div>
+        </>
+      )
+    }
+
+    if (expandedKey === 'panel:users') {
+      return (
+        <>
+          <p>Usuarios con mayor actividad en la fecha seleccionada.</p>
+          <div className={styles.detailList}>
+            {overview.top_users.map((user) => (
+              <div key={user.user_id}>
+                <span>{user.first_name} {user.last_name}</span>
+                <strong>{user.reservations} reservas</strong>
+              </div>
+            ))}
+          </div>
+        </>
+      )
+    }
+
+    return null
+  }
+
+  function detailTitle(): string {
+    if (selectedKpi) return selectedKpi.label
+    if (expandedKey?.startsWith('kpi:')) return 'KPI'
+    const titles: Record<Exclude<DetailKey, `kpi:${string}`>, string> = {
+      'panel:health': 'Salud operativa',
+      'panel:status': 'Estado de reservas',
+      'panel:floors': 'Ocupación por piso',
+      'panel:categories': 'Ocupación por tipo',
+      'panel:types': 'Tipo de reserva',
+      'panel:risk': 'Riesgo operativo',
+      'panel:hours': 'Demanda por hora',
+      'panel:users': 'Usuarios con más actividad',
+    }
+    return expandedKey ? titles[expandedKey as Exclude<DetailKey, `kpi:${string}`>] : 'Detalle'
+  }
+
   return (
     <AppShell title="Dashboard" subtitle="KPIs operativos del workspace">
       <div className={styles.page}>
         <div className={styles.toolbar} data-tour="admin-date-filter">
+          <label className={styles.userSearch}>
+            <span>Buscar usuario</span>
+            <input
+              value={userQuery}
+              onChange={(event) => setUserQuery(event.target.value)}
+              placeholder="Nombre, correo, área..."
+            />
+          </label>
           <label>
             <span>Fecha</span>
             <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
           </label>
+          <button type="button" className={styles.exportBtn} onClick={exportOverviewCsv} disabled={!overview}>
+            Exportar CSV
+          </button>
         </div>
+
+        {userResults.length > 0 && (
+          <section className={styles.userSearchResults}>
+            {userResults.map((user) => (
+              <article key={user.id}>
+                <span className={styles.searchAvatar}>{initials(user.first_name, user.last_name)}</span>
+                <div>
+                  <strong>{user.first_name} {user.last_name}</strong>
+                  <small>{user.email} · {user.role}</small>
+                </div>
+                <b>{user.active_reservation_count} activas</b>
+                <b>{user.vehicle_count} veh.</b>
+              </article>
+            ))}
+          </section>
+        )}
 
         {error && <div className={styles.errorMsg}>{error}</div>}
         {loading ? (
@@ -133,18 +727,30 @@ export function AdminPage(): JSX.Element {
           <>
             <section className={styles.kpiGrid} data-tour="admin-kpis">
               {kpis.map((kpi) => (
-                <article key={kpi.label} className={styles.kpiCard}>
+                <button
+                  key={kpi.key}
+                  type="button"
+                  className={styles.kpiCard}
+                  onClick={() => openPanel(`kpi:${kpi.key}`)}
+                >
                   <span>{kpi.label}</span>
                   <strong>{kpi.value}</strong>
                   <small>{kpi.detail}</small>
-                </article>
+                </button>
               ))}
             </section>
 
             <section className={styles.insightGrid} data-tour="admin-insights">
-              <article className={`${styles.panel} ${styles.gaugePanel}`}>
+              <article
+                className={`${styles.panel} ${styles.gaugePanel} ${styles.clickablePanel}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => openPanel('panel:health')}
+                onKeyDown={(event) => handlePanelKeyDown(event, 'panel:health')}
+              >
                 <div className={styles.panelHeader}>
                   <h3>Salud operativa</h3>
+                  <span>Ver detalle</span>
                 </div>
                 <div className={styles.gaugeList}>
                   <div className={styles.gaugeItem}>
@@ -178,9 +784,16 @@ export function AdminPage(): JSX.Element {
                 </div>
               </article>
 
-              <article className={styles.panel}>
+              <article
+                className={`${styles.panel} ${styles.clickablePanel}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => openPanel('panel:status')}
+                onKeyDown={(event) => handlePanelKeyDown(event, 'panel:status')}
+              >
                 <div className={styles.panelHeader}>
                   <h3>Estado de reservas</h3>
+                  <span>Ver detalle</span>
                 </div>
                 <div className={styles.statusList}>
                   {overview.status_breakdown.length === 0 ? (
@@ -204,9 +817,16 @@ export function AdminPage(): JSX.Element {
             </section>
 
             <section className={styles.panelGrid} data-tour="admin-charts">
-              <article className={styles.panel}>
+              <article
+                className={`${styles.panel} ${styles.clickablePanel}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => openPanel('panel:floors')}
+                onKeyDown={(event) => handlePanelKeyDown(event, 'panel:floors')}
+              >
                 <div className={styles.panelHeader}>
                   <h3>Ocupación por piso</h3>
+                  <span>Ver detalle</span>
                 </div>
                 <div className={styles.barList}>
                   {overview.by_floor.map((floor) => (
@@ -223,9 +843,16 @@ export function AdminPage(): JSX.Element {
                 </div>
               </article>
 
-              <article className={styles.panel}>
+              <article
+                className={`${styles.panel} ${styles.clickablePanel}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => openPanel('panel:categories')}
+                onKeyDown={(event) => handlePanelKeyDown(event, 'panel:categories')}
+              >
                 <div className={styles.panelHeader}>
                   <h3>Ocupación por tipo</h3>
+                  <span>Ver detalle</span>
                 </div>
                 <div className={styles.barList}>
                   {overview.by_category.map((category) => (
@@ -244,9 +871,127 @@ export function AdminPage(): JSX.Element {
             </section>
 
             <section className={styles.panelGrid}>
+              <article
+                className={`${styles.panel} ${styles.clickablePanel}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => openPanel('panel:types')}
+                onKeyDown={(event) => handlePanelKeyDown(event, 'panel:types')}
+              >
+                <div className={styles.panelHeader}>
+                  <h3>Tipo de reserva</h3>
+                  <span>Ver detalle</span>
+                </div>
+                <div className={styles.typeList}>
+                  {overview.reservation_type_breakdown.map((item) => {
+                    const ratio = reservationTypeTotal > 0 ? item.count / reservationTypeTotal : 0
+                    return (
+                      <div key={item.type} className={styles.typeRow}>
+                        <div className={styles.typeMeta}>
+                          <span>{RESERVATION_TYPE_LABELS[item.type]}</span>
+                          <strong>{item.count}</strong>
+                        </div>
+                        <div className={styles.typeTrack}>
+                          <span style={{ width: safeBarWidth(ratio) }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </article>
+
+              <article
+                className={`${styles.panel} ${styles.clickablePanel}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => openPanel('panel:risk')}
+                onKeyDown={(event) => handlePanelKeyDown(event, 'panel:risk')}
+              >
+                <div className={styles.panelHeader}>
+                  <h3>Riesgo operativo</h3>
+                  <span>Ver detalle</span>
+                </div>
+                <div className={styles.riskGrid}>
+                  <div>
+                    <strong>{percent(overview.check_in_rate)}</strong>
+                    <span>Check-in</span>
+                  </div>
+                  <div>
+                    <strong>{percent(overview.cancellation_rate)}</strong>
+                    <span>Cancelación</span>
+                  </div>
+                  <div>
+                    <strong>{percent(overview.no_show_rate)}</strong>
+                    <span>No show</span>
+                  </div>
+                  <div>
+                    <strong>{formatMinutes(overview.average_duration_minutes)}</strong>
+                    <span>Duración media</span>
+                  </div>
+                </div>
+              </article>
+            </section>
+
+            <section className={styles.panelGrid}>
               <article className={styles.panel}>
                 <div className={styles.panelHeader}>
+                  <h3>Espacios más usados</h3>
+                  <span>Últimos 30 días</span>
+                </div>
+                <div className={styles.detailList}>
+                  {overview.top_spaces.map((space) => (
+                    <div key={space.space_id}>
+                      <span>{space.display_name || space.space_number} · {space.floor_name}</span>
+                      <strong>{space.reservations} reservas</strong>
+                    </div>
+                  ))}
+                </div>
+              </article>
+              <article className={styles.panel}>
+                <div className={styles.panelHeader}>
+                  <h3>Espacios subutilizados</h3>
+                  <span>Últimos 30 días</span>
+                </div>
+                <div className={styles.detailList}>
+                  {overview.underused_spaces.map((space) => (
+                    <div key={space.space_id}>
+                      <span>{space.display_name || space.space_number} · {space.floor_name}</span>
+                      <strong>{space.reservations} usos</strong>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            </section>
+
+            <section className={styles.auditPanel}>
+              <div className={styles.panelHeader}>
+                <h3>Auditoría reciente</h3>
+                <input value={auditQuery} onChange={(event) => setAuditQuery(event.target.value)} placeholder="Buscar acción, usuario o entidad..." />
+              </div>
+              <div className={styles.auditList}>
+                {auditLogs.length === 0 ? (
+                  <p className={styles.emptyState}>Sin eventos de auditoría.</p>
+                ) : auditLogs.slice(0, 8).map((log) => (
+                  <article key={log.id}>
+                    <strong>{log.action}</strong>
+                    <span>{log.actor_email ?? 'Sistema'} · {log.entity_type}{log.entity_id ? ` #${log.entity_id}` : ''}</span>
+                    <small>{new Date(log.created_at).toLocaleString('es-MX')}</small>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className={styles.panelGrid}>
+              <article
+                className={`${styles.panel} ${styles.clickablePanel}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => openPanel('panel:hours')}
+                onKeyDown={(event) => handlePanelKeyDown(event, 'panel:hours')}
+              >
+                <div className={styles.panelHeader}>
                   <h3>Demanda por hora</h3>
+                  <span>Ver detalle</span>
                 </div>
                 {overview.hourly_distribution.length === 0 ? (
                   <p className={styles.emptyState}>Sin reservas confirmadas para graficar.</p>
@@ -265,9 +1010,16 @@ export function AdminPage(): JSX.Element {
                 )}
               </article>
 
-              <article className={styles.panel}>
+              <article
+                className={`${styles.panel} ${styles.clickablePanel}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => openPanel('panel:users')}
+                onKeyDown={(event) => handlePanelKeyDown(event, 'panel:users')}
+              >
                 <div className={styles.panelHeader}>
                   <h3>Usuarios con más actividad</h3>
+                  <span>Ver detalle</span>
                 </div>
                 <div className={styles.topUserList}>
                   {overview.top_users.length === 0 ? (
@@ -286,6 +1038,25 @@ export function AdminPage(): JSX.Element {
                 </div>
               </article>
             </section>
+
+            {expandedKey && createPortal((
+              <div
+                className={styles.detailBackdrop}
+                onMouseDown={(event) => {
+                  if (event.target === event.currentTarget) setExpandedKey(null)
+                }}
+              >
+                <section className={styles.detailModal} role="dialog" aria-modal="true" aria-label={`Detalle de ${detailTitle()}`}>
+                  <button type="button" className={styles.detailClose} onClick={() => setExpandedKey(null)} aria-label="Cerrar detalle">
+                    ×
+                  </button>
+                  <span className={styles.detailEyebrow}>Detalle operativo</span>
+                  <h2>{detailTitle()}</h2>
+                  {renderExpandedDetail()}
+                  {overview && renderReservationTable(detailRows)}
+                </section>
+              </div>
+            ), document.body)}
 
           </>
         ) : null}

@@ -26,6 +26,7 @@ interface FloorMapProps {
   onVisibleFloorChange?: (floorId: number) => void
   mode?: 'reservation' | 'management'
   onSelectLayoutSpace?: (space: SpaceWithLayout) => void
+  onUnavailableLayoutSpace?: (space: SpaceWithLayout, reason: 'occupied' | 'blocked' | 'unavailable') => void
   managementUnavailableSpaceIds?: Set<number>
 }
 
@@ -47,6 +48,7 @@ export function FloorMap({
   onVisibleFloorChange,
   mode = 'reservation',
   onSelectLayoutSpace,
+  onUnavailableLayoutSpace,
   managementUnavailableSpaceIds = EMPTY_ID_SET,
 }: FloorMapProps) {
   const navigate = useNavigate()
@@ -239,7 +241,13 @@ export function FloorMap({
   function handleClickUnavailableSpace(spaceId: number) {
     if (mode === 'management') {
       const space = spacesById.get(spaceId)
-      if (space) onSelectLayoutSpace?.(space)
+      if (!space) return
+      const reason = occupancyBySpace.has(spaceId)
+        ? 'occupied'
+        : managementUnavailableSpaceIds.has(spaceId)
+          ? 'blocked'
+          : 'unavailable'
+      onUnavailableLayoutSpace?.(space, reason)
       return
     }
 

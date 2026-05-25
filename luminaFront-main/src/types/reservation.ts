@@ -28,6 +28,9 @@ export type ReservationErrorCode =
   | 'PARKING_TOO_LATE'
   | 'PARKING_UNAVAILABLE'
   | 'PARKING_CONFLICT'
+  | 'VEHICLE_REQUIRED'
+  | 'VEHICLE_SELECTION_REQUIRED'
+  | 'VEHICLE_NOT_FOUND'
   | 'AI_NOT_CONFIGURED'
   | 'AI_PROVIDER_ERROR'
   | 'DATABASE_ERROR';
@@ -36,6 +39,7 @@ export type ReservationErrorCode =
 export interface SpaceAvailability {
   id: number;
   space_number: string;
+  display_name: string | null;
   floor_id: number;
   priority_category: PriorityCategory;
   is_active: boolean;
@@ -48,6 +52,7 @@ export interface ReservationRequest {
   start_time: string;       // HH:MM
   end_time: string;         // HH:MM
   requiere_estacionamiento?: boolean;
+  vehicle_id?: number | null;
 }
 
 // POST /reservations — respuesta exitosa (HTTP 201)
@@ -60,8 +65,23 @@ export interface ReservationResponse {
   end_time: string;
   status: 'confirmada';
   requiere_estacionamiento: boolean;
+  vehicle_id?: number | null;
   parking_spot: { zone_name: string; spot_number: string } | null;
   newBadges?: BadgeInfo[];
+}
+
+export interface UserVehicle {
+  id: number
+  user_id: number
+  alias: string | null
+  plate: string
+  make: string | null
+  model: string | null
+  color: string | null
+  is_default: boolean
+  is_active: boolean
+  created_at: string
+  updated_at: string
 }
 
 // Valores del formulario de filtros
@@ -108,6 +128,8 @@ export interface UserReservation {
   check_in_time?: string | null
   parking_spot_number: string | null
   parking_zone_name: string | null
+  vehicle_plate: string | null
+  vehicle_label: string | null
 }
 
 export interface PublicUserProfile {
@@ -187,6 +209,15 @@ export interface AdminKpiOverview {
   no_show_reservations: number
   parking_reservations: number
   parking_rate: number
+  workspace_reservations: number
+  desk_only_reservations: number
+  desk_parking_reservations: number
+  parking_only_reservations: number
+  available_spaces: number
+  average_duration_minutes: number
+  check_in_rate: number
+  cancellation_rate: number
+  no_show_rate: number
   unique_users: number
   total_spaces: number
   occupied_spaces: number
@@ -195,6 +226,10 @@ export interface AdminKpiOverview {
   blocked_space_count: number
   status_breakdown: Array<{
     status: ReservationStatus
+    count: number
+  }>
+  reservation_type_breakdown: Array<{
+    type: 'desk_only' | 'desk_parking' | 'parking_only'
     count: number
   }>
   hourly_distribution: Array<{
@@ -207,6 +242,21 @@ export interface AdminKpiOverview {
     last_name: string
     email: string
     reservations: number
+  }>
+  top_spaces: Array<{
+    space_id: number
+    space_number: string
+    display_name: string | null
+    floor_name: string
+    reservations: number
+  }>
+  underused_spaces: Array<{
+    space_id: number
+    space_number: string
+    display_name: string | null
+    floor_name: string
+    reservations: number
+    last_reservation_date: string | null
   }>
   by_floor: Array<{
     floor_id: number
@@ -223,6 +273,33 @@ export interface AdminKpiOverview {
   }>
   blocked_areas: AreaBlock[]
   blocked_spaces: SpaceBlock[]
+  reservations_detail: AdminReservationDetail[]
+}
+
+export interface AdminReservationDetail {
+  reservation_id: number
+  reservation_code: string
+  reservation_date: string
+  start_time: string
+  end_time: string
+  status: ReservationStatus
+  type: 'desk_only' | 'desk_parking' | 'parking_only'
+  user_id: number
+  first_name: string
+  last_name: string
+  email: string
+  department: string | null
+  space_id: number | null
+  space_number: string
+  display_name: string | null
+  floor_id: number | null
+  floor_name: string
+  floor_number: number | null
+  parking_spot_number: string | null
+  parking_zone_name: string | null
+  vehicle_id: number | null
+  vehicle_plate: string | null
+  vehicle_label: string | null
 }
 
 export interface AreaBlock {
@@ -261,6 +338,36 @@ export interface ParkingReservationForGuard {
   user: PublicUserProfile
   space_number: string
   floor_name: string
+  vehicle_plate: string | null
+  vehicle_label: string | null
+}
+
+export interface UserSearchResult {
+  id: number
+  first_name: string
+  last_name: string
+  email: string
+  role: string
+  department: string | null
+  profile_photo_url: string | null
+  reservation_count: number
+  active_reservation_count: number
+  parking_reservation_count: number
+  vehicle_count: number
+  last_reservation_date: string | null
+}
+
+export interface AuditLogEntry {
+  id: number
+  actor_user_id: number | null
+  actor_first_name: string | null
+  actor_last_name: string | null
+  actor_email: string | null
+  action: string
+  entity_type: string
+  entity_id: string | null
+  metadata: Record<string, unknown>
+  created_at: string
 }
 
 export type ReservationRealtimeEventType =

@@ -10,7 +10,11 @@ export class GuardController {
       const date = typeof req.query.date === "string"
         ? req.query.date
         : new Date().toISOString().slice(0, 10)
-      res.json(await this.reservationRepository.findParkingReservationsByDate(date))
+      const query = typeof req.query.q === "string" ? req.query.q : undefined
+      res.json(query
+        ? await this.reservationRepository.findParkingReservationsByDate(date, query)
+        : await this.reservationRepository.findParkingReservationsByDate(date)
+      )
     } catch (err) {
       if (err instanceof ReservationError) {
         res.status(err.statusCode).json({ error: err.code, message: err.message })

@@ -68,7 +68,24 @@
   gap: 6px;
 }
 
-.dateControl input {
+.searchControl {
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.searchControl span {
+  display: block;
+  color: #7500c0;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dateControl input,
+.searchControl input {
   min-height: 42px;
   border: 1px solid rgba(117, 0, 192, 0.14);
   border-radius: 12px;
@@ -78,10 +95,55 @@
   padding: 0 12px;
 }
 
-.dateControl input:focus {
+.dateControl input:focus,
+.searchControl input:focus {
   outline: none;
   border-color: rgba(161, 0, 255, 0.42);
   box-shadow: 0 0 0 3px rgba(161, 0, 255, 0.1);
+}
+
+.userResults {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 10px;
+}
+
+.userResults article {
+  padding: 12px;
+  border: 1px solid rgba(117, 0, 192, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 22px rgba(70, 0, 115, 0.06);
+}
+
+.userResults strong,
+.userResults span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.userResults strong {
+  color: #18151f;
+  font-size: 0.9rem;
+}
+
+.userResults span {
+  margin-top: 3px;
+  color: #6b6380;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.userResults b {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(161, 0, 255, 0.08);
+  color: #7500c0;
+  font-size: 0.74rem;
 }
 
 .summaryGrid {
@@ -297,7 +359,8 @@
 :global([data-theme='dark']) .guardHero,
 :global([data-theme='dark']) .summaryCard,
 :global([data-theme='dark']) .zonePanel,
-:global([data-theme='dark']) .emptyState {
+:global([data-theme='dark']) .emptyState,
+:global([data-theme='dark']) .userResults article {
   background: rgba(35, 47, 61, 0.94);
   border-color: rgba(161, 0, 255, 0.14);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
@@ -306,6 +369,7 @@
 :global([data-theme='dark']) .heroCopy h3,
 :global([data-theme='dark']) .summaryCard strong,
 :global([data-theme='dark']) .zoneHeader h3,
+:global([data-theme='dark']) .userResults strong,
 :global([data-theme='dark']) .cardTop,
 :global([data-theme='dark']) .blockItem strong {
   color: #f8f5ff;
@@ -314,11 +378,13 @@
 :global([data-theme='dark']) .heroCopy p,
 :global([data-theme='dark']) .summaryCard small,
 :global([data-theme='dark']) .meta,
+:global([data-theme='dark']) .userResults span,
 :global([data-theme='dark']) .emptyState {
   color: #b9c3d0;
 }
 
-:global([data-theme='dark']) .dateControl input {
+:global([data-theme='dark']) .dateControl input,
+:global([data-theme='dark']) .searchControl input {
   border-color: rgba(161, 0, 255, 0.16);
   background: rgba(21, 28, 38, 0.86);
   color: #f8f5ff;
@@ -330,7 +396,8 @@
 }
 
 :global([data-theme='dark']) .spotPill,
-:global([data-theme='dark']) .statusChip {
+:global([data-theme='dark']) .statusChip,
+:global([data-theme='dark']) .userResults b {
   background: rgba(161, 0, 255, 0.13);
   color: #a100ff;
 }
@@ -353,7 +420,9 @@
   }
 
   .dateControl,
-  .dateControl input {
+  .dateControl input,
+  .searchControl,
+  .searchControl input {
     width: 100%;
   }
 

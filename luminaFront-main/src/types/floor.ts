@@ -17,6 +17,7 @@ export type LayoutDirection = 'up' | 'down' | 'left' | 'right'
 export interface SpaceWithLayout {
   id: number
   space_number: string
+  display_name: string | null
   floor_id: number
   priority_category: string | null
   is_active: boolean

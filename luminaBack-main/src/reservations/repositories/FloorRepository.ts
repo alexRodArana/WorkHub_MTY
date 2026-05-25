@@ -37,7 +37,7 @@ export class FloorRepository {
   async findSpacesByFloorId(floorId: number): Promise<Space[]> {
     try {
       const result = await this.db.query<Space>(
-        `SELECT id, space_number, floor_id, priority_category, is_active,
+        `SELECT id, space_number, display_name, floor_id, priority_category, is_active,
                 layout_type, layout_direction, layout_cx, layout_cy, layout_points, visual_only
          FROM spaces
          WHERE floor_id = $1 AND is_active = true

@@ -1,0 +1,12 @@
+# Render backend
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
+JWT_SECRET=replace-with-a-strong-secret
+JWT_ALGORITHM=HS256
+JWT_EXPIRES_IN=3600
+GEMINI_API_KEY=replace-with-your-gemini-api-key
+NODE_ENV=production
+PORT=3000
+CORS_ORIGIN=https://your-frontend.vercel.app
+
+# Vercel frontend
+VITE_API_BASE_URL=https://your-backend.onrender.com
