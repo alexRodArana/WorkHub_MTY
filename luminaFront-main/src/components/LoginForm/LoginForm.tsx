@@ -130,10 +130,6 @@ export function LoginForm(): JSX.Element {
         )}
       </div>
 
-      <a href="#" className={styles.forgotLink} tabIndex={-1}>
-        ¿Olvidaste tu contraseña?
-      </a>
-
       <button type="submit" className={styles.button} disabled={isLoading}>
         {isLoading ? (
           <LoadingSpinner />

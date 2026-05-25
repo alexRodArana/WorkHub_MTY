@@ -135,24 +135,6 @@
   background: rgba(117, 0, 192, 0.08);
 }
 
-/* ── Forgot password ─────────────────────────────────────────── */
-
-.forgotLink {
-  align-self: flex-end;
-  margin-top: -4px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #7500c0;
-  text-decoration: none;
-  opacity: 0.8;
-  transition: opacity 160ms ease;
-}
-
-.forgotLink:hover {
-  opacity: 1;
-  text-decoration: underline;
-}
-
 /* ── Submit button ───────────────────────────────────────────── */
 
 .button {

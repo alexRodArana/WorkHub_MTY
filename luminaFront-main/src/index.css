@@ -112,15 +112,18 @@ html,
 body,
 #root {
   min-height: 100%;
+  width: 100%;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
 }
 
 body {
   min-height: 100vh;
   min-height: 100dvh;
+  overflow-x: hidden;
   font-family: var(--font-sans);
   color: var(--text-primary);
   background:
@@ -138,6 +141,7 @@ body {
 
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
