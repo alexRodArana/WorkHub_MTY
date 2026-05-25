@@ -275,7 +275,7 @@ Configuracion equivalente si se crea manualmente:
 
 - Root Directory: `luminaBack-main`
 - Runtime: `Node`
-- Build Command: `npm ci && npm run build`
+- Build Command: `npm ci --include=dev && npm run build`
 - Start Command: `npm start`
 - Health Check Path: `/health`
 - Auto Deploy: habilitado contra `main`
