@@ -372,6 +372,9 @@ describe("ReservationService", () => {
     expect(result.recommendations[0].reasons.join(" ")).toContain("Ana Garcia")
     expect(String(vi.mocked(globalThis.fetch).mock.calls[0][0])).toContain("generativelanguage.googleapis.com")
     expect(String(vi.mocked(globalThis.fetch).mock.calls[0][0])).toContain("gemini-2.5-flash-lite")
+    const geminiRequest = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0][1].body as string)
+    expect(geminiRequest.generationConfig.responseJsonSchema).toBeDefined()
+    expect(geminiRequest.generationConfig.responseSchema).toBeUndefined()
   })
 
   it("does not fall back to local recommendations when Gemini returns invalid space ids", async () => {
@@ -605,5 +608,51 @@ describe("ReservationService", () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain("gemini-2.5-flash-lite")
     expect(String(fetchMock.mock.calls[1][0])).toContain("gemini-2.5-flash")
     expect(result.recommendations[0].space.id).toBe(5)
+  })
+
+  it("omits Gemini thinkingConfig when the fallback model does not support it", async () => {
+    process.env.GEMINI_FALLBACK_MODELS = "gemini-2.0-flash-lite"
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({ error: { status: "UNAVAILABLE" } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [{
+            content: {
+              parts: [{
+                text: JSON.stringify({
+                  predicted_occupancy: 0.25,
+                  prediction_label: "baja",
+                  recommendations: [{
+                    space_id: 5,
+                    reason: "Fallback Gemini eligió el mejor espacio disponible",
+                    score: 91,
+                    confidence: 0.88,
+                  }],
+                }),
+              }],
+            },
+          }],
+        }),
+      })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await service.getRecommendations({
+      reservation_date: FUTURE_DATE,
+      start_time: "09:00",
+      end_time: "10:00",
+      priority_category: "escritorio",
+    }, 7)
+
+    const primaryBody = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+    const fallbackBody = JSON.parse(fetchMock.mock.calls[1][1].body as string)
+    expect(primaryBody.generationConfig.thinkingConfig).toEqual({ thinkingBudget: 0 })
+    expect(fallbackBody.generationConfig.thinkingConfig).toBeUndefined()
+    expect(fallbackBody.generationConfig.responseJsonSchema).toBeDefined()
   })
 })

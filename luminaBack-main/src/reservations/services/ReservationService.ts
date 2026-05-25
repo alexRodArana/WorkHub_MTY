@@ -932,10 +932,10 @@ export class ReservationService {
           generationConfig: {
             maxOutputTokens,
             responseMimeType: "application/json",
-            ...(responseSchema ? { responseSchema } : {}),
-            thinkingConfig: {
-              thinkingBudget: 0,
-            },
+            ...(responseSchema ? { responseJsonSchema: responseSchema } : {}),
+            ...(this.supportsGeminiThinkingConfig(candidateModel)
+              ? { thinkingConfig: { thinkingBudget: 0 } }
+              : {}),
             temperature: 0.2,
           },
         }),
@@ -984,6 +984,10 @@ export class ReservationService {
 
   private shouldTryNextGeminiModel(statusCode: number): boolean {
     return statusCode === 429 || statusCode === 503
+  }
+
+  private supportsGeminiThinkingConfig(model: string): boolean {
+    return /\bgemini-(2\.5|3)/.test(model)
   }
 
   private extractGeminiText(body: unknown): string {
@@ -1079,6 +1083,7 @@ export class ReservationService {
         },
       },
       required: ["predicted_occupancy", "prediction_label", "recommendations"],
+      propertyOrdering: ["predicted_occupancy", "prediction_label", "recommendations"],
     }
   }
 
@@ -1106,6 +1111,7 @@ export class ReservationService {
         },
       },
       required: ["answer", "confidence", "intent", "actions"],
+      propertyOrdering: ["answer", "confidence", "intent", "actions"],
     }
   }
 
