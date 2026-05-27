@@ -1,7 +1,7 @@
 .page {
   position: relative;
   display: grid;
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: auto auto auto;
   gap: 14px;
   min-height: 100%;
   height: auto;
@@ -20,9 +20,9 @@
 
 .controlPanel {
   display: grid;
-  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.5fr);
+  grid-template-columns: minmax(220px, 1fr) minmax(190px, 260px);
   gap: 16px;
-  align-items: end;
+  align-items: center;
   padding: 16px;
   border-radius: 18px;
 }
@@ -48,27 +48,26 @@
   line-height: 1.2;
 }
 
-.controlGrid {
-  display: grid;
-  grid-template-columns: minmax(135px, 0.8fr) minmax(115px, 0.62fr) minmax(115px, 0.62fr) minmax(220px, 1.3fr);
-  gap: 10px;
-  align-items: end;
-}
-
-.controlGrid label {
+.dateField,
+.timeGrid label,
+.reasonField {
   display: flex;
   flex-direction: column;
   gap: 7px;
   min-width: 0;
 }
 
-.controlGrid label span {
+.dateField span,
+.timeGrid label span,
+.reasonField span {
   font-size: 0.78rem;
   font-weight: 850;
   color: #5c5268;
 }
 
-.controlGrid input {
+.dateField input,
+.timeGrid input,
+.reasonField textarea {
   width: 100%;
   min-height: 42px;
   border: 1px solid rgba(24, 21, 31, 0.14);
@@ -81,7 +80,16 @@
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
-.controlGrid input:focus {
+.reasonField textarea {
+  min-height: 96px;
+  padding: 11px 12px;
+  resize: vertical;
+  line-height: 1.42;
+}
+
+.dateField input:focus,
+.timeGrid input:focus,
+.reasonField textarea:focus {
   border-color: #a100ff;
   box-shadow: 0 0 0 4px rgba(161, 0, 255, 0.12);
 }
@@ -90,12 +98,101 @@
   min-width: 0;
 }
 
+.managementWorkspace {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  min-height: 0;
+}
+
 .mapPanel {
   display: flex;
+  flex: 1;
+  min-width: 0;
   min-height: 460px;
   height: clamp(500px, 66vh, 760px);
   overflow: hidden;
   border-radius: 18px;
+}
+
+.selectionPanel {
+  width: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: width 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.selectionPanelOpen {
+  width: 350px;
+}
+
+.selectionCard {
+  width: 328px;
+  margin-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(161, 0, 255, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 20px 48px rgba(24, 21, 31, 0.08);
+  animation: panelIn 220ms ease both;
+}
+
+.selectionTitle h3,
+.selectionTitle p {
+  margin: 0;
+}
+
+.selectionTitle h3 {
+  color: #18151f;
+  font-size: 1.22rem;
+  line-height: 1.15;
+}
+
+.selectionTitle p {
+  margin-top: 4px;
+  color: #7500c0;
+  font-weight: 900;
+}
+
+.selectionMeta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.selectionMeta div {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid rgba(117, 0, 192, 0.1);
+  border-radius: 14px;
+  background: rgba(246, 243, 255, 0.58);
+}
+
+.selectionMeta dt {
+  color: #6c6478;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.selectionMeta dd {
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: #18151f;
+  font-size: 0.88rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .blockPanel {
@@ -116,9 +213,10 @@
 
 .cardHeader strong {
   min-width: 34px;
-  height: 30px;
+  min-height: 30px;
   display: grid;
   place-items: center;
+  padding: 0 10px;
   border-radius: 999px;
   background: rgba(161, 0, 255, 0.1);
   color: #520083;
@@ -324,6 +422,7 @@
 :global(html[data-theme='dark']) .controlPanel,
 :global(html[data-theme='dark']) .mapPanel,
 :global(html[data-theme='dark']) .blockPanel,
+:global(html[data-theme='dark']) .selectionCard,
 :global(html[data-theme='dark']) .confirmDialog {
   background: rgba(35, 47, 61, 0.96);
   border-color: rgba(183, 107, 255, 0.18);
@@ -331,6 +430,8 @@
 }
 
 :global(html[data-theme='dark']) .controlCopy strong,
+:global(html[data-theme='dark']) .selectionTitle h3,
+:global(html[data-theme='dark']) .selectionMeta dd,
 :global(html[data-theme='dark']) .blockItem strong,
 :global(html[data-theme='dark']) .confirmDialog h3,
 :global(html[data-theme='dark']) .confirmDialog p {
@@ -340,7 +441,10 @@
 :global(html[data-theme='dark']) .controlCopy span,
 :global(html[data-theme='dark']) .cardHeader span,
 :global(html[data-theme='dark']) .hint,
-:global(html[data-theme='dark']) .controlGrid label span,
+:global(html[data-theme='dark']) .dateField span,
+:global(html[data-theme='dark']) .timeGrid label span,
+:global(html[data-theme='dark']) .reasonField span,
+:global(html[data-theme='dark']) .selectionMeta dt,
 :global(html[data-theme='dark']) .blockItem span,
 :global(html[data-theme='dark']) .blockItem small,
 :global(html[data-theme='dark']) .confirmDialog > span,
@@ -348,10 +452,17 @@
   color: #c8bed7;
 }
 
-:global(html[data-theme='dark']) .controlGrid input {
+:global(html[data-theme='dark']) .dateField input,
+:global(html[data-theme='dark']) .timeGrid input,
+:global(html[data-theme='dark']) .reasonField textarea {
   background: rgba(20, 27, 39, 0.82);
   color: #f4f0ff;
   border-color: rgba(255, 255, 255, 0.12);
+}
+
+:global(html[data-theme='dark']) .selectionMeta div {
+  background: rgba(20, 27, 39, 0.72);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 :global(html[data-theme='dark']) .blockItem {
@@ -421,12 +532,25 @@
     grid-template-columns: 1fr;
   }
 
-  .controlGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .managementWorkspace {
+    flex-direction: column;
+    gap: 14px;
   }
 
-  .reasonField {
-    grid-column: 1 / -1;
+  .selectionPanel,
+  .selectionPanelOpen {
+    width: 100%;
+    overflow: visible;
+    transition: none;
+  }
+
+  .selectionPanel:not(.selectionPanelOpen) {
+    display: none;
+  }
+
+  .selectionCard {
+    width: 100%;
+    margin-left: 0;
   }
 }
 
@@ -441,7 +565,8 @@
     min-height: 62vh;
   }
 
-  .blockPanel {
+  .blockPanel,
+  .selectionCard {
     max-height: none;
     overflow: visible;
   }
@@ -454,12 +579,9 @@
     border-radius: 16px;
   }
 
-  .controlGrid {
+  .selectionMeta,
+  .timeGrid {
     grid-template-columns: 1fr;
-  }
-
-  .reasonField {
-    grid-column: auto;
   }
 
   .blockList,
@@ -480,6 +602,7 @@
   .controlPanel,
   .mapPanel,
   .blockPanel,
+  .selectionCard,
   .confirmBackdrop,
   .confirmDialog,
   .errorMsg,

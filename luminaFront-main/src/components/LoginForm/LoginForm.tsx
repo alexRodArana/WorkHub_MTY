@@ -5,7 +5,6 @@ import type { ValidationErrors } from '../../utils/validator'
 import * as authService from '../../services/authService'
 import { saveSession } from '../../services/tokenStore'
 import { getRoleHomePath } from '../../utils/roleRouting'
-import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner'
 import { ErrorBanner } from '../ErrorBanner/ErrorBanner'
 import styles from './LoginForm.module.css'
 
@@ -132,7 +131,7 @@ export function LoginForm(): JSX.Element {
 
       <button type="submit" className={styles.button} disabled={isLoading}>
         {isLoading ? (
-          <LoadingSpinner />
+          <span className={styles.loadingText}>Entrando...</span>
         ) : (
           <>
             Entrar

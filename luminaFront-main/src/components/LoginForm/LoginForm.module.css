@@ -218,6 +218,28 @@
   transition: transform 200ms ease;
 }
 
+.loadingText {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loadingText::after {
+  content: '';
+  width: 0.82em;
+  height: 0.82em;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: loginSpin 740ms linear infinite;
+}
+
+@keyframes loginSpin {
+  to { transform: rotate(360deg); }
+}
+
 .button:hover:not(:disabled) .btnArrow {
   transform: translateX(3px);
 }

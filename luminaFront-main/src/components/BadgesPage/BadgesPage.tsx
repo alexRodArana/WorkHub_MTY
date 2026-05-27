@@ -30,6 +30,7 @@ export function BadgesPage(): JSX.Element {
   const [badges, setBadges] = useState<BadgeWithStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedBadge, setSelectedBadge] = useState<BadgeWithStatus | null>(null)
 
   useEffect(() => {
     const token = getSession()?.access_token
@@ -52,6 +53,16 @@ export function BadgesPage(): JSX.Element {
     const timeoutId = window.setTimeout(() => setError(null), 5000)
     return () => window.clearTimeout(timeoutId)
   }, [error])
+
+  useEffect(() => {
+    if (!selectedBadge) return
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setSelectedBadge(null)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedBadge])
 
   const earnedCount = badges.filter((b) => b.earned_at !== null).length
   const completion = badges.length > 0 ? Math.round((earnedCount / badges.length) * 100) : 0
@@ -103,6 +114,16 @@ export function BadgesPage(): JSX.Element {
                   <article
                     key={badge.id}
                     className={`${styles.badgeCard} ${earned ? styles.badgeCardEarned : styles.badgeCardLocked}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Ver detalle de ${badge.name}`}
+                    onClick={() => setSelectedBadge(badge)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setSelectedBadge(badge)
+                      }
+                    }}
                   >
                     <img
                       className={styles.badgeImage}
@@ -127,6 +148,53 @@ export function BadgesPage(): JSX.Element {
                 )
               })}
             </div>
+
+            {selectedBadge && (
+              <div
+                className={styles.badgeModalBackdrop}
+                onClick={(event) => {
+                  if (event.target === event.currentTarget) setSelectedBadge(null)
+                }}
+              >
+                <section className={styles.badgeModal} role="dialog" aria-modal="true" aria-labelledby="badge-detail-title">
+                  <button
+                    type="button"
+                    className={styles.badgeModalClose}
+                    onClick={() => setSelectedBadge(null)}
+                    aria-label="Cerrar detalle del badge"
+                  >
+                    ×
+                  </button>
+                  <div className={styles.badgeModalImageWrap}>
+                    <img
+                      src={getBadgeImage(selectedBadge.key, selectedBadge.earned_at !== null)}
+                      alt=""
+                    />
+                  </div>
+                  <div className={styles.badgeModalBody}>
+                    <span className={styles.badgeModalEyebrow}>
+                      {selectedBadge.earned_at ? 'Badge desbloqueada' : 'Badge pendiente'}
+                    </span>
+                    <h3 id="badge-detail-title">{selectedBadge.name}</h3>
+                    <p>{selectedBadge.description}</p>
+                    <dl className={styles.badgeDetailGrid}>
+                      <div>
+                        <dt>Conseguida</dt>
+                        <dd>{selectedBadge.earned_at ? formatEarnedDate(selectedBadge.earned_at) : 'Aún no desbloqueada'}</dd>
+                      </div>
+                      <div>
+                        <dt>Cómo se consigue</dt>
+                        <dd>{selectedBadge.description}</dd>
+                      </div>
+                      <div>
+                        <dt>Usuarios que la tienen</dt>
+                        <dd>{Math.round(selectedBadge.earned_percentage ?? 0)}%</dd>
+                      </div>
+                    </dl>
+                  </div>
+                </section>
+              </div>
+            )}
           </>
         )}
       </div>

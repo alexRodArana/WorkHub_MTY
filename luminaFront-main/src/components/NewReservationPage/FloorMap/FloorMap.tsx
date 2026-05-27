@@ -28,6 +28,8 @@ interface FloorMapProps {
   onSelectLayoutSpace?: (space: SpaceWithLayout) => void
   onUnavailableLayoutSpace?: (space: SpaceWithLayout, reason: 'occupied' | 'blocked' | 'unavailable') => void
   managementUnavailableSpaceIds?: Set<number>
+  managementStartTime?: string
+  managementEndTime?: string
 }
 
 function initials(firstName: string, lastName: string): string {
@@ -50,6 +52,8 @@ export function FloorMap({
   onSelectLayoutSpace,
   onUnavailableLayoutSpace,
   managementUnavailableSpaceIds = EMPTY_ID_SET,
+  managementStartTime,
+  managementEndTime,
 }: FloorMapProps) {
   const navigate = useNavigate()
   const [floors, setFloors] = useState<FloorSummary[]>([])
@@ -187,15 +191,26 @@ export function FloorMap({
     () => new Map<number, SpaceWithLayout>(spaces.map((space) => [space.id, space])),
     [spaces]
   )
+  const managementOccupiedSpaceIds = useMemo(() => {
+    if (!managementStartTime || !managementEndTime || managementEndTime <= managementStartTime) {
+      return EMPTY_ID_SET
+    }
+
+    return new Set(
+      occupancy
+        .filter((item) => item.intervals.some((interval) => interval.start_time < managementEndTime && interval.end_time > managementStartTime))
+        .map((item) => item.space_id)
+    )
+  }, [managementEndTime, managementStartTime, occupancy])
   const managementAvailableIds = useMemo(
     () => new Set(
       spaces
         .filter((space) => !space.visual_only)
         .filter((space) => !managementUnavailableSpaceIds.has(space.id))
-        .filter((space) => !occupancyBySpace.has(space.id))
+        .filter((space) => !managementOccupiedSpaceIds.has(space.id))
         .map((space) => space.id)
     ),
-    [managementUnavailableSpaceIds, occupancyBySpace, spaces]
+    [managementOccupiedSpaceIds, managementUnavailableSpaceIds, spaces]
   )
   const recommendationCountsByFloor = useMemo(() => {
     const counts = new Map<number, number>()
@@ -242,7 +257,7 @@ export function FloorMap({
     if (mode === 'management') {
       const space = spacesById.get(spaceId)
       if (!space) return
-      const reason = occupancyBySpace.has(spaceId)
+      const reason = managementOccupiedSpaceIds.has(spaceId)
         ? 'occupied'
         : managementUnavailableSpaceIds.has(spaceId)
           ? 'blocked'

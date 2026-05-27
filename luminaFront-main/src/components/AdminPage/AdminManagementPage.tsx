@@ -36,7 +36,6 @@ export function AdminManagementPage(): JSX.Element {
   const [overview, setOverview] = useState<AdminKpiOverview | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -57,9 +56,21 @@ export function AdminManagementPage(): JSX.Element {
       .filter((block) => overlapsRange(block.start_time, block.end_time, startTime, endTime))
       .map((block) => block.space_id)
   ), [dateBlocks, endTime, startTime])
+  const occupiedSpaceIdsForRange = useMemo(() => new Set(
+    (overview?.reservations_detail ?? [])
+      .filter((reservation) => reservation.space_id !== null)
+      .filter((reservation) => reservation.status === 'confirmada' || reservation.status === 'activa')
+      .filter((reservation) => overlapsRange(reservation.start_time, reservation.end_time, startTime, endTime))
+      .map((reservation) => reservation.space_id as number)
+  ), [endTime, overview?.reservations_detail, startTime])
   const selectedIsBlockedForRange = selectedSpace
     ? blockedSpaceIdsForRange.has(selectedSpace.id)
     : false
+  const selectedIsOccupiedForRange = selectedSpace
+    ? occupiedSpaceIdsForRange.has(selectedSpace.id)
+    : false
+  const isTimeRangeInvalid = endTime <= startTime
+  const selectedCannotBeBlocked = selectedIsBlockedForRange || selectedIsOccupiedForRange || isTimeRangeInvalid
 
   async function refresh() {
     if (!token) return
@@ -113,22 +124,22 @@ export function AdminManagementPage(): JSX.Element {
   }, Boolean(token))
 
   function handleSelectManagementSpace(space: SpaceWithLayout) {
-    setSelectedSpace(space)
     setError(null)
-    if (endTime <= startTime) {
+    setMessage(null)
+    if (isTimeRangeInvalid) {
+      setSelectedSpace(null)
       setError('La hora de fin debe ser mayor a la hora de inicio.')
       return
     }
 
-    setConfirming(true)
+    setSelectedSpace(space)
   }
 
   function handleUnavailableManagementSpace(
     space: SpaceWithLayout,
     reason: 'occupied' | 'blocked' | 'unavailable'
   ) {
-    setSelectedSpace(space)
-    setConfirming(false)
+    setSelectedSpace(null)
     if (reason === 'occupied') {
       setError(`${space.space_number} ya tiene una reserva en ese horario. No se puede bloquear un espacio ocupado.`)
       return
@@ -154,7 +165,6 @@ export function AdminManagementPage(): JSX.Element {
       reason: reason.trim(),
     })
     setSaving(false)
-    setConfirming(false)
 
     if (!result.success) {
       if (result.unauthorized) navigate('/login', { replace: true })
@@ -164,7 +174,14 @@ export function AdminManagementPage(): JSX.Element {
 
     setMessage(`${result.data.space_number} bloqueado de ${result.data.start_time} a ${result.data.end_time}.`)
     setReason('')
+    setSelectedSpace(null)
     await refresh()
+  }
+
+  function handleCancelSelection() {
+    setSelectedSpace(null)
+    setReason('')
+    setError(null)
   }
 
   async function handleUnblock(blockId: number) {
@@ -191,56 +208,113 @@ export function AdminManagementPage(): JSX.Element {
         <section className={styles.controlPanel} data-tour="management-controls">
           <div className={styles.controlCopy}>
             <span>Bloqueo operativo</span>
-            <strong>Selecciona un espacio directamente en el mapa</strong>
+            <strong>Selecciona una fecha y después el espacio en el mapa</strong>
           </div>
 
-          <div className={styles.controlGrid}>
-            <label>
-              <span>Fecha</span>
-              <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-            </label>
-
-            <label>
-              <span>Inicio</span>
-              <input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
-            </label>
-
-            <label>
-              <span>Fin</span>
-              <input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
-            </label>
-
-            <label className={styles.reasonField}>
-              <span>Motivo</span>
-              <input
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                placeholder="Mantenimiento, evento, limpieza"
-              />
-            </label>
-          </div>
+          <label className={styles.dateField}>
+            <span>Fecha</span>
+            <input
+              type="date"
+              value={date}
+              onChange={(event) => {
+                setDate(event.target.value)
+                setSelectedSpace(null)
+              }}
+            />
+          </label>
         </section>
 
         {error && <div className={styles.errorMsg}>{error}</div>}
         {message && <div className={styles.successMsg}>{message}</div>}
 
-        <section className={styles.mapPanel} data-tour="management-map">
-          <FloorMap
-            floorId={null}
-            availableSpaces={[]}
-            selectedSpaceId={selectedSpace?.id ?? null}
-            onSelectSpace={() => undefined}
-            isLoading={loading}
-            hasSearched
-            reservationDate={date}
-            aiRecommendedSpaces={new Map()}
-            refreshKey={refreshKey}
-            mode="management"
-            onSelectLayoutSpace={handleSelectManagementSpace}
-            onUnavailableLayoutSpace={handleUnavailableManagementSpace}
-            managementUnavailableSpaceIds={blockedSpaceIdsForRange}
-          />
-        </section>
+        <div className={styles.managementWorkspace}>
+          <section className={styles.mapPanel} data-tour="management-map">
+            <FloorMap
+              floorId={null}
+              availableSpaces={[]}
+              selectedSpaceId={selectedSpace?.id ?? null}
+              onSelectSpace={() => undefined}
+              isLoading={loading}
+              hasSearched
+              reservationDate={date}
+              aiRecommendedSpaces={new Map()}
+              refreshKey={refreshKey}
+              mode="management"
+              onSelectLayoutSpace={handleSelectManagementSpace}
+              onUnavailableLayoutSpace={handleUnavailableManagementSpace}
+              managementUnavailableSpaceIds={blockedSpaceIdsForRange}
+              managementStartTime={startTime}
+              managementEndTime={endTime}
+            />
+          </section>
+
+          <aside className={`${styles.selectionPanel} ${selectedSpace ? styles.selectionPanelOpen : ''}`}>
+            {selectedSpace && (
+              <div className={styles.selectionCard}>
+                <div className={styles.cardHeader}>
+                  <span>Selección actual</span>
+                  <strong>{selectedCategory}</strong>
+                </div>
+
+                <div className={styles.selectionTitle}>
+                  <h3>{selectedSpace.display_name || selectedSpace.space_number}</h3>
+                  <p>{selectedSpace.space_number}</p>
+                </div>
+
+                <dl className={styles.selectionMeta}>
+                  <div>
+                    <dt>Piso</dt>
+                    <dd>{selectedFloorName}</dd>
+                  </div>
+                  <div>
+                    <dt>Fecha</dt>
+                    <dd>{date}</dd>
+                  </div>
+                </dl>
+
+                <div className={styles.timeGrid}>
+                  <label>
+                    <span>Inicio</span>
+                    <input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
+                  </label>
+                  <label>
+                    <span>Fin</span>
+                    <input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
+                  </label>
+                </div>
+
+                <label className={styles.reasonField}>
+                  <span>Motivo</span>
+                  <textarea
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    placeholder="Mantenimiento, evento, limpieza"
+                    rows={4}
+                  />
+                </label>
+
+                {(isTimeRangeInvalid || selectedIsBlockedForRange || selectedIsOccupiedForRange) && (
+                  <div className={styles.confirmWarning}>
+                    {isTimeRangeInvalid
+                      ? 'La hora de fin debe ser mayor a la hora de inicio.'
+                      : selectedIsOccupiedForRange
+                        ? 'Este espacio ya tiene una reserva en ese horario.'
+                        : 'Este espacio ya aparece bloqueado en ese horario.'}
+                  </div>
+                )}
+
+                <div className={styles.confirmActions}>
+                  <button type="button" onClick={handleCancelSelection} disabled={saving}>
+                    Cancelar
+                  </button>
+                  <button type="button" onClick={() => void handleConfirmBlock()} disabled={saving || selectedCannotBeBlocked}>
+                    {saving ? 'Bloqueando...' : 'Confirmar bloqueo'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
 
         <section className={styles.blockPanel} data-tour="management-blocks">
           <div className={styles.cardHeader}>
@@ -270,38 +344,6 @@ export function AdminManagementPage(): JSX.Element {
           )}
         </section>
 
-        {confirming && selectedSpace && (
-          <div
-            className={styles.confirmBackdrop}
-            onClick={(event) => {
-              if (event.target === event.currentTarget) setConfirming(false)
-            }}
-          >
-            <div className={styles.confirmDialog} role="dialog" aria-modal="true">
-              <span>Confirmar bloqueo</span>
-              <h3>{selectedSpace.space_number}</h3>
-              <div className={styles.confirmMeta}>
-                <span>{selectedCategory}</span>
-                <span>{selectedFloorName}</span>
-              </div>
-              <p>{date} · {startTime} - {endTime}</p>
-              <small>{reason.trim() || 'Sin motivo registrado'}</small>
-              {selectedIsBlockedForRange && (
-                <div className={styles.confirmWarning}>
-                  Este espacio ya aparece bloqueado en ese horario. Puedes revisar el horario o liberar el bloqueo existente.
-                </div>
-              )}
-              <div className={styles.confirmActions}>
-                <button type="button" onClick={() => setConfirming(false)} disabled={saving}>
-                  Cancelar
-                </button>
-                <button type="button" onClick={() => void handleConfirmBlock()} disabled={saving || selectedIsBlockedForRange}>
-                  {saving ? 'Bloqueando...' : 'Confirmar'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </AppShell>
   )

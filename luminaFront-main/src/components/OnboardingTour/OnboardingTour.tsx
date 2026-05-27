@@ -763,26 +763,49 @@ export function OnboardingTour({ role, userId, restartKey }: OnboardingTourProps
   useEffect(() => {
     if (!active) return
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') finishTour()
-      if (event.key === 'ArrowRight') {
-        setStepIndex((index) => {
-          const next = index >= steps.length - 1 ? index : index + 1
-          writeActiveTour({ role: tourRole, userKey, stepIndex: next })
-          return next
-        })
+      if (event.key !== 'Tab') return
+
+      const card = cardRef.current
+      if (!card) return
+
+      const focusable = Array.from(card.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      ))
+      if (focusable.length === 0) return
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const activeElement = document.activeElement
+
+      if (!card.contains(activeElement)) {
+        event.preventDefault()
+        first.focus()
+        return
       }
-      if (event.key === 'ArrowLeft') {
-        setStepIndex((index) => {
-          const next = Math.max(0, index - 1)
-          writeActiveTour({ role: tourRole, userKey, stepIndex: next })
-          return next
-        })
+
+      if (event.shiftKey && activeElement === first) {
+        event.preventDefault()
+        last.focus()
+        return
+      }
+
+      if (!event.shiftKey && activeElement === last) {
+        event.preventDefault()
+        first.focus()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [active, finishTour, steps.length, tourRole, userKey])
+  }, [active])
+
+  useEffect(() => {
+    if (!active) return
+    const id = window.setTimeout(() => {
+      cardRef.current?.querySelector<HTMLButtonElement>(`.${styles.primaryBtn}`)?.focus()
+    }, 0)
+    return () => window.clearTimeout(id)
+  }, [active, stepIndex])
 
   useEffect(() => {
     if (!active || !currentStep) return

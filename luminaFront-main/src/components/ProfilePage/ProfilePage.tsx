@@ -325,7 +325,11 @@ export function ProfilePage(): JSX.Element {
                 <div className={styles.vehicleFormActions}>
                   {editingVehicleId && <button type="button" className={styles.ghostBtn} onClick={resetVehicleForm}>Cancelar</button>}
                   <button type="button" className={styles.primaryBtn} onClick={() => void saveVehicle()} disabled={vehicleSavingId !== null}>
-                    {vehicleSavingId === 'new' || vehicleSavingId === editingVehicleId ? 'Guardando...' : editingVehicleId ? 'Actualizar vehículo' : 'Agregar vehículo'}
+                    {vehicleSavingId !== null && (vehicleSavingId === 'new' || vehicleSavingId === editingVehicleId)
+                      ? 'Guardando...'
+                      : editingVehicleId
+                        ? 'Actualizar vehículo'
+                        : 'Agregar vehículo'}
                   </button>
                 </div>
               </div>
