@@ -151,7 +151,11 @@
   line-height: 1.16;
 }
 
-.badgeHeader span {
+.percentageTooltip {
+  flex-shrink: 0;
+}
+
+.badgeHeader .percentagePill {
   flex-shrink: 0;
   padding: 5px 8px;
   border-radius: 999px;
@@ -159,6 +163,7 @@
   color: #7500c0;
   font-size: 0.76rem;
   font-weight: 900;
+  cursor: help;
 }
 
 .badgeCardBody p {
@@ -186,6 +191,11 @@
 
 :global([data-theme='dark']) .badgeHeader strong {
   color: #f8f5ff;
+}
+
+:global([data-theme='dark']) .badgeHeader .percentagePill {
+  background: rgba(161, 0, 255, 0.16);
+  color: #e4c7ff;
 }
 
 :global([data-theme='dark']) .badgeCardBody p,

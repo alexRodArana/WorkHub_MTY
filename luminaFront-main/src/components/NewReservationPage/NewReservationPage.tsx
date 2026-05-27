@@ -11,6 +11,7 @@ import type {
 import { getSession } from '../../services/tokenStore'
 import { fetchAvailability, createReservation, fetchRecommendations, fetchMyVehicles, createVehicle } from '../../services/reservationService'
 import { mapReservationError } from '../../utils/reservationValidator'
+import { getReservationIncentive, type ReservationIncentive } from '../../utils/reservationIncentives'
 import { useReservationRealtime } from '../../hooks/useReservationRealtime'
 import { FilterPanel } from './FilterPanel/FilterPanel'
 import { FloorMap } from './FloorMap/FloorMap'
@@ -73,6 +74,7 @@ interface ReservationFlowState {
     color: string
   }
   isSavingVehicle: boolean
+  activeIncentive: ReservationIncentive | null
 }
 
 function getDefaultFilters(): FilterValues {
@@ -145,6 +147,7 @@ export function NewReservationPage(): JSX.Element {
     vehicleError: null,
     vehicleForm: { plate: '', alias: '', make: '', model: '', color: '' },
     isSavingVehicle: false,
+    activeIncentive: null,
   })
 
   useEffect(() => {
@@ -171,6 +174,7 @@ export function NewReservationPage(): JSX.Element {
   // Stable ref so auto-search effect doesn't re-register when handleSearch identity changes
   const handleSearchRef = useRef<() => Promise<void>>(null as unknown as () => Promise<void>)
   const searchRequestIdRef = useRef(0)
+  const dismissedIncentivesRef = useRef(new Set<string>())
 
   // Auto-search when all required fields are valid
   useEffect(() => {
@@ -184,6 +188,20 @@ export function NewReservationPage(): JSX.Element {
     return () => window.clearTimeout(timeoutId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.filters.reservation_date, state.filters.start_time, state.filters.end_time, state.filters.floor_id, state.filters.priority_category, state.reservationMode])
+
+  useEffect(() => {
+    const incentive = getReservationIncentive(state.filters.reservation_date)
+    if (!incentive || dismissedIncentivesRef.current.has(incentive.key)) {
+      setState((prev) => (prev.activeIncentive === null ? prev : { ...prev, activeIncentive: null }))
+      return
+    }
+
+    setState((prev) => (
+      prev.activeIncentive?.key === incentive.key
+        ? prev
+        : { ...prev, activeIncentive: incentive }
+    ))
+  }, [state.filters.reservation_date])
 
   useEffect(() => {
     if (!state.searchError) return
@@ -308,6 +326,16 @@ export function NewReservationPage(): JSX.Element {
       confirmError: null,
       searchError: null,
     }))
+  }
+
+  function dismissIncentive() {
+    setState((prev) => {
+      if (prev.activeIncentive) {
+        dismissedIncentivesRef.current.add(prev.activeIncentive.key)
+      }
+
+      return { ...prev, activeIncentive: null }
+    })
   }
 
   async function handleSaveVehicle() {
@@ -550,6 +578,18 @@ export function NewReservationPage(): JSX.Element {
               isLoading={state.isSearching}
               availableCategories={state.floorCategories}
             />
+            {state.activeIncentive && (
+              <aside className={styles.incentiveCard} role="status" aria-live="polite">
+                <span className={styles.incentiveIcon} aria-hidden="true">{state.activeIncentive.emoji}</span>
+                <div>
+                  <strong>{state.activeIncentive.title}</strong>
+                  <p>{state.activeIncentive.message}</p>
+                </div>
+                <button type="button" onClick={dismissIncentive} aria-label="Cerrar incentivo">
+                  ×
+                </button>
+              </aside>
+            )}
           </div>
         </section>
 
@@ -583,7 +623,7 @@ export function NewReservationPage(): JSX.Element {
                     <span>Vehículo</span>
                     <strong>{selectedVehicleLabel ?? 'Pendiente de registrar'}</strong>
                     <button type="button" onClick={() => setState((prev) => ({ ...prev, showVehiclePrompt: true, vehicleError: null }))}>
-                      {selectedVehicleLabel ? 'Cambiar' : 'Agregar'}
+                      {selectedVehicleLabel ? 'Cambiar' : 'Agregar vehículo'}
                     </button>
                   </div>
                   <dl>

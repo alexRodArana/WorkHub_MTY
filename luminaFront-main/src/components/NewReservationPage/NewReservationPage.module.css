@@ -29,6 +29,17 @@
   }
 }
 
+@keyframes incentiveIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .filterSection {
   width: 100%;
   flex-shrink: 0;
@@ -107,6 +118,74 @@
 .modeTabActive::after {
   opacity: 1;
   transform: scaleX(1);
+}
+
+.incentiveCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 176, 0, 0.24);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(255, 176, 0, 0.14), rgba(161, 0, 255, 0.06)),
+    rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 26px rgba(70, 0, 115, 0.08);
+  animation: incentiveIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.incentiveIcon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(255, 176, 0, 0.2);
+  font-size: 1.25rem;
+}
+
+.incentiveCard strong,
+.incentiveCard p {
+  margin: 0;
+}
+
+.incentiveCard strong {
+  display: block;
+  color: #18151f;
+  font-size: 0.92rem;
+  font-weight: 950;
+  line-height: 1.15;
+}
+
+.incentiveCard p {
+  margin-top: 3px;
+  color: #6b6380;
+  font-size: 0.82rem;
+  font-weight: 720;
+  line-height: 1.42;
+}
+
+.incentiveCard button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(117, 0, 192, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #7500c0;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 950;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.incentiveCard button:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(70, 0, 115, 0.1);
 }
 
 .mapRow {
@@ -520,6 +599,28 @@
   color: #ffffff;
 }
 
+:global([data-theme='dark']) .incentiveCard {
+  background:
+    linear-gradient(135deg, rgba(255, 176, 0, 0.16), rgba(161, 0, 255, 0.1)),
+    rgba(35, 47, 61, 0.96);
+  border-color: rgba(255, 176, 0, 0.32);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+}
+
+:global([data-theme='dark']) .incentiveIcon,
+:global([data-theme='dark']) .incentiveCard button {
+  background: rgba(21, 28, 38, 0.9);
+  border-color: rgba(255, 176, 0, 0.18);
+}
+
+:global([data-theme='dark']) .incentiveCard strong {
+  color: #f8f5ff;
+}
+
+:global([data-theme='dark']) .incentiveCard p {
+  color: #b9c3d0;
+}
+
 :global([data-theme='dark']) .parkingOnlyPanel {
   background:
     radial-gradient(circle at 50% 0%, rgba(0, 190, 154, 0.13), transparent 38%),
@@ -661,12 +762,14 @@
   .filterCard,
   .mapCard,
   .modeTab,
+  .incentiveCard,
   .parkingContinueBtn {
     animation: none;
     transition: none;
   }
 
   .modeTab:hover,
+  .incentiveCard button:hover,
   .parkingContinueBtn:hover:not(:disabled) {
     transform: none;
   }

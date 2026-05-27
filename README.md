@@ -34,6 +34,7 @@ La solución cubre tres perfiles principales:
 - Autenticación con JWT y protección por roles.
 - Reservas por fecha, horario, piso y tipo de espacio.
 - Estacionamiento disponible como complemento de un escritorio o como reserva independiente.
+- Incentivos contextuales en el flujo de reserva para martes de tacos y jueves de barista.
 - Mapa interactivo por piso con imagen de fondo, zonas, escritorios y salas.
 - Hover contextual sobre espacios con piso, nombre, ocupante, foto y horario.
 - Avatares sobre lugares reservados en el mapa.
@@ -44,7 +45,7 @@ La solución cubre tres perfiles principales:
 - Monitoreo en tiempo real mediante Server-Sent Events para reservas, cancelaciones, check-ins y bloqueos.
 - Check-in con ventana configurable y validación opcional por CIDR.
 - Perfil de usuario con carga de foto desde desktop o móvil.
-- Gamificación con badges, progreso y animaciones al desbloquear logros.
+- Gamificación con badges, porcentaje de adopción, tooltips explicativos y animaciones al desbloquear logros.
 - Dashboard de empleado con reserva del día, racha, acciones rápidas e historial.
 - Dashboard administrador con KPIs, gráficas, distribución por piso, categoría, hora y usuarios activos.
 - Gestión administrador con mapa completo para bloquear/liberar espacios por fecha y horario.
@@ -407,12 +408,13 @@ El guardia no tiene acceso a dashboard, reservas, perfil, logros ni administraci
 ### Nueva Reserva
 
 1. El usuario selecciona fecha, horario, piso y categoría.
-2. El frontend consulta disponibilidad.
-3. El mapa muestra espacios disponibles, ocupados y ocupantes reales.
-4. Gemini selecciona recomendaciones solo entre escritorios individuales disponibles.
-5. El usuario selecciona un espacio.
-6. Opcionalmente solicita estacionamiento si cumple la regla de anticipación.
-7. Se crea la reserva y se actualiza el mapa en tiempo real.
+2. Si la fecha corresponde a martes o jueves, aparece un aviso no bloqueante con el incentivo del día.
+3. El frontend consulta disponibilidad.
+4. El mapa muestra espacios disponibles, ocupados y ocupantes reales.
+5. Gemini selecciona recomendaciones solo entre escritorios individuales disponibles.
+6. El usuario selecciona un espacio.
+7. Opcionalmente solicita estacionamiento si cumple la regla de anticipación.
+8. Se crea la reserva y se actualiza el mapa en tiempo real.
 
 También puede usar la acción `Reservar estacionamiento` sin seleccionar escritorio. En ese flujo el backend crea la reserva con `space_id = null` y asigna el primer cajón disponible siguiendo la prioridad de zonas de estacionamiento.
 
@@ -555,10 +557,10 @@ npm run build
 
 Estado validado localmente:
 
-- Backend tests: `26 passed`.
+- Backend tests: `29 passed`.
 - Backend build: OK.
 - Frontend lint: OK.
-- Frontend tests: `17 passed`.
+- Frontend tests: `21 passed`.
 - Frontend build: OK.
 
 La cobertura incluye:
@@ -566,6 +568,7 @@ La cobertura incluye:
 - Autenticación y perfil.
 - Creación de reservas.
 - Reglas de estacionamiento.
+- Incentivos de reserva por martes y jueves.
 - Reservas de estacionamiento sin escritorio.
 - Rechazo de solicitudes sin escritorio y sin estacionamiento.
 - Recomendaciones con Gemini.

@@ -6,12 +6,22 @@ import { getSession } from '../../services/tokenStore'
 import { useCountUp } from '../../hooks/useCountUp'
 import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner'
 import AppShell from '../Layout/AppShell'
+import { Tooltip } from '../Tooltip/Tooltip'
 import { getBadgeImage } from '../../utils/badgeVisual'
 import styles from './BadgesPage.module.css'
 
 function formatEarnedDate(isoStr: string): string {
   const d = new Date(isoStr)
   return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function getBadgePercentageTooltip(badge: BadgeWithStatus): string {
+  const percentage = Math.round(badge.earned_percentage ?? 0)
+  const status = badge.earned_at
+    ? `Ya desbloqueaste este badge el ${formatEarnedDate(badge.earned_at)}.`
+    : `Para desbloquearlo: ${badge.description}.`
+
+  return `El ${percentage}% indica cuántos usuarios activos ya han conseguido este badge. ${status}`
 }
 
 export function BadgesPage(): JSX.Element {
@@ -102,7 +112,9 @@ export function BadgesPage(): JSX.Element {
                     <div className={styles.badgeCardBody}>
                       <div className={styles.badgeHeader}>
                         <strong>{badge.name}</strong>
-                        <span>{Math.round(badge.earned_percentage ?? 0)}%</span>
+                        <Tooltip content={getBadgePercentageTooltip(badge)} className={styles.percentageTooltip}>
+                          <span className={styles.percentagePill}>{Math.round(badge.earned_percentage ?? 0)}%</span>
+                        </Tooltip>
                       </div>
                       <p>{badge.description}</p>
                       <small>
