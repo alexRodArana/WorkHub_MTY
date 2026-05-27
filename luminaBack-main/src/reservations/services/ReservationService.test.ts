@@ -373,8 +373,8 @@ describe("ReservationService", () => {
     expect(String(vi.mocked(globalThis.fetch).mock.calls[0][0])).toContain("generativelanguage.googleapis.com")
     expect(String(vi.mocked(globalThis.fetch).mock.calls[0][0])).toContain("gemini-2.5-flash-lite")
     const geminiRequest = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0][1].body as string)
-    expect(geminiRequest.generationConfig.responseJsonSchema).toBeDefined()
-    expect(geminiRequest.generationConfig.responseSchema).toBeUndefined()
+    expect(geminiRequest.generationConfig.responseSchema).toBeDefined()
+    expect(geminiRequest.generationConfig.responseJsonSchema).toBeUndefined()
   })
 
   it("does not fall back to local recommendations when Gemini returns invalid space ids", async () => {
@@ -528,6 +528,61 @@ describe("ReservationService", () => {
       .rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" })
   })
 
+  it("accepts assistant answers even when Gemini omits optional actions", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                answer: "Con el contexto disponible, no tienes reservas activas.",
+                intent: "reservation_status",
+              }),
+            }],
+          },
+        }],
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const result = await service.answerAssistantQuestion("¿tengo reservas?", 7, "employee")
+
+    expect(result.answer).toContain("contexto disponible")
+    expect(result.confidence).toBe(0.72)
+    expect(result.intent).toBe("reservation_status")
+    expect(result.actions).toEqual([])
+  })
+
+  it("uses the official Gemini responseSchema field", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                answer: "Respuesta válida.",
+                confidence: 0.8,
+                intent: "general",
+                actions: [],
+              }),
+            }],
+          },
+        }],
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await service.answerAssistantQuestion("hola", 7, "employee")
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+
+    expect(body.generationConfig.responseSchema).toBeDefined()
+    expect(body.generationConfig.responseJsonSchema).toBeUndefined()
+  })
+
   it("spreads AI recommendations across floors when no floor filter is selected", async () => {
     vi.mocked(spaceRepository.findAvailable).mockResolvedValue([
       makeSpace({ id: 31, space_number: "PB-31", floor_id: 1, layout_cx: 0.11, layout_cy: 0.11 }),
@@ -610,6 +665,48 @@ describe("ReservationService", () => {
     expect(result.recommendations[0].space.id).toBe(5)
   })
 
+  it("tries a fallback Gemini model when the primary model is not available for the key", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: { status: "NOT_FOUND" } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [{
+            content: {
+              parts: [{
+                text: JSON.stringify({
+                  predicted_occupancy: 0.25,
+                  prediction_label: "baja",
+                  recommendations: [{
+                    space_id: 5,
+                    reason: "Fallback Gemini eligió un escritorio disponible",
+                    score: 91,
+                    confidence: 0.88,
+                  }],
+                }),
+              }],
+            },
+          }],
+        }),
+      })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const result = await service.getRecommendations({
+      reservation_date: FUTURE_DATE,
+      start_time: "09:00",
+      end_time: "10:00",
+      priority_category: "escritorio",
+    }, 7)
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(result.recommendations[0].space.id).toBe(5)
+  })
+
   it("omits Gemini thinkingConfig when the fallback model does not support it", async () => {
     process.env.GEMINI_FALLBACK_MODELS = "gemini-2.0-flash-lite"
     const fetchMock = vi.fn()
@@ -653,6 +750,6 @@ describe("ReservationService", () => {
     const fallbackBody = JSON.parse(fetchMock.mock.calls[1][1].body as string)
     expect(primaryBody.generationConfig.thinkingConfig).toEqual({ thinkingBudget: 0 })
     expect(fallbackBody.generationConfig.thinkingConfig).toBeUndefined()
-    expect(fallbackBody.generationConfig.responseJsonSchema).toBeDefined()
+    expect(fallbackBody.generationConfig.responseSchema).toBeDefined()
   })
 })

@@ -685,21 +685,19 @@ export class ReservationService {
     })
 
     const assistantAnswer = typeof decision.answer === "string" ? decision.answer.trim() : ""
-    const assistantConfidence = typeof decision.confidence === "number" ? decision.confidence : Number.NaN
-    const assistantIntent = this.normalizeAssistantIntent(decision.intent)
+    const assistantConfidence = typeof decision.confidence === "number" ? decision.confidence : 0.72
+    const assistantIntent = this.normalizeAssistantIntent(decision.intent) ?? "general"
     const assistantActions = Array.isArray(decision.actions)
       ? decision.actions
           .filter((action) => typeof action.label === "string" && typeof action.to === "string")
           .map((action) => ({ label: action.label.trim(), to: action.to.trim() }))
           .filter((action) => action.label.length > 0 && action.to.length > 0)
           .slice(0, 2)
-      : null
+      : []
 
     if (
       assistantAnswer.length === 0 ||
-      Number.isNaN(assistantConfidence) ||
-      !assistantIntent ||
-      assistantActions === null
+      Number.isNaN(assistantConfidence)
     ) {
       throw new ReservationError(502, "AI_PROVIDER_ERROR", "Gemini devolvió una respuesta inválida")
     }
@@ -932,7 +930,7 @@ export class ReservationService {
           generationConfig: {
             maxOutputTokens,
             responseMimeType: "application/json",
-            ...(responseSchema ? { responseJsonSchema: responseSchema } : {}),
+            ...(responseSchema ? { responseSchema } : {}),
             ...(this.supportsGeminiThinkingConfig(candidateModel)
               ? { thinkingConfig: { thinkingBudget: 0 } }
               : {}),
@@ -975,15 +973,16 @@ export class ReservationService {
       .map((item) => item.trim())
       .filter(Boolean)
 
+    const builtInFallbacks = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"]
     const fallbackModels = configuredFallbacks && configuredFallbacks.length > 0
-      ? configuredFallbacks
-      : ["gemini-2.5-flash", "gemini-2.0-flash-lite"]
+      ? [...configuredFallbacks, ...builtInFallbacks]
+      : builtInFallbacks
 
     return Array.from(new Set([primaryModel, ...fallbackModels]))
   }
 
   private shouldTryNextGeminiModel(statusCode: number): boolean {
-    return statusCode === 429 || statusCode === 503
+    return statusCode === 400 || statusCode === 404 || statusCode === 429 || statusCode === 503
   }
 
   private supportsGeminiThinkingConfig(model: string): boolean {

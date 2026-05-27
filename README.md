@@ -447,6 +447,7 @@ Reglas implementadas:
 - La API requiere `GEMINI_API_KEY`.
 - `AI_PROVIDER` debe ser `gemini` o `google`.
 - Si Gemini no está configurado, no responde o devuelve JSON inválido, el backend devuelve error.
+- El cliente Gemini usa `responseSchema` oficial para salida JSON estructurada y prueba modelos fallback si el modelo principal no está disponible para la API key.
 - El sistema no usa datos inventados, hardcodeados ni ejemplos falsos.
 - El sistema sí usa datos reales del sistema como contexto autorizado para Gemini.
 - El chatbot llama a Gemini obligatoriamente y recibe únicamente contexto autorizado.
@@ -557,7 +558,7 @@ npm run build
 
 Estado validado localmente:
 
-- Backend tests: `29 passed`.
+- Backend tests: `32 passed`.
 - Backend build: OK.
 - Frontend lint: OK.
 - Frontend tests: `21 passed`.
