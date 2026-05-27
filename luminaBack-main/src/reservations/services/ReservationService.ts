@@ -7,13 +7,17 @@ import { ReservationError } from "../errors"
 import {
   AvailabilityFilter,
   AssistantResponse,
+  AdminKpiOverview,
   CreateReservationInput,
   IntelligentRecommendation,
+  ParkingReservationForGuard,
   RecommendationSignal,
   RecommendationResult,
   ReservationResult,
   CheckInResult,
   Space,
+  UserReservation,
+  UserVehicle,
   UserPreferenceSignals,
 } from "../interfaces"
 import { getAllowedCheckInCidrs, getCheckInWindowOverrideMinutes } from "../config"
@@ -64,6 +68,8 @@ interface AiAssistantDecision {
   intent?: AssistantResponse["intent"]
   actions?: Array<{ label: string; to: string }>
 }
+
+type AssistantRole = "employee" | "admin" | "guard"
 
 export class ReservationService {
   constructor(
@@ -630,17 +636,32 @@ export class ReservationService {
   ): Promise<AssistantResponse> {
     const normalized = this.normalizeQuestion(message)
     const filter = this.buildAssistantDefaultFilter(normalized)
-    const isAdmin = ["admin", "administrador"].includes(userRole.toLowerCase())
-    const isGuard = ["guard", "guardia"].includes(userRole.toLowerCase())
+    const assistantRole = this.getAssistantRole(userRole)
+    const isAdmin = assistantRole === "admin"
+    const isGuard = assistantRole === "guard"
+    const isEmployee = assistantRole === "employee"
     const wantsRecommendation = this.matchesAny(normalized, ["recomienda", "recomendacion", "recomendación", "sentar", "siento", "espacio", "lugar", "ia"])
-    const wantsAdmin = this.matchesAny(normalized, ["kpi", "ocupacion", "ocupación", "dashboard", "admin", "bloqueo", "bloquear"])
-    const currentReservations = await this.reservationRepository.findByUserId(userId, "current")
-    const recommendations = wantsRecommendation
-      ? await this.getRecommendations(filter, userId)
-      : null
-    const overview = wantsAdmin && isAdmin
-      ? await this.reservationRepository.getAdminOverview(filter.reservation_date)
-      : null
+    const allowedActions = this.getAssistantActionsForRole(assistantRole)
+
+    const [
+      currentReservations,
+      reservationHistory,
+      vehicles,
+      badges,
+      guardParkingReservations,
+      adminOverview,
+      recommendations,
+    ] = await Promise.all([
+      isEmployee ? this.reservationRepository.findByUserId(userId, "current") : Promise.resolve([]),
+      isEmployee ? this.reservationRepository.findByUserId(userId) : Promise.resolve([]),
+      isEmployee ? this.reservationRepository.findVehiclesByUser(userId) : Promise.resolve([]),
+      isEmployee && this.badgeService ? this.badgeService.findEarnedWithStatus(userId) : Promise.resolve([]),
+      isGuard ? this.reservationRepository.findParkingReservationsByDate(filter.reservation_date) : Promise.resolve([]),
+      isAdmin ? this.reservationRepository.getAdminOverview(filter.reservation_date) : Promise.resolve(null),
+      wantsRecommendation && isEmployee
+        ? this.getRecommendations(filter, userId)
+        : Promise.resolve(null),
+    ])
 
     const compactRecommendations = recommendations?.recommendations.slice(0, 4).map((item) => ({
       space_id: item.space.id,
@@ -651,34 +672,27 @@ export class ReservationService {
     })) ?? []
 
     const context = JSON.stringify({
-      user: { id: userId, role: userRole, is_admin: isAdmin, is_guard: isGuard },
+      user: { id: userId, role: userRole, assistant_role: assistantRole, is_admin: isAdmin, is_guard: isGuard },
       question: message,
       inferred_filter: filter,
-      current_reservations: currentReservations.slice(0, 5).map((reservation) => ({
-        space_number: reservation.space_number,
-        floor_name: reservation.floor_name,
-        reservation_date: String(reservation.reservation_date).slice(0, 10),
-        start_time: String(reservation.start_time).slice(0, 5),
-        end_time: String(reservation.end_time).slice(0, 5),
-        status: reservation.status,
-        parking_spot_number: reservation.parking_spot_number,
-        parking_zone_name: reservation.parking_zone_name,
-      })),
-      recommendations: compactRecommendations,
-      admin_overview: overview
-        ? {
-            total_reservations: overview.total_reservations,
-            occupancy_rate: overview.occupancy_rate,
-            parking_reservations: overview.parking_reservations,
-            blocked_area_count: overview.blocked_area_count,
-            blocked_space_count: overview.blocked_space_count,
-          }
+      role_permissions: this.getAssistantPermissionsForRole(assistantRole),
+      available_actions: allowedActions,
+      available_pages: this.getAssistantPagesForRole(assistantRole),
+      employee_profile: isEmployee
+        ? this.buildEmployeeAssistantContext(currentReservations, reservationHistory, vehicles, badges)
         : null,
+      guard_view: isGuard
+        ? this.buildGuardAssistantContext(guardParkingReservations, filter.reservation_date)
+        : null,
+      admin_view: isAdmin && adminOverview
+        ? this.buildAdminAssistantContext(adminOverview)
+        : null,
+      recommendations: compactRecommendations,
     })
 
     const decision = await this.callAiJson<AiAssistantDecision>({
       instructions:
-        "Eres Gemini actuando como chatbot real de WorkHub MTY. Responde en español, breve y accionable. Usa SOLO el JSON de contexto recibido; no uses conocimiento externo, memoria previa, ejemplos ni datos inventados. Si el contexto no contiene la respuesta, dilo explícitamente. Devuelve SOLO JSON valido con answer, confidence 0-1, intent y actions. No inventes reservas, espacios, horarios, usuarios, KPIs ni estacionamientos.",
+        "Eres Gemini actuando como chatbot real de WorkHub MTY. Responde en español, breve y accionable. Usa SOLO el JSON de contexto recibido; no uses conocimiento externo, memoria previa, ejemplos ni datos inventados. Respeta estrictamente role_permissions y responde solo sobre datos incluidos para ese rol. Si el contexto no contiene la respuesta o el rol no tiene permiso, dilo explícitamente. Devuelve SOLO JSON valido con answer, confidence 0-1, intent y actions. actions solo puede usar rutas exactas de available_actions.to; si no aplica, usa actions vacio. No inventes reservas, espacios, horarios, usuarios, KPIs, badges, vehículos, estacionamientos ni rutas.",
       input: context,
       maxOutputTokens: 700,
       responseSchema: this.getAssistantResponseSchema(),
@@ -687,13 +701,7 @@ export class ReservationService {
     const assistantAnswer = typeof decision.answer === "string" ? decision.answer.trim() : ""
     const assistantConfidence = typeof decision.confidence === "number" ? decision.confidence : 0.72
     const assistantIntent = this.normalizeAssistantIntent(decision.intent) ?? "general"
-    const assistantActions = Array.isArray(decision.actions)
-      ? decision.actions
-          .filter((action) => typeof action.label === "string" && typeof action.to === "string")
-          .map((action) => ({ label: action.label.trim(), to: action.to.trim() }))
-          .filter((action) => action.label.length > 0 && action.to.length > 0)
-          .slice(0, 2)
-      : []
+    const assistantActions = this.sanitizeAssistantActions(decision.actions, allowedActions)
 
     if (
       assistantAnswer.length === 0 ||
@@ -708,6 +716,295 @@ export class ReservationService {
       intent: assistantIntent,
       recommendations: compactRecommendations,
       actions: assistantActions,
+    }
+  }
+
+  private getAssistantRole(userRole: string): AssistantRole {
+    const normalized = userRole.toLowerCase()
+    if (["admin", "administrador"].includes(normalized)) return "admin"
+    if (["guard", "guardia"].includes(normalized)) return "guard"
+    return "employee"
+  }
+
+  private getAssistantPermissionsForRole(role: AssistantRole) {
+    if (role === "admin") {
+      return {
+        can_view_admin_dashboard: true,
+        can_view_admin_management: true,
+        can_view_user_search: true,
+        can_view_guard_parking: false,
+        can_view_own_profile: false,
+        can_create_reservations: false,
+      }
+    }
+
+    if (role === "guard") {
+      return {
+        can_view_admin_dashboard: false,
+        can_view_admin_management: false,
+        can_view_user_search: true,
+        can_view_guard_parking: true,
+        can_view_own_profile: false,
+        can_create_reservations: false,
+      }
+    }
+
+    return {
+      can_view_admin_dashboard: false,
+      can_view_admin_management: false,
+      can_view_user_search: false,
+      can_view_guard_parking: false,
+      can_view_own_profile: true,
+      can_create_reservations: true,
+    }
+  }
+
+  private getAssistantPagesForRole(role: AssistantRole) {
+    if (role === "admin") {
+      return [
+        { route: "/admin", name: "Dashboard administrativo", knowledge: "KPIs, gráficas, ocupación, tipos de reserva, usuarios top, espacios top y tablas de detalle." },
+        { route: "/admin/gestion", name: "Gestión", knowledge: "Bloqueo y liberación de espacios o áreas desde el mapa administrativo." },
+      ]
+    }
+
+    if (role === "guard") {
+      return [
+        { route: "/guardia", name: "Guardia", knowledge: "Reservas de estacionamiento del día, usuario, placa, vehículo, zona y cajón." },
+      ]
+    }
+
+    return [
+      { route: "/dashboard", name: "Inicio", knowledge: "Resumen personal, próximas reservas y acceso rápido." },
+      { route: "/nueva-reserva", name: "Nueva reserva", knowledge: "Mapa, horarios, escritorios, estacionamiento, recomendaciones Gemini y vehículos." },
+      { route: "/mis-reservas", name: "Mis reservas", knowledge: "Historial y reservas actuales." },
+      { route: "/logros", name: "Logros", knowledge: "Badges obtenidos, pendientes y porcentaje de usuarios que los desbloquearon." },
+      { route: "/perfil", name: "Perfil", knowledge: "Foto de perfil y vehículos registrados." },
+    ]
+  }
+
+  private getAssistantActionsForRole(role: AssistantRole): AssistantResponse["actions"] {
+    if (role === "admin") {
+      return [
+        { label: "Ver dashboard", to: "/admin" },
+        { label: "Gestionar bloqueos", to: "/admin/gestion" },
+      ]
+    }
+
+    if (role === "guard") {
+      return [
+        { label: "Ver estacionamientos", to: "/guardia" },
+      ]
+    }
+
+    return [
+      { label: "Nueva reserva", to: "/nueva-reserva" },
+      { label: "Mis reservas", to: "/mis-reservas" },
+      { label: "Ver logros", to: "/logros" },
+      { label: "Ver perfil", to: "/perfil" },
+      { label: "Ir al inicio", to: "/dashboard" },
+    ]
+  }
+
+  private sanitizeAssistantActions(
+    actions: AiAssistantDecision["actions"],
+    allowedActions: AssistantResponse["actions"]
+  ): AssistantResponse["actions"] {
+    if (!Array.isArray(actions)) return []
+
+    const allowedByRoute = new Map(allowedActions.map((action) => [action.to, action]))
+    const selected: AssistantResponse["actions"] = []
+
+    for (const action of actions) {
+      if (typeof action.label !== "string" || typeof action.to !== "string") continue
+      const route = this.normalizeAssistantRoute(action.to)
+      const allowed = allowedByRoute.get(route)
+      if (!allowed || selected.some((item) => item.to === route)) continue
+
+      const label = action.label.trim().slice(0, 42) || allowed.label
+      selected.push({ label, to: route })
+      if (selected.length >= 2) break
+    }
+
+    return selected
+  }
+
+  private normalizeAssistantRoute(route: string): string {
+    const trimmed = route.trim()
+    if (trimmed.length <= 1) return trimmed
+    return trimmed.replace(/\/+$/, "")
+  }
+
+  private buildEmployeeAssistantContext(
+    currentReservations: UserReservation[],
+    reservationHistory: UserReservation[],
+    vehicles: UserVehicle[],
+    badges: Array<{
+      id: number
+      key: string
+      name: string
+      description: string
+      earned_percentage: number
+      earned_at: string | null
+    }>
+  ) {
+    const activeVehicles = vehicles.filter((vehicle) => vehicle.is_active)
+    const defaultVehicle = activeVehicles.find((vehicle) => vehicle.is_default)
+    const earnedBadges = badges.filter((badge) => badge.earned_at)
+    const pendingBadges = badges.filter((badge) => !badge.earned_at)
+
+    return {
+      current_reservations: currentReservations.slice(0, 8).map((reservation) => this.summarizeUserReservation(reservation)),
+      reservation_history: reservationHistory.slice(0, 14).map((reservation) => this.summarizeUserReservation(reservation)),
+      vehicles: activeVehicles.map((vehicle) => this.summarizeVehicle(vehicle)),
+      default_vehicle: defaultVehicle ? this.summarizeVehicle(defaultVehicle) : null,
+      badges: {
+        total: badges.length,
+        earned_count: earnedBadges.length,
+        pending_count: pendingBadges.length,
+        earned: earnedBadges.slice(0, 16).map((badge) => this.summarizeBadge(badge)),
+        pending: pendingBadges.slice(0, 16).map((badge) => this.summarizeBadge(badge)),
+      },
+    }
+  }
+
+  private buildGuardAssistantContext(reservations: ParkingReservationForGuard[], date: string) {
+    return {
+      date,
+      total_parking_reservations: reservations.length,
+      parking_reservations: reservations.slice(0, 120).map((reservation) => ({
+        reservation_code: reservation.reservation_code,
+        date: String(reservation.reservation_date).slice(0, 10),
+        start_time: String(reservation.start_time).slice(0, 5),
+        end_time: String(reservation.end_time).slice(0, 5),
+        status: reservation.status,
+        parking_zone_name: reservation.parking_zone_name,
+        parking_spot_number: reservation.parking_spot_number,
+        user: {
+          id: reservation.user.id,
+          name: `${reservation.user.first_name} ${reservation.user.last_name}`.trim(),
+          email: reservation.user.email,
+          department: reservation.user.department,
+        },
+        vehicle_plate: reservation.vehicle_plate,
+        vehicle_label: reservation.vehicle_label,
+        workspace: {
+          space_number: reservation.space_number,
+          floor_name: reservation.floor_name,
+        },
+      })),
+    }
+  }
+
+  private buildAdminAssistantContext(overview: AdminKpiOverview) {
+    return {
+      date: overview.date,
+      kpis: {
+        total_reservations: overview.total_reservations,
+        active_reservations: overview.active_reservations,
+        confirmed_reservations: overview.confirmed_reservations,
+        cancelled_reservations: overview.cancelled_reservations,
+        no_show_reservations: overview.no_show_reservations,
+        workspace_reservations: overview.workspace_reservations,
+        parking_reservations: overview.parking_reservations,
+        desk_only_reservations: overview.desk_only_reservations,
+        desk_parking_reservations: overview.desk_parking_reservations,
+        parking_only_reservations: overview.parking_only_reservations,
+        unique_users: overview.unique_users,
+        total_spaces: overview.total_spaces,
+        occupied_spaces: overview.occupied_spaces,
+        available_spaces: overview.available_spaces,
+        occupancy_rate: Number(overview.occupancy_rate.toFixed(4)),
+        parking_rate: Number(overview.parking_rate.toFixed(4)),
+        check_in_rate: Number(overview.check_in_rate.toFixed(4)),
+        cancellation_rate: Number(overview.cancellation_rate.toFixed(4)),
+        no_show_rate: Number(overview.no_show_rate.toFixed(4)),
+        average_duration_minutes: overview.average_duration_minutes,
+        blocked_area_count: overview.blocked_area_count,
+        blocked_space_count: overview.blocked_space_count,
+      },
+      by_floor: overview.by_floor,
+      by_category: overview.by_category,
+      status_breakdown: overview.status_breakdown,
+      reservation_type_breakdown: overview.reservation_type_breakdown,
+      hourly_distribution: overview.hourly_distribution,
+      top_users: overview.top_users,
+      top_spaces: overview.top_spaces,
+      underused_spaces: overview.underused_spaces,
+      blocked_areas: overview.blocked_areas,
+      blocked_spaces: overview.blocked_spaces,
+      reservations_detail: overview.reservations_detail.slice(0, 80).map((reservation) => ({
+        reservation_code: reservation.reservation_code,
+        date: String(reservation.reservation_date).slice(0, 10),
+        start_time: String(reservation.start_time).slice(0, 5),
+        end_time: String(reservation.end_time).slice(0, 5),
+        status: reservation.status,
+        type: reservation.type,
+        user: {
+          id: reservation.user_id,
+          name: `${reservation.first_name} ${reservation.last_name}`.trim(),
+          email: reservation.email,
+          department: reservation.department,
+        },
+        space: {
+          id: reservation.space_id,
+          space_number: reservation.space_number,
+          display_name: reservation.display_name,
+          floor_id: reservation.floor_id,
+          floor_name: reservation.floor_name,
+        },
+        parking: {
+          zone_name: reservation.parking_zone_name,
+          spot_number: reservation.parking_spot_number,
+          vehicle_plate: reservation.vehicle_plate,
+          vehicle_label: reservation.vehicle_label,
+        },
+      })),
+    }
+  }
+
+  private summarizeUserReservation(reservation: UserReservation) {
+    return {
+      reservation_code: reservation.reservation_code,
+      space_number: reservation.space_number,
+      floor_name: reservation.floor_name,
+      floor_number: reservation.floor_number,
+      reservation_date: String(reservation.reservation_date).slice(0, 10),
+      start_time: String(reservation.start_time).slice(0, 5),
+      end_time: String(reservation.end_time).slice(0, 5),
+      status: reservation.status,
+      parking_spot_number: reservation.parking_spot_number,
+      parking_zone_name: reservation.parking_zone_name,
+      vehicle_plate: reservation.vehicle_plate,
+      vehicle_label: reservation.vehicle_label,
+    }
+  }
+
+  private summarizeVehicle(vehicle: UserVehicle) {
+    return {
+      id: vehicle.id,
+      alias: vehicle.alias,
+      plate: vehicle.plate,
+      make: vehicle.make,
+      model: vehicle.model,
+      color: vehicle.color,
+      is_default: vehicle.is_default,
+    }
+  }
+
+  private summarizeBadge(badge: {
+    id: number
+    key: string
+    name: string
+    description: string
+    earned_percentage: number
+    earned_at: string | null
+  }) {
+    return {
+      key: badge.key,
+      name: badge.name,
+      description: badge.description,
+      earned_percentage: badge.earned_percentage,
+      earned_at: badge.earned_at,
     }
   }
 

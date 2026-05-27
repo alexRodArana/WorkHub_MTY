@@ -41,7 +41,7 @@ La solución cubre tres perfiles principales:
 - Recomendaciones de reserva con IA usando Gemini.
 - Recomendaciones visuales en el mapa con brillo y explicación breve al hacer hover.
 - Las recomendaciones de IA solo consideran escritorios individuales, no salas ni áreas colaborativas.
-- Chatbot con Gemini para consultas de reservas, recomendaciones e insights autorizados.
+- Chatbot con Gemini y contexto real segmentado por rol para reservas, badges, vehículos, estacionamientos y KPIs autorizados.
 - Monitoreo en tiempo real mediante Server-Sent Events para reservas, cancelaciones, check-ins y bloqueos.
 - Check-in con ventana configurable y validación opcional por CIDR.
 - Perfil de usuario con carga de foto desde desktop o móvil.
@@ -451,8 +451,28 @@ Reglas implementadas:
 - El sistema no usa datos inventados, hardcodeados ni ejemplos falsos.
 - El sistema sí usa datos reales del sistema como contexto autorizado para Gemini.
 - El chatbot llama a Gemini obligatoriamente y recibe únicamente contexto autorizado.
-- El chatbot tiene instrucciones de no inventar reservas, espacios, horarios, usuarios, KPIs ni estacionamientos.
+- El chatbot tiene instrucciones de no inventar reservas, espacios, horarios, usuarios, KPIs, badges, vehículos ni estacionamientos.
+- Las acciones sugeridas por el chatbot se validan en backend contra rutas permitidas por rol.
 - El chatbot no completa respuestas ni acciones con defaults locales si Gemini devuelve una respuesta inválida.
+
+Contexto del chatbot por rol:
+
+- Empleado:
+  - Reservas actuales.
+  - Historial reciente de reservas.
+  - Vehículos activos y vehículo principal.
+  - Badges obtenidos y pendientes con porcentaje.
+  - Recomendaciones de escritorio generadas por Gemini cuando el usuario las solicita.
+- Administrador:
+  - KPIs del dashboard.
+  - Ocupación por piso y categoría.
+  - Distribución por hora, estado y tipo de reserva.
+  - Top usuarios, espacios más usados, espacios subutilizados.
+  - Bloqueos activos y tabla de detalle de reservas.
+- Guardia:
+  - Reservas de estacionamiento del día.
+  - Usuario, departamento, vehículo, placa, zona y cajón.
+  - No recibe contexto de KPIs administrativos ni datos personales fuera de su vista.
 
 ## Predicciones y Recomendaciones
 
@@ -558,7 +578,7 @@ npm run build
 
 Estado validado localmente:
 
-- Backend tests: `32 passed`.
+- Backend tests: `35 passed`.
 - Backend build: OK.
 - Frontend lint: OK.
 - Frontend tests: `21 passed`.
@@ -575,7 +595,8 @@ La cobertura incluye:
 - Recomendaciones con Gemini.
 - Filtro de recomendaciones solo para escritorios individuales.
 - Descarte de IDs inválidos devueltos por Gemini.
-- Chatbot con contexto autorizado.
+- Chatbot con contexto autorizado por rol.
+- Sanitización de acciones del chatbot contra rutas permitidas.
 - Ocupación y disponibilidad.
 - Admin overview y bloqueos.
 - Guardia y estacionamiento.

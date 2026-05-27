@@ -4,7 +4,7 @@ import type { SpaceRepository } from "../repositories/SpaceRepository"
 import type { ReservationRepository } from "../repositories/ReservationRepository"
 import type { ParkingRepository } from "../repositories/ParkingRepository"
 import type { BadgeService } from "./BadgeService"
-import type { PublicUserProfile } from "../interfaces"
+import type { AdminKpiOverview, ParkingReservationForGuard, PublicUserProfile, UserReservation } from "../interfaces"
 
 vi.mock("../config", () => ({
   getAllowedCheckInCidrs: vi.fn().mockReturnValue([]),
@@ -50,6 +50,134 @@ function makeReservationResult(overrides: Record<string, unknown> = {}) {
     status: "confirmada" as const,
     requiere_estacionamiento: false,
     parking_spot: null,
+    ...overrides,
+  }
+}
+
+function makeUserReservation(overrides: Partial<UserReservation> = {}): UserReservation {
+  return {
+    reservation_id: 10,
+    reservation_code: "ABCD1234",
+    space_number: "PB-01",
+    floor_name: "Planta baja",
+    floor_number: 0,
+    reservation_date: FUTURE_DATE,
+    start_time: "09:00",
+    end_time: "10:00",
+    status: "confirmada",
+    grace_period_minutes: 15,
+    check_in_time: null,
+    parking_spot_number: null,
+    parking_zone_name: null,
+    vehicle_plate: null,
+    vehicle_label: null,
+    ...overrides,
+  }
+}
+
+function makeGuardParkingReservation(overrides: Partial<ParkingReservationForGuard> = {}): ParkingReservationForGuard {
+  return {
+    reservation_id: 70,
+    reservation_code: "PARK1234",
+    reservation_date: FUTURE_DATE,
+    start_time: "09:00",
+    end_time: "10:00",
+    status: "confirmada",
+    parking_spot_number: "T1-01",
+    parking_zone_name: "T1",
+    user: teammate,
+    space_number: "Solo estacionamiento",
+    floor_name: "Estacionamiento",
+    vehicle_plate: "ABC-123",
+    vehicle_label: "Civic",
+    ...overrides,
+  }
+}
+
+function makeAdminOverview(overrides: Partial<AdminKpiOverview> = {}): AdminKpiOverview {
+  return {
+    date: FUTURE_DATE,
+    total_reservations: 12,
+    active_reservations: 3,
+    confirmed_reservations: 8,
+    cancelled_reservations: 1,
+    no_show_reservations: 0,
+    parking_reservations: 4,
+    parking_rate: 0.33,
+    workspace_reservations: 10,
+    desk_only_reservations: 6,
+    desk_parking_reservations: 4,
+    parking_only_reservations: 2,
+    available_spaces: 18,
+    average_duration_minutes: 120,
+    check_in_rate: 0.3,
+    cancellation_rate: 0.08,
+    no_show_rate: 0,
+    unique_users: 9,
+    total_spaces: 30,
+    occupied_spaces: 12,
+    occupancy_rate: 0.4,
+    blocked_area_count: 1,
+    blocked_space_count: 2,
+    status_breakdown: [{ status: "confirmada", count: 8 }],
+    reservation_type_breakdown: [
+      { type: "desk_only", count: 6 },
+      { type: "desk_parking", count: 4 },
+      { type: "parking_only", count: 2 },
+    ],
+    hourly_distribution: [{ hour: "09:00", reservations: 4 }],
+    top_users: [{ user_id: 7, first_name: "Ada", last_name: "Lovelace", email: "ada@example.com", reservations: 3 }],
+    top_spaces: [{ space_id: 5, space_number: "PB-01", display_name: null, floor_name: "Planta baja", reservations: 4 }],
+    underused_spaces: [{ space_id: 9, space_number: "P9-01", display_name: null, floor_name: "Piso 9", reservations: 0, last_reservation_date: null }],
+    by_floor: [{ floor_id: 0, floor_name: "Planta baja", total_spaces: 10, occupied_spaces: 4, occupancy_rate: 0.4 }],
+    by_category: [{ priority_category: "escritorio", total_spaces: 20, occupied_spaces: 8, occupancy_rate: 0.4 }],
+    blocked_areas: [{
+      id: 1,
+      floor_id: 0,
+      floor_name: "Planta baja",
+      priority_category: "colaborativo",
+      reason: "Mantenimiento",
+      is_active: true,
+      created_at: new Date("2099-01-01T00:00:00Z"),
+    }],
+    blocked_spaces: [{
+      id: 2,
+      space_id: 5,
+      space_number: "PB-01",
+      floor_id: 0,
+      floor_name: "Planta baja",
+      block_date: FUTURE_DATE,
+      start_time: "13:00",
+      end_time: "14:00",
+      reason: "Limpieza",
+      is_active: true,
+      created_at: new Date("2099-01-01T00:00:00Z"),
+    }],
+    reservations_detail: [{
+      reservation_id: 10,
+      reservation_code: "ABCD1234",
+      reservation_date: FUTURE_DATE,
+      start_time: "09:00",
+      end_time: "10:00",
+      status: "confirmada",
+      type: "desk_parking",
+      user_id: 7,
+      first_name: "Ada",
+      last_name: "Lovelace",
+      email: "ada@example.com",
+      department: "Engineering",
+      space_id: 5,
+      space_number: "PB-01",
+      display_name: null,
+      floor_id: 0,
+      floor_name: "Planta baja",
+      floor_number: 0,
+      parking_spot_number: "T1-01",
+      parking_zone_name: "T1",
+      vehicle_id: 3,
+      vehicle_plate: "ABC-123",
+      vehicle_label: "Civic",
+    }],
     ...overrides,
   }
 }
@@ -164,6 +292,7 @@ describe("ReservationService", () => {
       }),
       findSpaceDemandScores: vi.fn().mockResolvedValue(new Map()),
       getAdminOverview: vi.fn(),
+      findParkingReservationsByDate: vi.fn().mockResolvedValue([]),
     } as unknown as ReservationRepository
 
     parkingRepository = {
@@ -173,6 +302,7 @@ describe("ReservationService", () => {
     badgeService = {
       evaluateAfterReservation: vi.fn().mockResolvedValue([]),
       evaluateAfterCheckIn: vi.fn().mockResolvedValue([]),
+      findEarnedWithStatus: vi.fn().mockResolvedValue([]),
     } as unknown as BadgeService
 
     service = new ReservationService(
@@ -469,6 +599,56 @@ describe("ReservationService", () => {
   })
 
   it("answers assistant questions through Gemini using only authorized context", async () => {
+    vi.mocked(reservationRepository.findByUserId).mockImplementation(async (_userId: number, status?: string) => {
+      if (status === "current") {
+        return [makeUserReservation({
+          reservation_code: "LIVE1234",
+          space_number: "PB-07",
+          parking_spot_number: "T1-01",
+          parking_zone_name: "T1",
+          vehicle_plate: "ABC-123",
+          vehicle_label: "Civic",
+        })]
+      }
+
+      return [
+        makeUserReservation({
+          reservation_code: "LIVE1234",
+          space_number: "PB-07",
+          parking_spot_number: "T1-01",
+          parking_zone_name: "T1",
+          vehicle_plate: "ABC-123",
+          vehicle_label: "Civic",
+        }),
+        makeUserReservation({
+          reservation_id: 11,
+          reservation_code: "PAST1234",
+          reservation_date: "2099-05-30",
+          status: "activa",
+          space_number: "P9-03",
+          floor_name: "Piso 9",
+          floor_number: 9,
+        }),
+      ]
+    })
+    vi.mocked(badgeService.findEarnedWithStatus).mockResolvedValue([
+      {
+        id: 1,
+        key: "bienvenido_colega",
+        name: "Bienvenido colega",
+        description: "Primera reserva completada",
+        earned_percentage: 84.5,
+        earned_at: "2099-06-01T10:00:00.000Z",
+      },
+      {
+        id: 2,
+        key: "cafecito_en_la_mano",
+        name: "Cafecito en la mano",
+        description: "Completa cinco reservas",
+        earned_percentage: 51.2,
+        earned_at: null,
+      },
+    ])
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -494,13 +674,178 @@ describe("ReservationService", () => {
       systemInstruction: { parts: Array<{ text: string }> }
       contents: Array<{ parts: Array<{ text: string }> }>
     }
-    const context = JSON.parse(body.contents[0].parts[0].text) as { user: { id: number; role: string } }
+    const context = JSON.parse(body.contents[0].parts[0].text) as {
+      user: { id: number; role: string; assistant_role: string }
+      employee_profile: {
+        current_reservations: Array<{ space_number: string; vehicle_plate: string }>
+        reservation_history: Array<{ reservation_code: string }>
+        vehicles: Array<{ plate: string }>
+        badges: {
+          earned: Array<{ key: string; earned_percentage: number }>
+          pending: Array<{ key: string }>
+        }
+      }
+      admin_view: unknown
+      guard_view: unknown
+      available_actions: Array<{ to: string }>
+    }
 
     expect(String(fetchMock.mock.calls[0][0])).toContain("generativelanguage.googleapis.com")
     expect(String(fetchMock.mock.calls[0][0])).toContain("gemini-2.5-flash-lite")
     expect(body.systemInstruction.parts[0].text).toContain("Usa SOLO el JSON de contexto recibido")
-    expect(context.user).toEqual({ id: 7, role: "employee", is_admin: false, is_guard: false })
+    expect(context.user).toEqual({ id: 7, role: "employee", assistant_role: "employee", is_admin: false, is_guard: false })
+    expect(context.employee_profile.current_reservations[0]).toMatchObject({
+      space_number: "PB-07",
+      vehicle_plate: "ABC-123",
+    })
+    expect(context.employee_profile.reservation_history.map((item) => item.reservation_code)).toEqual(["LIVE1234", "PAST1234"])
+    expect(context.employee_profile.vehicles[0]).toMatchObject({ plate: "ABC-123" })
+    expect(context.employee_profile.badges.earned[0]).toMatchObject({ key: "bienvenido_colega", earned_percentage: 84.5 })
+    expect(context.employee_profile.badges.pending[0]).toMatchObject({ key: "cafecito_en_la_mano" })
+    expect(context.admin_view).toBeNull()
+    expect(context.guard_view).toBeNull()
+    expect(context.available_actions.map((action) => action.to)).toContain("/nueva-reserva")
     expect(result.answer).toContain("contexto disponible")
+  })
+
+  it("limits assistant actions to routes allowed for the user role", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                answer: "Puedes revisar tu perfil.",
+                confidence: 0.9,
+                intent: "general",
+                actions: [
+                  { label: "Admin", to: "/admin" },
+                  { label: "Espacio inventado", to: "/spaces/999" },
+                  { label: "Perfil", to: "/perfil/" },
+                ],
+              }),
+            }],
+          },
+        }],
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const result = await service.answerAssistantQuestion("abre mi perfil", 7, "employee")
+
+    expect(result.actions).toEqual([{ label: "Perfil", to: "/perfil" }])
+  })
+
+  it("builds guard assistant context with parking reservations only", async () => {
+    vi.mocked(reservationRepository.findParkingReservationsByDate).mockResolvedValue([
+      makeGuardParkingReservation({
+        parking_spot_number: "C-12",
+        parking_zone_name: "Central",
+      }),
+    ])
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                answer: "Hoy hay 1 reserva de estacionamiento visible para guardia.",
+                confidence: 0.88,
+                intent: "parking",
+                actions: [
+                  { label: "Admin", to: "/admin" },
+                  { label: "Guardia", to: "/guardia" },
+                ],
+              }),
+            }],
+          },
+        }],
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const result = await service.answerAssistantQuestion("¿quién tiene estacionamiento hoy?", 99, "guardia")
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string) as {
+      contents: Array<{ parts: Array<{ text: string }> }>
+    }
+    const context = JSON.parse(body.contents[0].parts[0].text) as {
+      employee_profile: unknown
+      admin_view: unknown
+      guard_view: {
+        total_parking_reservations: number
+        parking_reservations: Array<{
+          parking_zone_name: string
+          parking_spot_number: string
+          vehicle_plate: string | null
+          user: { name: string }
+        }>
+      }
+    }
+
+    expect(context.employee_profile).toBeNull()
+    expect(context.admin_view).toBeNull()
+    expect(context.guard_view.total_parking_reservations).toBe(1)
+    expect(context.guard_view.parking_reservations[0]).toMatchObject({
+      parking_zone_name: "Central",
+      parking_spot_number: "C-12",
+      vehicle_plate: "ABC-123",
+      user: { name: "Ana Garcia" },
+    })
+    expect(reservationRepository.findByUserId).not.toHaveBeenCalled()
+    expect(reservationRepository.findVehiclesByUser).not.toHaveBeenCalled()
+    expect(result.actions).toEqual([{ label: "Guardia", to: "/guardia" }])
+  })
+
+  it("builds admin assistant context with dashboard metrics and details", async () => {
+    vi.mocked(reservationRepository.getAdminOverview).mockResolvedValue(makeAdminOverview())
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                answer: "Hoy hay 12 reservas y 40% de ocupación.",
+                confidence: 0.91,
+                intent: "admin_insight",
+                actions: [{ label: "Gestionar", to: "/admin/gestion" }],
+              }),
+            }],
+          },
+        }],
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const result = await service.answerAssistantQuestion("dame los KPIs de hoy", 1, "admin")
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string) as {
+      contents: Array<{ parts: Array<{ text: string }> }>
+    }
+    const context = JSON.parse(body.contents[0].parts[0].text) as {
+      employee_profile: unknown
+      guard_view: unknown
+      admin_view: {
+        kpis: { total_reservations: number; occupancy_rate: number }
+        blocked_spaces: Array<{ space_number: string }>
+        reservations_detail: Array<{ reservation_code: string; parking: { vehicle_plate: string | null } }>
+      }
+    }
+
+    expect(context.employee_profile).toBeNull()
+    expect(context.guard_view).toBeNull()
+    expect(context.admin_view.kpis).toMatchObject({ total_reservations: 12, occupancy_rate: 0.4 })
+    expect(context.admin_view.blocked_spaces[0]).toMatchObject({ space_number: "PB-01" })
+    expect(context.admin_view.reservations_detail[0]).toMatchObject({
+      reservation_code: "ABCD1234",
+      parking: { vehicle_plate: "ABC-123" },
+    })
+    expect(reservationRepository.findByUserId).not.toHaveBeenCalled()
+    expect(result.actions).toEqual([{ label: "Gestionar", to: "/admin/gestion" }])
   })
 
   it("rejects assistant responses when Gemini does not return a valid answer", async () => {

@@ -24,17 +24,19 @@ const user = {
   profile_photo_url: "data:image/png;base64,AAAA",
 }
 
-function makeRequest({ body = {}, query = {}, params = {} }: {
+function makeRequest({ body = {}, query = {}, params = {}, userRole = "" }: {
   body?: unknown
   query?: Record<string, string>
   params?: Record<string, string>
+  userRole?: string
 } = {}): Request {
   return {
     body,
     query,
     params,
     userId: 7,
-  } as Request & { userId: number }
+    userRole,
+  } as Request & { userId: number; userRole: string }
 }
 
 function makeResponse(): TestResponse {
@@ -243,11 +245,12 @@ describe("ReservationController integration", () => {
 
     await new ReservationAssistantController(reservationService).ask(makeRequest({
       body: { message: "¿Dónde me recomiendas sentarme?" },
+      userRole: "employee",
     }), response)
 
     expect(response.statusCodeValue).toBe(200)
     expect(response.body).toMatchObject({ answer: "Te recomiendo PB-21.", intent: "recommendation" })
-    expect(reservationService.answerAssistantQuestion).toHaveBeenCalledWith("¿Dónde me recomiendas sentarme?", 7, "")
+    expect(reservationService.answerAssistantQuestion).toHaveBeenCalledWith("¿Dónde me recomiendas sentarme?", 7, "employee")
   })
 })
 
