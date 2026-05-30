@@ -12,6 +12,18 @@
   touch-action: manipulation;
 }
 
+@keyframes aiPulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
 .floorImage {
   position: absolute;
   inset: 0;
@@ -112,9 +124,14 @@
   background: rgba(255, 176, 0, 0.1);
 }
 
-.popupRecommendation span {
-  font-size: 1rem;
-  line-height: 1;
+.popupRecommendationMark {
+  width: 10px;
+  height: 10px;
+  margin-top: 3px;
+  border-radius: 999px;
+  background: #ffb000;
+  box-shadow: 0 0 0 4px rgba(255, 176, 0, 0.14), 0 0 20px rgba(255, 176, 0, 0.28);
+  animation: aiPulse 1.6s ease-in-out infinite;
 }
 
 .popupRecommendation p {

@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   requiere_estacionamiento BOOLEAN NOT NULL DEFAULT false,
   parking_spot_id INTEGER REFERENCES parking_spots(id),
   vehicle_id INTEGER REFERENCES user_vehicles(id),
-  CONSTRAINT chk_reservation_status CHECK (status IN ('confirmada', 'activa', 'cancelada', 'no_show')),
+  CONSTRAINT chk_reservation_status CHECK (status IN ('confirmada', 'activa', 'finalizada', 'cancelada', 'no_show')),
   CONSTRAINT reservations_space_or_parking_chk CHECK (space_id IS NOT NULL OR requiere_estacionamiento = true),
   CONSTRAINT reservations_parking_vehicle_chk CHECK (parking_spot_id IS NULL OR vehicle_id IS NOT NULL),
   CONSTRAINT reservations_valid_time_chk CHECK (end_time > start_time)
@@ -265,6 +265,9 @@ CREATE INDEX IF NOT EXISTS idx_reservations_user_parking_overlap
 CREATE INDEX IF NOT EXISTS idx_reservations_pending_expiry
   ON reservations (reservation_date, end_time)
   WHERE status = 'confirmada';
+CREATE INDEX IF NOT EXISTS idx_reservations_checkout_lookup
+  ON reservations (id, user_id, status, check_out_time)
+  WHERE status = 'activa' AND check_out_time IS NULL;
 CREATE INDEX IF NOT EXISTS idx_reservations_user_status_space_date
   ON reservations (user_id, status, space_id, reservation_date);
 CREATE INDEX IF NOT EXISTS idx_reservations_space_status_date
@@ -276,7 +279,7 @@ CREATE INDEX IF NOT EXISTS idx_reservations_guard_daily
   WHERE parking_spot_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_reservations_ai_history
   ON reservations (reservation_date, start_time, end_time, space_id, status)
-  WHERE space_id IS NOT NULL AND status IN ('confirmada', 'activa');
+  WHERE space_id IS NOT NULL AND status IN ('confirmada', 'activa', 'finalizada');
 
 CREATE INDEX IF NOT EXISTS idx_user_badges_user ON user_badges(user_id);
 
@@ -402,6 +405,79 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION workhub_validate_reservation_checkout()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.status = 'finalizada' THEN
+    IF OLD.status <> 'activa' THEN
+      RAISE EXCEPTION 'CHECK_OUT_REQUIRES_ACTIVE_RESERVATION'
+        USING ERRCODE = '23514';
+    END IF;
+
+    IF NEW.space_id IS NULL THEN
+      RAISE EXCEPTION 'CHECK_OUT_REQUIRES_WORKSPACE_RESERVATION'
+        USING ERRCODE = '23514';
+    END IF;
+
+    IF NEW.check_out_time IS NULL THEN
+      NEW.check_out_time = NOW();
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workhub_checkout_reservation(
+  p_reservation_id INTEGER,
+  p_user_id INTEGER
+)
+RETURNS TABLE(reservation_id INTEGER, check_out_time TIMESTAMP)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  UPDATE reservations r
+     SET status = 'finalizada',
+         check_out_time = NOW(),
+         updated_at = NOW()
+   WHERE r.id = p_reservation_id
+     AND r.user_id = p_user_id
+     AND r.status = 'activa'
+     AND r.space_id IS NOT NULL
+     AND r.check_out_time IS NULL
+  RETURNING r.id, r.check_out_time
+       INTO reservation_id, check_out_time;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'CHECK_OUT_NOT_AVAILABLE'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  RETURN NEXT;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workhub_expire_finished_reservations()
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  affected_rows INTEGER;
+BEGIN
+  UPDATE reservations
+     SET status = 'no_show',
+         updated_at = NOW()
+   WHERE status = 'confirmada'
+     AND space_id IS NOT NULL
+     AND (reservation_date + end_time) < NOW();
+
+  GET DIAGNOSTICS affected_rows = ROW_COUNT;
+  RETURN affected_rows;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION workhub_prevent_space_block_conflicts()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -455,6 +531,13 @@ DROP TRIGGER IF EXISTS trg_reservations_prevent_conflicts ON reservations;
 CREATE TRIGGER trg_reservations_prevent_conflicts
 BEFORE INSERT OR UPDATE ON reservations
 FOR EACH ROW EXECUTE FUNCTION workhub_prevent_reservation_conflicts();
+
+DROP TRIGGER IF EXISTS trg_reservations_validate_checkout ON reservations;
+CREATE TRIGGER trg_reservations_validate_checkout
+BEFORE UPDATE ON reservations
+FOR EACH ROW
+WHEN (OLD.status IS DISTINCT FROM NEW.status OR NEW.check_out_time IS DISTINCT FROM OLD.check_out_time)
+EXECUTE FUNCTION workhub_validate_reservation_checkout();
 
 DROP TRIGGER IF EXISTS trg_space_blocks_prevent_conflicts ON space_blocks;
 CREATE TRIGGER trg_space_blocks_prevent_conflicts

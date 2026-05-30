@@ -88,7 +88,7 @@ export function SuccessModal({
         onKeyDown={handleKeyDown}
       >
         <div className={styles.modalHeader}>
-          <div className={styles.checkCircle} aria-hidden="true">✓</div>
+          <div className={styles.checkCircle} aria-hidden="true" />
           <h2 id="success-modal-title" className={styles.title}>
             ¡Reserva confirmada!
           </h2>

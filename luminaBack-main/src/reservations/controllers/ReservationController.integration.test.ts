@@ -64,6 +64,7 @@ describe("ReservationController integration", () => {
   beforeEach(() => {
     reservationService = {
       createReservation: vi.fn(),
+      checkOut: vi.fn(),
       getRecommendations: vi.fn(),
       answerAssistantQuestion: vi.fn(),
     } as unknown as ReservationService
@@ -225,6 +226,21 @@ describe("ReservationController integration", () => {
       floor_id: 9,
       priority_category: "escritorio",
     }, 7)
+  })
+
+  it("checks out an active reservation and returns the release time", async () => {
+    const checkOutTime = new Date("2099-06-01T09:45:00.000Z")
+    vi.mocked(reservationService.checkOut).mockResolvedValue({ check_out_time: checkOutTime })
+    const response = makeResponse()
+
+    await controller.checkOut(makeRequest({ params: { id: "22" } }), response)
+
+    expect(response.statusCodeValue).toBe(200)
+    expect(response.body).toEqual({
+      message: "Check-out realizado",
+      check_out_time: checkOutTime,
+    })
+    expect(reservationService.checkOut).toHaveBeenCalledWith(22, 7)
   })
 
   it("answers assistant questions with the authenticated user context", async () => {

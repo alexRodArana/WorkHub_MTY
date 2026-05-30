@@ -3,8 +3,8 @@
   flex-direction: column;
   gap: 14px;
   flex: 1;
-  min-height: 0;
-  overflow: hidden;
+  min-height: 100%;
+  overflow: visible;
 }
 
 @keyframes reservationSurfaceIn {
@@ -193,8 +193,8 @@
   align-items: stretch;
   gap: 0;
   flex: 1;
-  min-height: 0;
-  overflow: hidden;
+  min-height: min(76vh, 720px);
+  overflow: visible;
 }
 
 .mapMain {
@@ -204,7 +204,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .errorWrap {
@@ -230,10 +230,10 @@
   padding: 12px;
   min-width: 0;
   flex: 1;
-  min-height: 0;
+  min-height: min(72vh, 680px);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   animation: reservationSurfaceIn 320ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both;
   transition: border-color 180ms ease, box-shadow 180ms ease;
 }

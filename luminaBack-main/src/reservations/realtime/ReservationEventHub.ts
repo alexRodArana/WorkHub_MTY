@@ -5,6 +5,7 @@ export type ReservationRealtimeEventType =
   | "reservation.created"
   | "reservation.cancelled"
   | "reservation.checked_in"
+  | "reservation.checked_out"
   | "area_block.created"
   | "area_block.deleted"
   | "space_block.created"

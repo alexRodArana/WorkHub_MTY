@@ -424,7 +424,7 @@ export function FilterPanel({
       <div className={styles.grid}>
         <div className={styles.field} data-tour="reservation-date-field">
           <label className={`${styles.label} ${dateFilled ? styles.labelFilled : ''}`} htmlFor="filter-date">
-            Fecha{dateFilled && <span className={styles.check}>✓</span>}
+            Fecha{dateFilled && <span className={styles.check} aria-hidden="true" />}
           </label>
 
           <button
@@ -459,7 +459,7 @@ export function FilterPanel({
 
         <div className={styles.field} data-tour="reservation-start-field">
           <label className={`${styles.label} ${startFilled ? styles.labelFilled : ''}`} htmlFor="filter-start">
-            Hora inicio{startFilled && <span className={styles.check}>✓</span>}
+            Hora inicio{startFilled && <span className={styles.check} aria-hidden="true" />}
           </label>
           <select
             id="filter-start"
@@ -481,7 +481,7 @@ export function FilterPanel({
 
         <div className={styles.field} data-tour="reservation-end-field">
           <label className={`${styles.label} ${endFilled ? styles.labelFilled : ''}`} htmlFor="filter-end">
-            Hora fin{endFilled && <span className={styles.check}>✓</span>}
+            Hora fin{endFilled && <span className={styles.check} aria-hidden="true" />}
           </label>
           <select
             id="filter-end"
@@ -503,7 +503,7 @@ export function FilterPanel({
 
         <div className={styles.field} data-tour="reservation-zone-field">
           <label className={`${styles.label} ${zonaFilled ? styles.labelFilled : ''}`} htmlFor="filter-category">
-            Zona{zonaFilled && <span className={styles.check}>✓</span>}
+            Zona{zonaFilled && <span className={styles.check} aria-hidden="true" />}
           </label>
           <select
             id="filter-category"

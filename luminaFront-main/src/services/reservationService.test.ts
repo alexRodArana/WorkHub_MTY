@@ -3,6 +3,7 @@ import {
   askReservationAssistant,
   blockArea,
   blockSpace,
+  checkOutReservation,
   createReservation,
   fetchAdminOverview,
   fetchAvailability,
@@ -116,6 +117,17 @@ describe('reservationService', () => {
       expect(result.error).toBe('PARKING_CONFLICT')
       expect(result.unauthorized).toBe(false)
     }
+  })
+
+  it('posts check-out requests and returns the release timestamp', async () => {
+    const spy = mockFetch(200, { message: 'Check-out realizado', check_out_time: '2099-06-01T09:45:00.000Z' })
+
+    const result = await checkOutReservation(22, TOKEN)
+
+    expect(result.success).toBe(true)
+    expect(String(spy.mock.calls[0][0])).toContain('/reservations/22/check-out')
+    expect(spy.mock.calls[0][1]?.method).toBe('POST')
+    expect((spy.mock.calls[0][1]?.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`)
   })
 
   it('fetches AI recommendations with the same filter contract', async () => {

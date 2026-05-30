@@ -75,7 +75,7 @@ export function AiAssistantWidget(): JSX.Element {
         aria-expanded={open}
         aria-label="Abrir asistente IA"
       >
-        <span className={styles.triggerIcon}>✨</span>
+        <span className={styles.triggerIcon} aria-hidden="true" />
         <span className={styles.triggerText}>IA</span>
       </button>
 

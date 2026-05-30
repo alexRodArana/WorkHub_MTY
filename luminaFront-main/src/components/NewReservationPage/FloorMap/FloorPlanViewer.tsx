@@ -339,11 +339,10 @@ function AreaShape({
       />
       {aiRecommendation && status === 'available' && cx !== null && cy !== null && !hovered && !isSelected && (
         <g style={{ pointerEvents: 'none', userSelect: 'none' }}>
-          <text x={(cx + 5.2).toFixed(3)} y={(cy - 4.2).toFixed(3)} textAnchor="middle" dominantBaseline="middle" fontSize="3.1" filter="url(#aiRecommendationGlow)">
-            ✨
+          <circle cx={(cx + 5.2).toFixed(3)} cy={(cy - 4.2).toFixed(3)} r="1.1" fill="#ffcf52" filter="url(#aiRecommendationGlow)">
             <animate attributeName="opacity" values="0.45;1;0.45" dur="1.6s" repeatCount="indefinite" />
-            <animate attributeName="font-size" values="2.8;3.4;2.8" dur="1.6s" repeatCount="indefinite" />
-          </text>
+            <animate attributeName="r" values="0.85;1.35;0.85" dur="1.6s" repeatCount="indefinite" />
+          </circle>
         </g>
       )}
     </g>
@@ -455,11 +454,10 @@ function DeskShape({
       />
       {aiRecommendation && status === 'available' && !hovered && !isSelected && (
         <g style={{ pointerEvents: 'none', userSelect: 'none' }}>
-          <text x={(mx + 4.9).toFixed(3)} y={(sparkleY - 0.05).toFixed(3)} textAnchor="middle" dominantBaseline="middle" fontSize="3" filter="url(#aiRecommendationGlow)">
-            ✨
+          <circle cx={(mx + 4.9).toFixed(3)} cy={(sparkleY - 0.05).toFixed(3)} r="1.05" fill="#ffcf52" filter="url(#aiRecommendationGlow)">
             <animate attributeName="opacity" values="0.45;1;0.45" dur="1.6s" repeatCount="indefinite" />
-            <animate attributeName="font-size" values="2.7;3.35;2.7" dur="1.6s" repeatCount="indefinite" />
-          </text>
+            <animate attributeName="r" values="0.8;1.3;0.8" dur="1.6s" repeatCount="indefinite" />
+          </circle>
         </g>
       )}
     </g>
@@ -640,7 +638,7 @@ export function FloorPlanViewer({
           </div>
           {hoveredRecommendation && (
             <div className={styles.popupRecommendation}>
-              <span>✨</span>
+              <span className={styles.popupRecommendationMark} aria-hidden="true" />
               <p>{hoveredRecommendation.reason}</p>
             </div>
           )}

@@ -106,7 +106,7 @@ export function ConfirmationModal({
         onKeyDown={handleKeyDown}
       >
         <div className={styles.modalHeader}>
-          <div className={styles.modalHeaderIcon}>📋</div>
+          <div className={styles.modalHeaderIcon} aria-hidden="true" />
           <h2 id="confirmation-modal-title" className={styles.title}>
             {isParkingOnly ? 'Reservar estacionamiento' : 'Confirmar reserva'}
           </h2>

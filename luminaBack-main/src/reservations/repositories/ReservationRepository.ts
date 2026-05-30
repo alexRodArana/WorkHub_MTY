@@ -398,7 +398,10 @@ export class ReservationRepository {
     }
   }
 
-  async update(id: number, fields: { status?: ReservationStatus; check_in_time?: Date | null }): Promise<void> {
+  async update(
+    id: number,
+    fields: { status?: ReservationStatus; check_in_time?: Date | null; check_out_time?: Date | null }
+  ): Promise<void> {
     try {
       const assignments: string[] = []
       const values: unknown[] = [id]
@@ -411,6 +414,11 @@ export class ReservationRepository {
       if (fields.check_in_time !== undefined) {
         values.push(fields.check_in_time)
         assignments.push(`check_in_time = $${values.length}`)
+      }
+
+      if (fields.check_out_time !== undefined) {
+        values.push(fields.check_out_time)
+        assignments.push(`check_out_time = $${values.length}`)
       }
 
       if (assignments.length === 0) {
@@ -505,6 +513,7 @@ export class ReservationRepository {
                 r.status,
                 r.grace_period_minutes,
                 r.check_in_time,
+                r.check_out_time,
                 ps.spot_number  AS parking_spot_number,
                 pz.name         AS parking_zone_name,
                 uv.plate        AS vehicle_plate,
@@ -775,6 +784,7 @@ export class ReservationRepository {
         total_reservations: string
         active_reservations: string
         confirmed_reservations: string
+        finalized_reservations: string
         cancelled_reservations: string
         no_show_reservations: string
         parking_reservations: string
@@ -793,18 +803,19 @@ export class ReservationRepository {
            WHERE reservation_date = $1
          )
          SELECT
-           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa', 'no_show'))::text AS total_reservations,
+           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa', 'finalizada', 'no_show'))::text AS total_reservations,
            COUNT(*) FILTER (WHERE status = 'activa')::text AS active_reservations,
            COUNT(*) FILTER (WHERE status = 'confirmada')::text AS confirmed_reservations,
+           COUNT(*) FILTER (WHERE status = 'finalizada')::text AS finalized_reservations,
            COUNT(*) FILTER (WHERE status = 'cancelada')::text AS cancelled_reservations,
            COUNT(*) FILTER (WHERE status = 'no_show')::text AS no_show_reservations,
-           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa') AND parking_spot_id IS NOT NULL)::text AS parking_reservations,
-           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa') AND space_id IS NOT NULL)::text AS workspace_reservations,
-           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa') AND space_id IS NOT NULL AND parking_spot_id IS NULL)::text AS desk_only_reservations,
-           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa') AND space_id IS NOT NULL AND parking_spot_id IS NOT NULL)::text AS desk_parking_reservations,
-           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa') AND space_id IS NULL AND (parking_spot_id IS NOT NULL OR requiere_estacionamiento = true))::text AS parking_only_reservations,
-           ROUND(AVG(EXTRACT(EPOCH FROM (end_time - start_time)) / 60) FILTER (WHERE status IN ('confirmada', 'activa')))::text AS average_duration_minutes,
-           COUNT(DISTINCT user_id) FILTER (WHERE status IN ('confirmada', 'activa'))::text AS unique_users,
+           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa', 'finalizada') AND parking_spot_id IS NOT NULL)::text AS parking_reservations,
+           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa', 'finalizada') AND space_id IS NOT NULL)::text AS workspace_reservations,
+           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa', 'finalizada') AND space_id IS NOT NULL AND parking_spot_id IS NULL)::text AS desk_only_reservations,
+           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa', 'finalizada') AND space_id IS NOT NULL AND parking_spot_id IS NOT NULL)::text AS desk_parking_reservations,
+           COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa', 'finalizada') AND space_id IS NULL AND (parking_spot_id IS NOT NULL OR requiere_estacionamiento = true))::text AS parking_only_reservations,
+           ROUND(AVG(EXTRACT(EPOCH FROM (end_time - start_time)) / 60) FILTER (WHERE status IN ('confirmada', 'activa', 'finalizada')))::text AS average_duration_minutes,
+           COUNT(DISTINCT user_id) FILTER (WHERE status IN ('confirmada', 'activa', 'finalizada'))::text AS unique_users,
            (SELECT COUNT(*) FROM spaces WHERE is_active = true AND visual_only = false)::text AS total_spaces,
            COUNT(DISTINCT space_id) FILTER (WHERE status IN ('confirmada', 'activa') AND space_id IS NOT NULL)::text AS occupied_spaces
          FROM daily_reservations`,
@@ -985,6 +996,7 @@ export class ReservationRepository {
       total_reservations: "0",
       active_reservations: "0",
       confirmed_reservations: "0",
+      finalized_reservations: "0",
       cancelled_reservations: "0",
       no_show_reservations: "0",
       parking_reservations: "0",
@@ -1005,6 +1017,7 @@ export class ReservationRepository {
       total_reservations: Number(total.total_reservations),
       active_reservations: Number(total.active_reservations),
       confirmed_reservations: Number(total.confirmed_reservations),
+      finalized_reservations: Number(total.finalized_reservations),
       cancelled_reservations: Number(total.cancelled_reservations),
       no_show_reservations: Number(total.no_show_reservations),
       parking_reservations: Number(total.parking_reservations),
@@ -1018,7 +1031,7 @@ export class ReservationRepository {
       available_spaces: Math.max(0, totalSpaces - occupiedSpaces),
       average_duration_minutes: Number(total.average_duration_minutes ?? 0),
       check_in_rate: Number(total.workspace_reservations) > 0
-        ? Number(total.active_reservations) / Number(total.workspace_reservations)
+        ? (Number(total.active_reservations) + Number(total.finalized_reservations)) / Number(total.workspace_reservations)
         : 0,
       cancellation_rate: Number(total.total_reservations) + Number(total.cancelled_reservations) > 0
         ? Number(total.cancelled_reservations) / (Number(total.total_reservations) + Number(total.cancelled_reservations))

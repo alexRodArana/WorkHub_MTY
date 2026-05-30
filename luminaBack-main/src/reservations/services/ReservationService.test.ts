@@ -4,7 +4,7 @@ import type { SpaceRepository } from "../repositories/SpaceRepository"
 import type { ReservationRepository } from "../repositories/ReservationRepository"
 import type { ParkingRepository } from "../repositories/ParkingRepository"
 import type { BadgeService } from "./BadgeService"
-import type { AdminKpiOverview, ParkingReservationForGuard, PublicUserProfile, UserReservation } from "../interfaces"
+import type { AdminKpiOverview, ParkingReservationForGuard, PublicUserProfile, Reservation, UserReservation } from "../interfaces"
 
 vi.mock("../config", () => ({
   getAllowedCheckInCidrs: vi.fn().mockReturnValue([]),
@@ -67,6 +67,7 @@ function makeUserReservation(overrides: Partial<UserReservation> = {}): UserRese
     status: "confirmada",
     grace_period_minutes: 15,
     check_in_time: null,
+    check_out_time: null,
     parking_spot_number: null,
     parking_zone_name: null,
     vehicle_plate: null,
@@ -94,12 +95,35 @@ function makeGuardParkingReservation(overrides: Partial<ParkingReservationForGua
   }
 }
 
+function makeReservation(overrides: Partial<Reservation> = {}): Reservation {
+  return {
+    id: 10,
+    user_id: 7,
+    space_id: 5,
+    reservation_date: FUTURE_DATE,
+    start_time: "09:00",
+    end_time: "10:00",
+    status: "confirmada",
+    check_in_time: null,
+    check_out_time: null,
+    grace_period_minutes: 15,
+    reservation_code: "ABCD1234",
+    requiere_estacionamiento: false,
+    parking_spot_id: null,
+    vehicle_id: null,
+    created_at: new Date("2099-01-01T00:00:00Z"),
+    updated_at: new Date("2099-01-01T00:00:00Z"),
+    ...overrides,
+  }
+}
+
 function makeAdminOverview(overrides: Partial<AdminKpiOverview> = {}): AdminKpiOverview {
   return {
     date: FUTURE_DATE,
     total_reservations: 12,
     active_reservations: 3,
     confirmed_reservations: 8,
+    finalized_reservations: 0,
     cancelled_reservations: 1,
     no_show_reservations: 0,
     parking_reservations: 4,
@@ -456,6 +480,29 @@ describe("ReservationService", () => {
     }, 7)).rejects.toMatchObject({ code: "VEHICLE_SELECTION_REQUIRED" })
 
     expect(reservationRepository.create).not.toHaveBeenCalled()
+  })
+
+  it("finalizes an active workspace reservation on check-out", async () => {
+    vi.mocked(reservationRepository.findById).mockResolvedValue(makeReservation({
+      status: "activa",
+      check_in_time: new Date("2099-06-01T09:00:00Z"),
+    }))
+
+    const result = await service.checkOut(10, 7)
+
+    expect(result.check_out_time).toBeInstanceOf(Date)
+    expect(reservationRepository.update).toHaveBeenCalledWith(10, {
+      status: "finalizada",
+      check_out_time: expect.any(Date),
+    })
+  })
+
+  it("rejects check-out when the reservation is not active", async () => {
+    vi.mocked(reservationRepository.findById).mockResolvedValue(makeReservation({ status: "confirmada" }))
+
+    await expect(service.checkOut(10, 7)).rejects.toMatchObject({ code: "CHECK_OUT_NOT_AVAILABLE" })
+
+    expect(reservationRepository.update).not.toHaveBeenCalled()
   })
 
   it("returns intelligent recommendations near frequent collaborators", async () => {

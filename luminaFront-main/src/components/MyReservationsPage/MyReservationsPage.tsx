@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { ReservationStatus, UserReservation } from '../../types/reservation'
-import { cancelReservation, checkInReservation, fetchMyReservations } from '../../services/reservationService'
+import { cancelReservation, checkInReservation, checkOutReservation, fetchMyReservations } from '../../services/reservationService'
 import { getSession } from '../../services/tokenStore'
 import { useReservationRealtime } from '../../hooks/useReservationRealtime'
 import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner'
@@ -11,6 +11,7 @@ import {
   formatDate,
   formatTime,
   formatCheckInTimestamp,
+  formatCheckOutTimestamp,
   getCheckInAvailability,
 } from '../../utils/checkInUtils'
 import styles from './MyReservationsPage.module.css'
@@ -25,6 +26,7 @@ const STATUS_TABS: { label: string; value: ReservationStatusFilter }[] = [
 const STATUS_CLASS: Record<ReservationStatus, string> = {
   confirmada: 'badgeConfirmada',
   activa: 'badgeActiva',
+  finalizada: 'badgeFinalizada',
   cancelada: 'badgeCancelada',
   no_show: 'badgeNoShow',
 }
@@ -57,6 +59,7 @@ export function MyReservationsPage(): JSX.Element {
   const [loading, setLoading] = useState(true)
   const [cancelling, setCancelling] = useState<number | null>(null)
   const [checkingIn, setCheckingIn] = useState<number | null>(null)
+  const [checkingOut, setCheckingOut] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
@@ -202,6 +205,41 @@ export function MyReservationsPage(): JSX.Element {
     )
   }
 
+  async function handleCheckOut(id: number) {
+    const token = getSession()?.access_token
+    if (!token) {
+      navigate('/login', { replace: true })
+      return
+    }
+
+    setCheckingOut(id)
+    setError(null)
+    setSuccessMessage(null)
+
+    const result = await checkOutReservation(id, token)
+    setCheckingOut(null)
+
+    if (!result.success) {
+      if ('unauthorized' in result && result.unauthorized) {
+        navigate('/login', { replace: true })
+        return
+      }
+
+      setError('No se pudo liberar el espacio. Inténtalo de nuevo.')
+      return
+    }
+
+    const checkoutTime = result.data.check_out_time ?? new Date().toISOString()
+    setReservations((prev) =>
+      prev.map((reservation) =>
+        reservation.reservation_id === id
+          ? { ...reservation, status: 'finalizada', check_out_time: checkoutTime }
+          : reservation
+      )
+    )
+    setSuccessMessage('Check-out realizado. El espacio quedó liberado.')
+  }
+
   return (
     <AppShell
       title="Mis reservas"
@@ -251,10 +289,9 @@ export function MyReservationsPage(): JSX.Element {
           </div>
         ) : (
           (() => {
-            // Historial: exclude confirmada (those belong to Activas tab)
             const displayed = activeTab === 1
               ? reservations.filter((r) => r.status !== 'confirmada')
-              : reservations
+              : reservations.filter((r) => r.status === 'confirmada' || r.status === 'activa')
 
             if (displayed.length === 0) {
               return (
@@ -307,7 +344,7 @@ export function MyReservationsPage(): JSX.Element {
                         <span className={styles.code}>#{reservation.reservation_code}</span>
                         {reservation.parking_spot_number && (
                           <span className={styles.parkingBadge}>
-                            🚗 {reservation.parking_zone_name} · {reservation.parking_spot_number}
+                            {reservation.parking_zone_name} · {reservation.parking_spot_number}
                           </span>
                         )}
                         {reservation.vehicle_plate && (
@@ -315,9 +352,12 @@ export function MyReservationsPage(): JSX.Element {
                             {reservation.vehicle_label ?? 'Vehículo'} · {reservation.vehicle_plate}
                           </span>
                         )}
-                        {isHistorial && reservation.status === 'activa' && reservation.check_in_time && (
+                        {isHistorial && reservation.check_in_time && (
                           <span className={styles.checkInRecord}>
-                            ✓ Check-in {formatCheckInTimestamp(reservation.check_in_time)}
+                            Check-in {formatCheckInTimestamp(reservation.check_in_time)}
+                            {reservation.check_out_time
+                              ? ` · Check-out ${formatCheckOutTimestamp(reservation.check_out_time)}`
+                              : ''}
                           </span>
                         )}
                       </div>
@@ -356,6 +396,19 @@ export function MyReservationsPage(): JSX.Element {
                                 {checkingIn === reservation.reservation_id
                                   ? 'Haciendo check in...'
                                   : checkIn.buttonLabel}
+                              </button>
+                            )}
+
+                            {reservation.status === 'activa' && (
+                              <button
+                                type="button"
+                                className={styles.checkOutBtn}
+                                disabled={checkingOut === reservation.reservation_id}
+                                onClick={() => {
+                                  void handleCheckOut(reservation.reservation_id)
+                                }}
+                              >
+                                {checkingOut === reservation.reservation_id ? 'Liberando...' : 'Check-out'}
                               </button>
                             )}
                           </div>

@@ -5,7 +5,7 @@ export interface ReservationIncentive {
   kind: ReservationIncentiveKind
   title: string
   message: string
-  emoji: string
+  label: string
 }
 
 function parseLocalDate(value: string): Date | null {
@@ -36,7 +36,7 @@ export function getReservationIncentive(dateValue: string): ReservationIncentive
       kind: 'tacos',
       title: 'Martes de tacos',
       message: 'Recuerda que este día puedes disfrutar de tacos como incentivo por asistir a la oficina.',
-      emoji: '🌮',
+      label: 'MT',
     }
   }
 
@@ -46,7 +46,7 @@ export function getReservationIncentive(dateValue: string): ReservationIncentive
       kind: 'barista',
       title: 'Jueves de barista',
       message: 'Recuerda que este día hay barista como incentivo por asistir a la oficina.',
-      emoji: '☕',
+      label: 'JB',
     }
   }
 

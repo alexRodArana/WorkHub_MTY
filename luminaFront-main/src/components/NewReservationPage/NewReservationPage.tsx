@@ -550,7 +550,7 @@ export function NewReservationPage(): JSX.Element {
     : null
 
   return (
-    <AppShell title="Nueva Reserva" noscroll>
+    <AppShell title="Nueva Reserva">
       <div className={styles.pageContent}>
         <section className={styles.filterSection}>
           <div className={styles.filterCard} data-tour="reservation-filters">
@@ -580,7 +580,7 @@ export function NewReservationPage(): JSX.Element {
             />
             {state.activeIncentive && (
               <aside className={styles.incentiveCard} role="status" aria-live="polite">
-                <span className={styles.incentiveIcon} aria-hidden="true">{state.activeIncentive.emoji}</span>
+                <span className={styles.incentiveIcon} aria-hidden="true">{state.activeIncentive.label}</span>
                 <div>
                   <strong>{state.activeIncentive.title}</strong>
                   <p>{state.activeIncentive.message}</p>

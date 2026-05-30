@@ -862,7 +862,7 @@ export function OnboardingTour({ role, userId, restartKey }: OnboardingTourProps
       >
         <div className={styles.cardGlow} aria-hidden="true" />
         <div className={styles.cardTop}>
-          <span className={styles.spark} aria-hidden="true">✨</span>
+          <span className={styles.spark} aria-hidden="true" />
           <span className={styles.eyebrow}>{currentStep.eyebrow}</span>
           <span className={styles.counter}>{stepIndex + 1}/{steps.length}</span>
         </div>

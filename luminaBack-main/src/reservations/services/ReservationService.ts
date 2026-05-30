@@ -14,6 +14,7 @@ import {
   RecommendationSignal,
   RecommendationResult,
   ReservationResult,
+  CheckOutResult,
   CheckInResult,
   Space,
   UserReservation,
@@ -332,6 +333,34 @@ export class ReservationService {
     }
 
     return { streak, newBadges }
+  }
+
+  async checkOut(reservationId: number, userId: number): Promise<CheckOutResult> {
+    const reservation = await this.reservationRepository.findById(reservationId)
+
+    if (!reservation) {
+      throw new ReservationError(404, "NOT_FOUND", "Reservación no encontrada")
+    }
+
+    if (reservation.user_id !== userId) {
+      throw new ReservationError(403, "FORBIDDEN", "No autorizado para liberar esta reservación")
+    }
+
+    if (reservation.space_id === null) {
+      throw new ReservationError(422, "CHECK_OUT_NOT_AVAILABLE", "Las reservas solo de estacionamiento no requieren check-out")
+    }
+
+    if (reservation.status !== "activa" || reservation.check_out_time) {
+      throw new ReservationError(422, "CHECK_OUT_NOT_AVAILABLE", "Solo puedes hacer check-out de una reserva activa")
+    }
+
+    const checkOutTime = new Date()
+    await this.reservationRepository.update(reservationId, {
+      status: "finalizada",
+      check_out_time: checkOutTime,
+    })
+
+    return { check_out_time: checkOutTime }
   }
 
   private validateCheckInIp(clientIp?: string): void {
@@ -902,6 +931,7 @@ export class ReservationService {
         total_reservations: overview.total_reservations,
         active_reservations: overview.active_reservations,
         confirmed_reservations: overview.confirmed_reservations,
+        finalized_reservations: overview.finalized_reservations,
         cancelled_reservations: overview.cancelled_reservations,
         no_show_reservations: overview.no_show_reservations,
         workspace_reservations: overview.workspace_reservations,

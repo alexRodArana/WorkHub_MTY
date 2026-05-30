@@ -215,6 +215,47 @@ export class ReservationController {
     }
   }
 
+  async checkOut(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as AuthRequest).userId
+      const reservationId = parseInt(req.params.id, 10)
+
+      if (isNaN(reservationId)) {
+        res.status(400).json({ error: "INVALID_ID", message: "ID de reservación inválido" })
+        return
+      }
+
+      const result = await this.reservationService.checkOut(reservationId, userId)
+      await this.reservationRepository.addAuditLog?.({
+        actorUserId: userId,
+        action: "reservation.checked_out",
+        entityType: "reservation",
+        entityId: reservationId,
+      })
+      if (this.eventHub) {
+        const eventDetails = await this.reservationRepository.findEventDetails(reservationId)
+        this.eventHub.publish({
+          type: "reservation.checked_out",
+          actor_user_id: userId,
+          reservation_id: reservationId,
+          reservation_date: eventDetails?.reservation_date,
+          floor_id: eventDetails?.floor_id,
+          space_id: eventDetails?.space_id ?? null,
+          parking: eventDetails?.parking ?? false,
+        })
+      }
+
+      res.status(200).json({ message: "Check-out realizado", ...result })
+    } catch (err) {
+      if (err instanceof ReservationError) {
+        res.status(err.statusCode).json({ error: err.code, message: err.message })
+        return
+      }
+      console.error("INTERNAL_ERROR detail:", err)
+      res.status(500).json({ error: "INTERNAL_ERROR", message: "Error interno del servidor" })
+    }
+  }
+
   async cancelReservation(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as AuthRequest).userId

@@ -13,6 +13,7 @@ import styles from './AdminPage.module.css'
 const STATUS_LABELS: Record<AdminKpiOverview['status_breakdown'][number]['status'], string> = {
   confirmada: 'Confirmadas',
   activa: 'En uso',
+  finalizada: 'Finalizadas',
   cancelada: 'Canceladas',
   no_show: 'No show',
 }
@@ -207,7 +208,7 @@ export function AdminPage(): JSX.Element {
         key: 'total',
         label: 'Reservas del día',
         value: overview.total_reservations.toString(),
-        detail: `${overview.confirmed_reservations} confirmadas · ${overview.active_reservations} en uso`,
+        detail: `${overview.confirmed_reservations} confirmadas · ${overview.active_reservations} en uso · ${overview.finalized_reservations} finalizadas`,
         description: 'Mide la demanda total operativa para la fecha seleccionada.',
       },
       {
@@ -230,6 +231,13 @@ export function AdminPage(): JSX.Element {
         value: overview.active_reservations.toString(),
         detail: `${percent(overview.check_in_rate)} de check-in`,
         description: 'Reservas activas que ya tienen check-in registrado.',
+      },
+      {
+        key: 'finalized',
+        label: 'Check-outs',
+        value: overview.finalized_reservations.toString(),
+        detail: 'Reservas liberadas antes de terminar',
+        description: 'Espacios que fueron usados y liberados mediante check-out anticipado.',
       },
       {
         key: 'parking',
@@ -435,6 +443,7 @@ export function AdminPage(): JSX.Element {
             <option value="all">Todos los estados</option>
             <option value="confirmada">Confirmadas</option>
             <option value="activa">Activas</option>
+            <option value="finalizada">Finalizadas</option>
             <option value="cancelada">Canceladas</option>
             <option value="no_show">No show</option>
           </select>

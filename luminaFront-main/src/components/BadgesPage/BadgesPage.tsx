@@ -6,22 +6,12 @@ import { getSession } from '../../services/tokenStore'
 import { useCountUp } from '../../hooks/useCountUp'
 import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner'
 import AppShell from '../Layout/AppShell'
-import { Tooltip } from '../Tooltip/Tooltip'
 import { getBadgeImage } from '../../utils/badgeVisual'
 import styles from './BadgesPage.module.css'
 
 function formatEarnedDate(isoStr: string): string {
   const d = new Date(isoStr)
   return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-function getBadgePercentageTooltip(badge: BadgeWithStatus): string {
-  const percentage = Math.round(badge.earned_percentage ?? 0)
-  const status = badge.earned_at
-    ? `Ya desbloqueaste este badge el ${formatEarnedDate(badge.earned_at)}.`
-    : `Para desbloquearlo: ${badge.description}.`
-
-  return `El ${percentage}% indica cuántos usuarios activos ya han conseguido este badge. ${status}`
 }
 
 export function BadgesPage(): JSX.Element {
@@ -64,16 +54,70 @@ export function BadgesPage(): JSX.Element {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedBadge])
 
-  const earnedCount = badges.filter((b) => b.earned_at !== null).length
-  const completion = badges.length > 0 ? Math.round((earnedCount / badges.length) * 100) : 0
-  const sortedBadges = useMemo(
-    () => [...badges].sort((a, b) => Number(b.earned_at !== null) - Number(a.earned_at !== null) || a.name.localeCompare(b.name)),
+  const earnedBadges = useMemo(
+    () => badges
+      .filter((badge) => badge.earned_at !== null)
+      .sort((a, b) => a.name.localeCompare(b.name)),
     [badges]
   )
+  const lockedBadges = useMemo(
+    () => badges
+      .filter((badge) => badge.earned_at === null)
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [badges]
+  )
+  const earnedCount = earnedBadges.length
+  const completion = badges.length > 0 ? Math.round((earnedCount / badges.length) * 100) : 0
   const animatedStreak = useCountUp(streak?.current_streak ?? 0)
   const animatedBest = useCountUp(streak?.longest_streak ?? 0)
   const animatedEarned = useCountUp(earnedCount)
   const animatedCompletion = useCountUp(completion)
+
+  function renderBadgeSection(title: string, sectionBadges: BadgeWithStatus[], emptyMessage: string): JSX.Element {
+    return (
+      <section className={styles.tierSection}>
+        <div className={styles.tierHeader}>
+          <span className={styles.tierName}>{title}</span>
+          <span className={styles.tierProgress}>{sectionBadges.length}</span>
+        </div>
+
+        {sectionBadges.length === 0 ? (
+          <p className={styles.emptyBadgeState}>{emptyMessage}</p>
+        ) : (
+          <div className={styles.badgeGrid}>
+            {sectionBadges.map((badge) => {
+              const earned = badge.earned_at !== null
+              return (
+                <article
+                  key={badge.id}
+                  className={`${styles.badgeCard} ${earned ? styles.badgeCardEarned : styles.badgeCardLocked}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Ver detalle de ${badge.name}`}
+                  onClick={() => setSelectedBadge(badge)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setSelectedBadge(badge)
+                    }
+                  }}
+                >
+                  <div className={styles.badgeIconWrap}>
+                    <img
+                      className={styles.badgeImage}
+                      src={getBadgeImage(badge.key, earned)}
+                      alt=""
+                    />
+                  </div>
+                  <strong className={styles.badgeName}>{badge.name}</strong>
+                </article>
+              )
+            })}
+          </div>
+        )}
+      </section>
+    )
+  }
 
   return (
     <AppShell title="Logros" subtitle="Tus insignias y progreso dentro de WorkHub">
@@ -107,46 +151,9 @@ export function BadgesPage(): JSX.Element {
               </div>
             </div>
 
-            <div className={styles.badgeGrid} data-tour="badges-grid">
-              {sortedBadges.map((badge) => {
-                const earned = badge.earned_at !== null
-                return (
-                  <article
-                    key={badge.id}
-                    className={`${styles.badgeCard} ${earned ? styles.badgeCardEarned : styles.badgeCardLocked}`}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Ver detalle de ${badge.name}`}
-                    onClick={() => setSelectedBadge(badge)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        setSelectedBadge(badge)
-                      }
-                    }}
-                  >
-                    <img
-                      className={styles.badgeImage}
-                      src={getBadgeImage(badge.key, earned)}
-                      alt=""
-                    />
-                    <div className={styles.badgeCardBody}>
-                      <div className={styles.badgeHeader}>
-                        <strong>{badge.name}</strong>
-                        <Tooltip content={getBadgePercentageTooltip(badge)} className={styles.percentageTooltip}>
-                          <span className={styles.percentagePill}>{Math.round(badge.earned_percentage ?? 0)}%</span>
-                        </Tooltip>
-                      </div>
-                      <p>{badge.description}</p>
-                      <small>
-                        {earned && badge.earned_at
-                          ? `Desbloqueado ${formatEarnedDate(badge.earned_at)}`
-                          : 'Aún no desbloqueado'}
-                      </small>
-                    </div>
-                  </article>
-                )
-              })}
+            <div className={styles.badgeSections} data-tour="badges-grid">
+              {renderBadgeSection('Logros desbloqueados', earnedBadges, 'Todavía no has desbloqueado ningún logro.')}
+              {renderBadgeSection('Por desbloquear', lockedBadges, 'Ya desbloqueaste todos los logros.')}
             </div>
 
             {selectedBadge && (

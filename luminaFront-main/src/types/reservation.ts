@@ -112,7 +112,7 @@ export interface FloorLayout {
 }
 
 // GET /reservations/my — item de respuesta
-export type ReservationStatus = 'confirmada' | 'activa' | 'cancelada' | 'no_show'
+export type ReservationStatus = 'confirmada' | 'activa' | 'finalizada' | 'cancelada' | 'no_show'
 
 export interface UserReservation {
   reservation_id: number
@@ -126,6 +126,7 @@ export interface UserReservation {
   status: ReservationStatus
   grace_period_minutes?: number
   check_in_time?: string | null
+  check_out_time?: string | null
   parking_spot_number: string | null
   parking_zone_name: string | null
   vehicle_plate: string | null
@@ -205,6 +206,7 @@ export interface AdminKpiOverview {
   total_reservations: number
   active_reservations: number
   confirmed_reservations: number
+  finalized_reservations: number
   cancelled_reservations: number
   no_show_reservations: number
   parking_reservations: number
@@ -375,6 +377,7 @@ export type ReservationRealtimeEventType =
   | 'reservation.created'
   | 'reservation.cancelled'
   | 'reservation.checked_in'
+  | 'reservation.checked_out'
   | 'area_block.created'
   | 'area_block.deleted'
   | 'space_block.created'

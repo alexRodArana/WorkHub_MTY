@@ -77,6 +77,7 @@ reservationsRouter.get("/recommendations", requireAuth, aiRateLimiter, (req, res
 reservationsRouter.post("/assistant",    requireAuth, aiRateLimiter, (req, res) => assistantController.ask(req, res))
 reservationsRouter.post("/",             requireAuth, (req, res) => reservationController.createReservation(req, res))
 reservationsRouter.post("/:id/check-in", requireAuth, (req, res) => reservationController.checkIn(req, res))
+reservationsRouter.post("/:id/check-out", requireAuth, (req, res) => reservationController.checkOut(req, res))
 reservationsRouter.delete("/:id",        requireAuth, (req, res) => reservationController.cancelReservation(req, res))
 reservationsRouter.get("/my",            requireAuth, (req, res) => reservationController.getMyReservations(req, res))
 reservationsRouter.get("/my-stats",      requireAuth, (req, res) => reservationController.getMyStats(req, res))

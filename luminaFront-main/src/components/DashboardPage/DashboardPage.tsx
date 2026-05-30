@@ -3,7 +3,7 @@ import { useCountUp } from '../../hooks/useCountUp'
 import { Link, useNavigate } from 'react-router-dom'
 import type { UserReservation } from '../../types/reservation'
 import type { BadgeInfo, BadgeWithStatus, StreakInfo } from '../../types/gamification'
-import { fetchMyReservations, checkInReservation, cancelReservation } from '../../services/reservationService'
+import { fetchMyReservations, checkInReservation, checkOutReservation, cancelReservation } from '../../services/reservationService'
 import { fetchMyStats } from '../../services/gamificationService'
 import { getSession } from '../../services/tokenStore'
 import { useReservationRealtime } from '../../hooks/useReservationRealtime'
@@ -18,6 +18,7 @@ import {
   formatDateLong,
   formatTodayFull,
   formatCheckInTimestamp,
+  formatCheckOutTimestamp,
   getCheckInAvailability,
   getGreeting,
 } from '../../utils/checkInUtils'
@@ -41,8 +42,10 @@ export function DashboardPage(): JSX.Element {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [checkingIn, setCheckingIn] = useState(false)
+  const [checkingOut, setCheckingOut] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [checkInError, setCheckInError] = useState<string | null>(null)
+  const [checkOutError, setCheckOutError] = useState<string | null>(null)
   const [cancelError, setCancelError] = useState<string | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
 
@@ -149,6 +152,12 @@ export function DashboardPage(): JSX.Element {
     return () => window.clearTimeout(timeoutId)
   }, [cancelError])
 
+  useEffect(() => {
+    if (!checkOutError) return
+    const timeoutId = window.setTimeout(() => setCheckOutError(null), 5000)
+    return () => window.clearTimeout(timeoutId)
+  }, [checkOutError])
+
   // Auto-dismiss toast after 5s
   useEffect(() => {
     if (badgeToast.length === 0) return
@@ -227,6 +236,33 @@ export function DashboardPage(): JSX.Element {
     )
   }
 
+  async function handleCheckOutToday() {
+    if (!todayReservation) return
+    const token = getSession()?.access_token
+    if (!token) { navigate('/login', { replace: true }); return }
+
+    setCheckingOut(true)
+    setCheckOutError(null)
+
+    const result = await checkOutReservation(todayReservation.reservation_id, token)
+    setCheckingOut(false)
+
+    if (!result.success) {
+      if (result.unauthorized) { navigate('/login', { replace: true }); return }
+      setCheckOutError('No se pudo liberar el espacio.')
+      return
+    }
+
+    const checkOutTime = result.data.check_out_time ?? new Date().toISOString()
+    setAllReservations((prev) =>
+      prev.map((r) =>
+        r.reservation_id === todayReservation.reservation_id
+          ? { ...r, status: 'finalizada', check_out_time: checkOutTime }
+          : r
+      )
+    )
+  }
+
   const checkIn = todayReservation ? getCheckInAvailability(todayReservation, nowMs) : null
 
   return (
@@ -243,7 +279,7 @@ export function DashboardPage(): JSX.Element {
                 style={{ '--delay': `${index * 90}ms` } as CSSProperties}
               >
                 <span className={styles.badgeHalo} aria-hidden="true" />
-                <span className={styles.badgeSparkle} aria-hidden="true">✨</span>
+                <span className={styles.badgeSparkle} aria-hidden="true" />
                 <img className={styles.badgeToastIcon} src={getBadgeImage(b.key, true)} alt="" />
                 <div className={styles.badgeToastText}>
                   <span className={styles.badgeToastTitle}>Nuevo logro desbloqueado</span>
@@ -274,9 +310,7 @@ export function DashboardPage(): JSX.Element {
             {/* ── STREAK WIDGET ─────────────────────────────────── */}
             {streak && (
               <div className={styles.streakCard} data-tour="dashboard-streak">
-                <span className={styles.streakFire}>
-                  {streak.current_streak >= 10 ? '🔥' : streak.current_streak >= 3 ? '⚡' : '✨'}
-                </span>
+                <span className={styles.streakFire}>Racha</span>
                 <div className={styles.streakInfo}>
                   <span className={styles.streakCount}>{animatedStreak}</span>
                   <span className={styles.streakLabel}>
@@ -358,17 +392,34 @@ export function DashboardPage(): JSX.Element {
 
                         {todayReservation.status === 'activa' && (
                           <span className={styles.checkedInConfirm}>
-                            ✓ Check-in realizado
+                            Check-in realizado
                             {formatCheckInTimestamp(todayReservation.check_in_time)
                               ? ` a las ${formatCheckInTimestamp(todayReservation.check_in_time)}`
                               : ''}
                           </span>
                         )}
+
+                        {todayReservation.status === 'activa' && (
+                          <button
+                            type="button"
+                            className={styles.checkOutBtn}
+                            onClick={handleCheckOutToday}
+                            disabled={checkingOut}
+                          >
+                            {checkingOut ? 'Liberando...' : 'Check-out'}
+                          </button>
+                        )}
                       </div>
                     </div>
 
                     {checkInError && <p className={styles.inlineError}>{checkInError}</p>}
+                    {checkOutError && <p className={styles.inlineError}>{checkOutError}</p>}
                     {cancelError && <p className={styles.inlineError}>{cancelError}</p>}
+                    {todayReservation.status === 'finalizada' && todayReservation.check_out_time && (
+                      <p className={styles.inlineSuccess}>
+                        Espacio liberado a las {formatCheckOutTimestamp(todayReservation.check_out_time)}
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -463,7 +514,7 @@ export function DashboardPage(): JSX.Element {
                       key={b.id}
                       className={styles.badgeChip}
                     >
-                      🏅 {b.name}
+                      {b.name}
                     </span>
                   ))}
                 </div>

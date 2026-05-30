@@ -289,6 +289,30 @@
   cursor: not-allowed;
 }
 
+.checkOutBtn {
+  padding: 9px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 140, 114, 0.24);
+  background: rgba(0, 140, 114, 0.1);
+  color: #006f5d;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.checkOutBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: rgba(0, 140, 114, 0.16);
+  box-shadow: 0 10px 24px rgba(0, 140, 114, 0.18);
+}
+
+.checkOutBtn:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
 .checkInBtn {
   padding: 9px 20px;
   border-radius: 12px;
@@ -329,6 +353,14 @@
   font-size: 0.84rem;
   color: #b00;
   font-weight: 600;
+  animation: autoDismissFade 5s ease forwards;
+}
+
+.inlineSuccess {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #008c72;
+  font-weight: 700;
   animation: autoDismissFade 5s ease forwards;
 }
 
@@ -551,7 +583,14 @@
 }
 
 .streakFire {
-  font-size: 2.2rem;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   line-height: 1;
   flex-shrink: 0;
   animation: firePulse 2s ease-in-out infinite;
@@ -697,8 +736,11 @@
   position: absolute;
   right: 22px;
   top: 18px;
-  font-size: 1.15rem;
-  filter: drop-shadow(0 6px 14px rgba(255, 210, 60, 0.34));
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.18), 0 0 28px rgba(255, 255, 255, 0.72);
   animation: badgeSparkleDrift 1.9s ease-in-out infinite;
   pointer-events: none;
 }
@@ -802,6 +844,12 @@
   color: #a100ff;
 }
 
+:global([data-theme='dark']) .checkOutBtn {
+  background: rgba(0, 140, 114, 0.16);
+  border-color: rgba(0, 140, 114, 0.28);
+  color: #7ad7c2;
+}
+
 :global([data-theme='dark']) .globalError,
 :global([data-theme='dark']) .inlineError {
   color: #ff9aaa;
@@ -834,6 +882,7 @@
 
   .cancelTodayBtn,
   .checkInBtn,
+  .checkOutBtn,
   .bookNowBtn {
     width: 100%;
     text-align: center;

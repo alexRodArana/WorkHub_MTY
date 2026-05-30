@@ -461,6 +461,29 @@ export async function checkInReservation(
       return { success: false, error: body.error, unauthorized: false }
     }
     const data: CheckInPayload = await response.json()
+    clearReservationCache()
+    return { success: true, data }
+  } catch {
+    return { success: false, error: 'NETWORK_ERROR', unauthorized: false }
+  }
+}
+
+export async function checkOutReservation(
+  id: number,
+  token: string
+): Promise<ServiceResult<{ message: string; check_out_time: string }>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/reservations/${id}/check-out`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (isInvalidSessionResponse(response)) return unauthorizedResult()
+    if (!response.ok) {
+      const body: ApiErrorResponse = await response.json()
+      return { success: false, error: body.error, unauthorized: false }
+    }
+    const data = await response.json()
+    clearReservationCache()
     return { success: true, data }
   } catch {
     return { success: false, error: 'NETWORK_ERROR', unauthorized: false }

@@ -246,6 +246,11 @@
   color: #008c72;
 }
 
+.badgeFinalizada {
+  background: #eef2f7;
+  color: #475569;
+}
+
 .badgeCancelada {
   background: #f4f4f4;
   color: #7d7d7d;
@@ -375,6 +380,34 @@
   box-shadow: none;
 }
 
+.checkOutBtn {
+  align-self: flex-start;
+  background: rgba(0, 140, 114, 0.1);
+  color: #006f5d;
+  border: 1px solid rgba(0, 140, 114, 0.22);
+  border-radius: 12px;
+  padding: 0.55rem 0.95rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.checkOutBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(0, 140, 114, 0.16);
+  box-shadow: 0 12px 22px rgba(0, 140, 114, 0.16);
+}
+
+.checkOutBtn:disabled {
+  opacity: 0.66;
+  cursor: not-allowed;
+}
+
 .actionHint {
   font-size: 0.82rem;
   color: #7b748f;
@@ -435,6 +468,12 @@
   background: rgba(161, 0, 255, 0.11);
   color: #a100ff;
   border-color: rgba(161, 0, 255, 0.18);
+}
+
+:global([data-theme='dark']) .checkOutBtn {
+  background: rgba(0, 140, 114, 0.16);
+  color: #76eac4;
+  border-color: rgba(0, 140, 114, 0.24);
 }
 
 :global([data-theme='dark']) .typeDeskParking {
@@ -523,7 +562,8 @@
   }
 
   .cancelBtn,
-  .checkInBtn {
+  .checkInBtn,
+  .checkOutBtn {
     width: 100%;
     min-height: 44px;
   }
@@ -534,7 +574,8 @@
   .tab,
   .newReservationBtn,
   .cancelBtn,
-  .checkInBtn {
+  .checkInBtn,
+  .checkOutBtn {
     animation: none;
     transition: none;
   }
@@ -543,7 +584,8 @@
   .tab:hover,
   .newReservationBtn:hover,
   .cancelBtn:hover:not(:disabled),
-  .checkInBtnActive:hover:not(:disabled) {
+  .checkInBtnActive:hover:not(:disabled),
+  .checkOutBtn:hover:not(:disabled) {
     transform: none;
   }
 }

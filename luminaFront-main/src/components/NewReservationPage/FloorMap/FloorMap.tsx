@@ -302,7 +302,7 @@ export function FloorMap({
                   <span>{floor.name}</span>
                   {recommendationCountsByFloor.has(floor.id) && (
                     <span className={styles.tabRecommendation} aria-label={`${recommendationCountsByFloor.get(floor.id)} recomendaciones IA`}>
-                      ✨{recommendationCountsByFloor.get(floor.id)}
+                      {recommendationCountsByFloor.get(floor.id)}
                     </span>
                   )}
                 </button>

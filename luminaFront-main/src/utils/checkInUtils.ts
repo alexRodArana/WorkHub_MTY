@@ -5,6 +5,7 @@ export const CHECK_IN_POST_START_MINUTES = 30
 export const STATUS_LABEL: Record<ReservationStatus, string> = {
   confirmada: 'Confirmada',
   activa: 'Activa',
+  finalizada: 'Finalizada',
   cancelada: 'Cancelada',
   no_show: 'No presentó',
 }
@@ -12,6 +13,7 @@ export const STATUS_LABEL: Record<ReservationStatus, string> = {
 export const STATUS_COLORS: Record<ReservationStatus, { background: string; color: string }> = {
   confirmada: { background: '#e8f0ff', color: '#0055cc' },
   activa:     { background: '#e6f7f4', color: '#008c72' },
+  finalizada: { background: '#eef2f7', color: '#475569' },
   cancelada:  { background: '#f4f4f4', color: '#7d7d7d' },
   no_show:    { background: '#fff3e0', color: '#cc7700' },
 }
@@ -76,6 +78,8 @@ export function formatCheckInTimestamp(value?: string | null): string | null {
   if (Number.isNaN(parsed.getTime())) return null
   return parsed.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 }
+
+export const formatCheckOutTimestamp = formatCheckInTimestamp
 
 export function toReservationStartMs(reservation: UserReservation): number {
   const [year, month, day] = getNormalizedDateString(reservation.reservation_date).split('-').map(Number)

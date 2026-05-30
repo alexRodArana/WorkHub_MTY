@@ -8,6 +8,7 @@ export type PriorityCategory =
 export type ReservationStatus =
   | "confirmada"
   | "activa"
+  | "finalizada"
   | "cancelada"
   | "no_show"
 
@@ -80,6 +81,7 @@ export interface UserReservation {
   status: ReservationStatus
   grace_period_minutes?: number
   check_in_time?: Date | null
+  check_out_time?: Date | null
   parking_spot_number: string | null
   parking_zone_name: string | null
   vehicle_plate: string | null
@@ -210,6 +212,10 @@ export interface ReservationResult {
   newBadges?: BadgeInfo[]
 }
 
+export interface CheckOutResult {
+  check_out_time: Date
+}
+
 export interface NewReservationRecord {
   user_id: number
   space_id: number | null
@@ -249,6 +255,7 @@ export interface AdminKpiOverview {
   total_reservations: number
   active_reservations: number
   confirmed_reservations: number
+  finalized_reservations: number
   cancelled_reservations: number
   no_show_reservations: number
   parking_reservations: number
