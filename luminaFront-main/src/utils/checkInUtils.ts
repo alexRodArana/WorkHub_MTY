@@ -11,11 +11,11 @@ export const STATUS_LABEL: Record<ReservationStatus, string> = {
 }
 
 export const STATUS_COLORS: Record<ReservationStatus, { background: string; color: string }> = {
-  confirmada: { background: '#e8f0ff', color: '#0055cc' },
-  activa:     { background: '#e6f7f4', color: '#008c72' },
-  finalizada: { background: '#eef2f7', color: '#475569' },
-  cancelada:  { background: '#f4f4f4', color: '#7d7d7d' },
-  no_show:    { background: '#fff3e0', color: '#cc7700' },
+  confirmada: { background: 'var(--status-confirmada-bg)', color: 'var(--status-confirmada-fg)' },
+  activa:     { background: 'var(--status-activa-bg)', color: 'var(--status-activa-fg)' },
+  finalizada: { background: 'var(--status-finalizada-bg)', color: 'var(--status-finalizada-fg)' },
+  cancelada:  { background: 'var(--status-cancelada-bg)', color: 'var(--status-cancelada-fg)' },
+  no_show:    { background: 'var(--status-no-show-bg)', color: 'var(--status-no-show-fg)' },
 }
 
 export interface CheckInAvailability {

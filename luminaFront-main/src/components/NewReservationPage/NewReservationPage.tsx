@@ -550,7 +550,7 @@ export function NewReservationPage(): JSX.Element {
     : null
 
   return (
-    <AppShell title="Nueva Reserva">
+    <AppShell title="Nueva Reserva" noscroll>
       <div className={styles.pageContent}>
         <section className={styles.filterSection}>
           <div className={styles.filterCard} data-tour="reservation-filters">

@@ -70,14 +70,12 @@
 
 .input:hover:not(:disabled) {
   border-color: rgba(117, 0, 192, 0.26);
-  transform: translateY(-1px);
 }
 
 .input:focus {
   outline: none;
   border-color: #a100ff;
   background: #ffffff;
-  transform: translateY(-1px);
   box-shadow:
     0 0 0 4px rgba(161, 0, 255, 0.11),
     0 8px 22px rgba(70, 0, 115, 0.09);
@@ -178,13 +176,14 @@
     rgba(255, 255, 255, 0.22) 50%,
     transparent 70%
   );
-  animation: buttonShimmer 3.5s linear infinite;
+  animation: buttonShimmer 5.5s ease-in-out infinite;
+  opacity: 0.72;
   will-change: transform;
   pointer-events: none;
 }
 
 .button:hover:not(:disabled) {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   filter: brightness(1.06);
   box-shadow:
     0 20px 40px rgba(117, 0, 192, 0.28),

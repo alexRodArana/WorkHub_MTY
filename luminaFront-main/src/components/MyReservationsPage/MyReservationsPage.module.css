@@ -237,28 +237,28 @@
 }
 
 .badgeConfirmada {
-  background: #e8f0ff;
-  color: #0055cc;
+  background: var(--status-confirmada-bg);
+  color: var(--status-confirmada-fg);
 }
 
 .badgeActiva {
-  background: #e6f7f4;
-  color: #008c72;
+  background: var(--status-activa-bg);
+  color: var(--status-activa-fg);
 }
 
 .badgeFinalizada {
-  background: #eef2f7;
-  color: #475569;
+  background: var(--status-finalizada-bg);
+  color: var(--status-finalizada-fg);
 }
 
 .badgeCancelada {
-  background: #f4f4f4;
-  color: #7d7d7d;
+  background: var(--status-cancelada-bg);
+  color: var(--status-cancelada-fg);
 }
 
 .badgeNoShow {
-  background: #fff3e0;
-  color: #cc7700;
+  background: var(--status-no-show-bg);
+  color: var(--status-no-show-fg);
 }
 
 .cardMeta {

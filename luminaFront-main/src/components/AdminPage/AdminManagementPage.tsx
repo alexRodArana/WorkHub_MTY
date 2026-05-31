@@ -151,6 +151,13 @@ export function AdminManagementPage(): JSX.Element {
     setError(`${space.space_number} no está disponible para bloqueo en ese horario.`)
   }
 
+  function handleVisibleManagementFloorChange(floorId: number) {
+    if (!selectedSpace || selectedSpace.floor_id === floorId) return
+    setSelectedSpace(null)
+    setReason('')
+    setError(null)
+  }
+
   async function handleConfirmBlock() {
     if (!token || !selectedSpace) return
 
@@ -242,6 +249,7 @@ export function AdminManagementPage(): JSX.Element {
               mode="management"
               onSelectLayoutSpace={handleSelectManagementSpace}
               onUnavailableLayoutSpace={handleUnavailableManagementSpace}
+              onVisibleFloorChange={handleVisibleManagementFloorChange}
               managementUnavailableSpaceIds={blockedSpaceIdsForRange}
               managementStartTime={startTime}
               managementEndTime={endTime}

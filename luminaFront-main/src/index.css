@@ -68,6 +68,17 @@
   --danger: #ff3246;
   --warning: #ff7800;
 
+  --status-confirmada-bg: rgba(0, 85, 204, 0.12);
+  --status-confirmada-fg: #0055cc;
+  --status-activa-bg: rgba(0, 140, 114, 0.13);
+  --status-activa-fg: #007b66;
+  --status-finalizada-bg: rgba(71, 85, 105, 0.12);
+  --status-finalizada-fg: #475569;
+  --status-cancelada-bg: rgba(100, 116, 139, 0.12);
+  --status-cancelada-fg: #64748b;
+  --status-no-show-bg: rgba(204, 119, 0, 0.14);
+  --status-no-show-fg: #a45d00;
+
   /* Global transitions */
   --transition-fast: 160ms ease;
   --transition-base: 220ms ease;
@@ -93,6 +104,17 @@
   --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.22);
   --shadow-medium: 0 18px 40px rgba(0, 0, 0, 0.28);
   --shadow-large: 0 28px 70px rgba(0, 0, 0, 0.34);
+
+  --status-confirmada-bg: rgba(64, 143, 255, 0.18);
+  --status-confirmada-fg: #9bc3ff;
+  --status-activa-bg: rgba(0, 190, 154, 0.18);
+  --status-activa-fg: #76eac4;
+  --status-finalizada-bg: rgba(148, 163, 184, 0.16);
+  --status-finalizada-fg: #cbd5e1;
+  --status-cancelada-bg: rgba(148, 163, 184, 0.12);
+  --status-cancelada-fg: #aeb8c7;
+  --status-no-show-bg: rgba(255, 176, 0, 0.18);
+  --status-no-show-fg: #ffd984;
 }
 
 /* ========= Reset ========= */

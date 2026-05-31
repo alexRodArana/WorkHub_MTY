@@ -28,7 +28,7 @@
 }
 
 @keyframes cardIn {
-  from { opacity: 0; transform: translateY(28px) scale(0.97); }
+  from { opacity: 0; transform: translateY(16px) scale(0.985); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -52,15 +52,15 @@
 
 .page {
   position: relative;
-  min-height: 100vh;
-  min-height: 100dvh;
-  overflow: auto;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   /* Near-black deep violet base — aurora bands provide all color via screen blend */
   background: linear-gradient(160deg, #0d001e 0%, #180035 50%, #07000e 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(14px, 3.2vh, 32px) clamp(14px, 2.6vw, 40px);
+  padding: clamp(10px, 2vh, 24px) clamp(12px, 2.4vw, 34px);
 }
 
 /* Grain texture overlay — 3% opacity for premium texture */
@@ -93,7 +93,7 @@
     rgba(70,  0,   115, 0.72)     72%,
     transparent                   100%
   );
-  filter: blur(52px);
+  filter: blur(42px);
   mix-blend-mode: screen;
   pointer-events: none;
   animation: glowDrift 22s ease-in-out infinite;
@@ -115,7 +115,7 @@
     rgba(117, 0,   192, 0.55)     78%,
     transparent                   100%
   );
-  filter: blur(60px);
+  filter: blur(46px);
   mix-blend-mode: screen;
   pointer-events: none;
   animation: glowDriftB 28s ease-in-out infinite;
@@ -137,7 +137,7 @@
     rgba(70,  0,   115, 0.40)     80%,
     transparent                   100%
   );
-  filter: blur(80px);
+  filter: blur(56px);
   mix-blend-mode: screen;
   pointer-events: none;
   animation: glowDriftC 20s ease-in-out infinite;
@@ -160,7 +160,7 @@
     rgba(255, 120, 0, 0.20)      82%,
     transparent                  100%
   );
-  filter: blur(38px);
+  filter: blur(32px);
   mix-blend-mode: screen;
   pointer-events: none;
   animation: glowDrift 30s ease-in-out infinite;
@@ -182,7 +182,7 @@
     rgba(255, 80,  160, 0.16)    65%,
     transparent                  100%
   );
-  filter: blur(65px);
+  filter: blur(44px);
   mix-blend-mode: screen;
   pointer-events: none;
   animation: glowDrift 24s ease-in-out infinite;
@@ -196,7 +196,8 @@
   position: relative;
   z-index: 1;
   width: min(1280px, 100%);
-  min-height: clamp(560px, calc(100dvh - 64px), 760px);
+  height: min(760px, calc(100dvh - 20px));
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(380px, 0.92fr);
   border-radius: clamp(22px, 2.4vw, 32px);
@@ -521,12 +522,13 @@
 @media (max-width: 980px) {
   .shell {
     grid-template-columns: 1fr;
-    min-height: auto;
+    height: calc(100dvh - 20px);
+    min-height: 0;
   }
 
   .left {
-    padding: 36px 28px 32px;
-    min-height: 280px;
+    padding: 26px 28px 22px;
+    min-height: 0;
   }
 
   .hero {
@@ -545,7 +547,8 @@
   }
 
   .right {
-    padding: 24px 28px 28px;
+    min-height: 0;
+    padding: 20px 28px 24px;
     border-left: none;
     border-top: 1px solid rgba(255, 255, 255, 0.4);
   }
@@ -553,27 +556,32 @@
 
 @media (max-width: 640px) {
   .page {
-    min-height: 100dvh;
-    align-items: flex-start;
-    overflow-y: auto;
-    padding: 14px;
+    align-items: center;
+    overflow: hidden;
+    padding: 8px;
   }
 
   .shell {
+    height: calc(100dvh - 16px);
+    grid-template-rows: auto 1fr;
     border-radius: 24px;
   }
 
   .left {
-    padding: 28px 22px 24px;
+    padding: 16px 18px 12px;
     min-height: auto;
+    justify-content: flex-start;
   }
 
   .right {
-    padding: 18px 22px 22px;
+    min-height: 0;
+    align-items: flex-start;
+    padding: 12px 14px 14px;
+    overflow: hidden;
   }
 
   .card {
-    padding: 26px 22px;
+    padding: 18px 16px;
     border-radius: 22px;
   }
 
@@ -582,34 +590,22 @@
   }
 
   .heroTitle {
-    font-size: 2.15rem;
+    font-size: 1.9rem;
     line-height: 1;
   }
 
-  .heroText {
-    font-size: 0.96rem;
-  }
-
-  .featureList {
-    flex-direction: column;
-    margin-top: 18px;
-  }
-
-  .featureChip {
-    padding: 9px 12px;
-    font-size: 0.84rem;
-  }
-
+  .hero,
+  .featureList,
   .statsStrip {
-    flex-wrap: wrap;
+    display: none;
   }
 
   .cardHeader {
-    margin-bottom: 22px;
+    margin-bottom: 16px;
   }
 
   .cardTitle {
-    font-size: 1.85rem;
+    font-size: 1.72rem;
   }
 }
 
@@ -631,7 +627,7 @@
   }
 
   .card {
-    padding: 22px 18px;
+    padding: 16px 14px;
     border-radius: 20px;
   }
 
@@ -642,6 +638,61 @@
   .heroText {
     margin-top: 12px;
     line-height: 1.45;
+  }
+}
+
+@media (max-height: 720px) and (min-width: 641px) {
+  .left {
+    padding-top: 24px;
+    padding-bottom: 22px;
+  }
+
+  .heroTitle {
+    font-size: clamp(2rem, 3.1vw, 3.1rem);
+  }
+
+  .heroText {
+    margin-top: 12px;
+    font-size: 0.96rem;
+    line-height: 1.48;
+  }
+
+  .featureList {
+    margin-top: 18px;
+    gap: 8px;
+  }
+
+  .featureChip {
+    padding: 8px 12px;
+  }
+
+  .statsStrip {
+    display: none;
+  }
+
+  .right {
+    padding-top: 18px;
+    padding-bottom: 18px;
+  }
+
+  .card {
+    padding: 24px;
+  }
+
+  .cardHeader {
+    margin-bottom: 18px;
+  }
+}
+
+@media (max-height: 620px) and (min-width: 641px) {
+  .featureList,
+  .heroText {
+    display: none;
+  }
+
+  .left {
+    justify-content: flex-start;
+    gap: 22px;
   }
 }
 

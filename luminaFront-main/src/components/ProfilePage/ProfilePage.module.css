@@ -163,14 +163,18 @@
 .defaultChip,
 .dangerBtn {
   min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
   border: 1px solid rgba(117, 0, 192, 0.16);
-  background: rgba(117, 0, 192, 0.06);
-  color: #7500c0;
+  background: rgba(117, 0, 192, 0.1);
+  color: #5f009e;
   padding: 0 11px;
   font: inherit;
   font-size: 0.76rem;
   font-weight: 900;
+  line-height: 1.1;
   cursor: pointer;
   transition: transform 150ms ease, background 150ms ease;
 }
@@ -182,21 +186,18 @@
 }
 
 .defaultChip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
+  height: 34px;
   white-space: nowrap;
-  background: rgba(0, 140, 114, 0.12);
-  color: #087b64;
-  border-color: rgba(0, 140, 114, 0.18);
+  background: rgba(0, 140, 114, 0.14);
+  color: #006f5d;
+  border-color: rgba(0, 140, 114, 0.24);
   cursor: default;
 }
 
 .dangerBtn {
   color: #c12d44 !important;
-  border-color: rgba(193, 45, 68, 0.2) !important;
-  background: rgba(193, 45, 68, 0.06) !important;
+  border-color: rgba(193, 45, 68, 0.26) !important;
+  background: rgba(193, 45, 68, 0.09) !important;
 }
 
 .avatarLg {
@@ -412,6 +413,33 @@
   border-color: rgba(161, 0, 255, 0.2);
   background: rgba(161, 0, 255, 0.09);
   color: #a100ff;
+}
+
+:global([data-theme='dark']) .disabledBtn {
+  background: rgba(148, 163, 184, 0.12);
+  color: #aeb8c7;
+}
+
+:global([data-theme='dark']) .vehicleActions button {
+  border-color: rgba(161, 0, 255, 0.22);
+  background: rgba(161, 0, 255, 0.14);
+  color: #d9b4ff;
+}
+
+:global([data-theme='dark']) .vehicleActions button:hover:not(:disabled) {
+  background: rgba(161, 0, 255, 0.22);
+}
+
+:global([data-theme='dark']) .defaultChip {
+  border-color: rgba(0, 190, 154, 0.28);
+  background: rgba(0, 190, 154, 0.18);
+  color: #76eac4;
+}
+
+:global([data-theme='dark']) .dangerBtn {
+  border-color: rgba(255, 100, 130, 0.28) !important;
+  background: rgba(255, 100, 130, 0.13) !important;
+  color: #ff9aaa !important;
 }
 
 :global([data-theme='dark']) .vehicleForm,

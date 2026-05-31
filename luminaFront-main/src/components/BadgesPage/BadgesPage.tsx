@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import type { BadgeWithStatus, StreakInfo } from '../../types/gamification'
 import { fetchMyStats } from '../../services/gamificationService'
@@ -46,13 +47,75 @@ export function BadgesPage(): JSX.Element {
 
   useEffect(() => {
     if (!selectedBadge) return
+    const previousBodyOverflow = document.body.style.overflow
+    const previousHtmlOverflow = document.documentElement.style.overflow
+
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') setSelectedBadge(null)
     }
 
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousBodyOverflow
+      document.documentElement.style.overflow = previousHtmlOverflow
+    }
   }, [selectedBadge])
+
+  const badgeDetailModal = selectedBadge
+    ? createPortal(
+      <div
+        className={styles.badgeModalBackdrop}
+        onWheel={(event) => event.preventDefault()}
+        onTouchMove={(event) => event.preventDefault()}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) setSelectedBadge(null)
+        }}
+      >
+        <section className={styles.badgeModal} role="dialog" aria-modal="true" aria-labelledby="badge-detail-title">
+          <button
+            type="button"
+            className={styles.badgeModalClose}
+            onClick={() => setSelectedBadge(null)}
+            aria-label="Cerrar detalle del badge"
+          >
+            ×
+          </button>
+          <div className={styles.badgeModalImageWrap}>
+            <img
+              src={getBadgeImage(selectedBadge.key, selectedBadge.earned_at !== null)}
+              alt=""
+            />
+          </div>
+          <div className={styles.badgeModalBody}>
+            <span className={styles.badgeModalEyebrow}>
+              {selectedBadge.earned_at ? 'Badge desbloqueada' : 'Badge pendiente'}
+            </span>
+            <h3 id="badge-detail-title">{selectedBadge.name}</h3>
+            <p>{selectedBadge.description}</p>
+            <dl className={styles.badgeDetailGrid}>
+              <div>
+                <dt>Conseguida</dt>
+                <dd>{selectedBadge.earned_at ? formatEarnedDate(selectedBadge.earned_at) : 'Aún no desbloqueada'}</dd>
+              </div>
+              <div>
+                <dt>Cómo se consigue</dt>
+                <dd>{selectedBadge.description}</dd>
+              </div>
+              <div>
+                <dt>Usuarios que la tienen</dt>
+                <dd>{Math.round(selectedBadge.earned_percentage ?? 0)}%</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+      </div>,
+      document.body
+    )
+    : null
 
   const earnedBadges = useMemo(
     () => badges
@@ -156,52 +219,7 @@ export function BadgesPage(): JSX.Element {
               {renderBadgeSection('Por desbloquear', lockedBadges, 'Ya desbloqueaste todos los logros.')}
             </div>
 
-            {selectedBadge && (
-              <div
-                className={styles.badgeModalBackdrop}
-                onClick={(event) => {
-                  if (event.target === event.currentTarget) setSelectedBadge(null)
-                }}
-              >
-                <section className={styles.badgeModal} role="dialog" aria-modal="true" aria-labelledby="badge-detail-title">
-                  <button
-                    type="button"
-                    className={styles.badgeModalClose}
-                    onClick={() => setSelectedBadge(null)}
-                    aria-label="Cerrar detalle del badge"
-                  >
-                    ×
-                  </button>
-                  <div className={styles.badgeModalImageWrap}>
-                    <img
-                      src={getBadgeImage(selectedBadge.key, selectedBadge.earned_at !== null)}
-                      alt=""
-                    />
-                  </div>
-                  <div className={styles.badgeModalBody}>
-                    <span className={styles.badgeModalEyebrow}>
-                      {selectedBadge.earned_at ? 'Badge desbloqueada' : 'Badge pendiente'}
-                    </span>
-                    <h3 id="badge-detail-title">{selectedBadge.name}</h3>
-                    <p>{selectedBadge.description}</p>
-                    <dl className={styles.badgeDetailGrid}>
-                      <div>
-                        <dt>Conseguida</dt>
-                        <dd>{selectedBadge.earned_at ? formatEarnedDate(selectedBadge.earned_at) : 'Aún no desbloqueada'}</dd>
-                      </div>
-                      <div>
-                        <dt>Cómo se consigue</dt>
-                        <dd>{selectedBadge.description}</dd>
-                      </div>
-                      <div>
-                        <dt>Usuarios que la tienen</dt>
-                        <dd>{Math.round(selectedBadge.earned_percentage ?? 0)}%</dd>
-                      </div>
-                    </dl>
-                  </div>
-                </section>
-              </div>
-            )}
+            {badgeDetailModal}
           </>
         )}
       </div>

@@ -1,10 +1,11 @@
 .pageContent {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: clamp(8px, 1.35vh, 14px);
   flex: 1;
-  min-height: 100%;
-  overflow: visible;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 @keyframes reservationSurfaceIn {
@@ -50,7 +51,7 @@
   border: 1px solid rgba(117, 0, 192, 0.08);
   border-radius: 22px;
   box-shadow: 0 8px 24px rgba(70, 0, 115, 0.07);
-  padding: 14px 18px;
+  padding: clamp(10px, 1.45vh, 14px) 16px;
   animation: reservationSurfaceIn 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -58,8 +59,8 @@
   display: flex;
   align-items: flex-end;
   gap: 18px;
-  margin: 0 0 12px;
-  padding: 0 2px 8px;
+  margin: 0 0 10px;
+  padding: 0 2px 7px;
   border-bottom: 1px solid rgba(117, 0, 192, 0.12);
 }
 
@@ -193,8 +194,8 @@
   align-items: stretch;
   gap: 0;
   flex: 1;
-  min-height: min(76vh, 720px);
-  overflow: visible;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .mapMain {
@@ -204,7 +205,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .errorWrap {
@@ -230,10 +231,10 @@
   padding: 12px;
   min-width: 0;
   flex: 1;
-  min-height: min(72vh, 680px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden;
   animation: reservationSurfaceIn 320ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both;
   transition: border-color 180ms ease, box-shadow 180ms ease;
 }
@@ -247,7 +248,8 @@
 
 .parkingOnlyPanel {
   flex: 1;
-  min-height: 420px;
+  min-height: 0;
+  overflow-y: auto;
   display: grid;
   align-content: center;
   justify-items: center;
@@ -662,43 +664,50 @@
   border-radius: 22px;
   box-shadow: 0 8px 24px rgba(70, 0, 115, 0.07);
   overflow: hidden;
-  align-self: flex-start;
-  position: sticky;
-  top: 0;
+  align-self: stretch;
+  max-height: 100%;
+  overflow-y: auto;
+  position: relative;
 }
 
 @media (max-width: 900px) {
   .pageContent,
   .mapMain,
   .mapCard {
-    min-height: auto;
-    overflow: visible;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .mapRow {
     flex-direction: column;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .sidePanel,
   .sidePanelOpen {
     width: 100%;
-    overflow: visible;
+    overflow: hidden;
     transition: none;
+  }
+
+  .sidePanelOpen {
+    flex: 0 0 min(34vh, 260px);
+    overflow-y: auto;
   }
 
   .selectedCard {
     width: 100%;
     margin-left: 0;
-    position: static;
+    max-height: 100%;
   }
 }
 
 @media (max-width: 768px) {
   .pageContent {
     gap: 10px;
-    flex: 0 0 auto;
-    overflow: visible;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .filterCard,
@@ -724,7 +733,8 @@
 
   .mapCard {
     padding: 8px;
-    flex: 0 0 auto;
+    flex: 1;
+    min-height: 0;
   }
 }
 
@@ -748,7 +758,7 @@
   }
 
   .parkingOnlyPanel {
-    min-height: 360px;
+    min-height: 0;
     padding: 22px 14px;
   }
 

@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { askReservationAssistant } from '../../services/reservationService'
 import { getSession } from '../../services/tokenStore'
@@ -13,10 +13,18 @@ function nextId(): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
+const ASSISTANT_PLACEHOLDERS = [
+  'Hazme una pregunta...',
+  '¿Cuál es tu duda?',
+  '¿En qué te puedo ayudar?',
+  'Cuéntame qué necesitas...',
+]
+
 export function AiAssistantWidget(): JSX.Element {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [placeholderIndex, setPlaceholderIndex] = useState(0)
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'intro',
@@ -25,6 +33,15 @@ export function AiAssistantWidget(): JSX.Element {
     },
   ])
   const inputRef = useRef<HTMLInputElement>(null)
+  const currentPlaceholder = ASSISTANT_PLACEHOLDERS[placeholderIndex]
+
+  useEffect(() => {
+    if (!open) return
+    const id = window.setInterval(() => {
+      setPlaceholderIndex((index) => (index + 1) % ASSISTANT_PLACEHOLDERS.length)
+    }, 3200)
+    return () => window.clearInterval(id)
+  }, [open])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
@@ -125,13 +142,21 @@ export function AiAssistantWidget(): JSX.Element {
           </div>
 
           <form className={styles.form} onSubmit={(event) => void handleSubmit(event)}>
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder="Pregúntale a la IA"
-              maxLength={700}
-            />
+            <div className={styles.inputWrap}>
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                placeholder=""
+                aria-label={currentPlaceholder}
+                maxLength={700}
+              />
+              {!input && (
+                <span key={currentPlaceholder} className={styles.dynamicPlaceholder}>
+                  {currentPlaceholder}
+                </span>
+              )}
+            </div>
             <button type="submit" disabled={!input.trim() || loading} aria-label="Enviar mensaje">
               →
             </button>

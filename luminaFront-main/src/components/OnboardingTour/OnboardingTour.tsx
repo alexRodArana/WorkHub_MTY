@@ -579,7 +579,6 @@ export function OnboardingTour({ role, userId, restartKey }: OnboardingTourProps
   const targetRef = useRef<HTMLElement | null>(null)
   const cardRef = useRef<HTMLElement | null>(null)
   const rectFrameRef = useRef<number | null>(null)
-  const autoStartedRef = useRef(false)
 
   const currentStep = steps[stepIndex]
   const progress = steps.length > 0 ? ((stepIndex + 1) / steps.length) * 100 : 0
@@ -607,32 +606,6 @@ export function OnboardingTour({ role, userId, restartKey }: OnboardingTourProps
     if (restartKey <= 0) return
     startTour()
   }, [restartKey, startTour])
-
-  useEffect(() => {
-    if (autoStartedRef.current || steps.length === 0) return
-    autoStartedRef.current = true
-
-    const activeTour = readActiveTour()
-    if (activeTour && activeTour.role === tourRole && activeTour.userKey === userKey) {
-      setStepIndex(clamp(activeTour.stepIndex, 0, steps.length - 1))
-      setActive(true)
-      return
-    }
-
-    if (restartKey > 0) return
-
-    let seen = false
-    try {
-      const seenValue = window.localStorage.getItem(storageKey)
-      seen = seenValue === 'done' || seenValue === '1'
-    } catch {
-      seen = false
-    }
-
-    if (seen) return
-    const id = window.setTimeout(() => startTour(), 650)
-    return () => window.clearTimeout(id)
-  }, [restartKey, startTour, steps.length, storageKey, tourRole, userKey])
 
   useEffect(() => {
     if (!active || !currentStep) return
