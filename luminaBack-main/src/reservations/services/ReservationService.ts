@@ -327,25 +327,10 @@ export class ReservationService {
   }
 
   async checkOut(reservationId: number, userId: number): Promise<CheckOutResult> {
-    const reservation = await this.reservationRepository.findById(reservationId)
-
-    if (!reservation) {
-      throw new ReservationError(404, "NOT_FOUND", "Reservación no encontrada")
-    }
-
-    if (reservation.user_id !== userId) {
-      throw new ReservationError(403, "FORBIDDEN", "No autorizado para liberar esta reservación")
-    }
-
-    if (!["confirmada", "activa"].includes(reservation.status) || reservation.check_out_time) {
+    const checkOutTime = await this.reservationRepository.checkOut(reservationId, userId)
+    if (!checkOutTime) {
       throw new ReservationError(422, "CHECK_OUT_NOT_AVAILABLE", "Solo puedes liberar una reserva confirmada o activa")
     }
-
-    const checkOutTime = new Date()
-    await this.reservationRepository.update(reservationId, {
-      status: "finalizada",
-      check_out_time: checkOutTime,
-    })
 
     return { check_out_time: checkOutTime }
   }

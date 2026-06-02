@@ -301,6 +301,7 @@ describe("ReservationService", () => {
       }),
       findByCode: vi.fn().mockResolvedValue(null),
       findById: vi.fn(),
+      checkOut: vi.fn().mockResolvedValue(new Date("2099-06-01T09:45:00Z")),
       findByUserId: vi.fn().mockResolvedValue([]),
       create: vi.fn().mockResolvedValue(makeReservationResult()),
       update: vi.fn(),
@@ -505,54 +506,28 @@ describe("ReservationService", () => {
   })
 
   it("finalizes an active workspace reservation on check-out", async () => {
-    vi.mocked(reservationRepository.findById).mockResolvedValue(makeReservation({
-      status: "activa",
-      check_in_time: new Date("2099-06-01T09:00:00Z"),
-    }))
-
     const result = await service.checkOut(10, 7)
 
     expect(result.check_out_time).toBeInstanceOf(Date)
-    expect(reservationRepository.update).toHaveBeenCalledWith(10, {
-      status: "finalizada",
-      check_out_time: expect.any(Date),
-    })
+    expect(reservationRepository.checkOut).toHaveBeenCalledWith(10, 7)
   })
 
   it("finalizes a confirmed reservation on check-out", async () => {
-    vi.mocked(reservationRepository.findById).mockResolvedValue(makeReservation({
-      status: "confirmada",
-      check_in_time: null,
-    }))
-
     const result = await service.checkOut(10, 7)
 
     expect(result.check_out_time).toBeInstanceOf(Date)
-    expect(reservationRepository.update).toHaveBeenCalledWith(10, {
-      status: "finalizada",
-      check_out_time: expect.any(Date),
-    })
+    expect(reservationRepository.checkOut).toHaveBeenCalledWith(10, 7)
   })
 
   it("finalizes an active parking-only reservation on check-out", async () => {
-    vi.mocked(reservationRepository.findById).mockResolvedValue(makeReservation({
-      space_id: null,
-      parking_spot_id: 12,
-      status: "activa",
-      check_in_time: new Date("2099-06-01T09:00:00Z"),
-    }))
-
     const result = await service.checkOut(10, 7)
 
     expect(result.check_out_time).toBeInstanceOf(Date)
-    expect(reservationRepository.update).toHaveBeenCalledWith(10, {
-      status: "finalizada",
-      check_out_time: expect.any(Date),
-    })
+    expect(reservationRepository.checkOut).toHaveBeenCalledWith(10, 7)
   })
 
   it("rejects check-out when the reservation is already closed", async () => {
-    vi.mocked(reservationRepository.findById).mockResolvedValue(makeReservation({ status: "finalizada" }))
+    vi.mocked(reservationRepository.checkOut).mockResolvedValueOnce(null)
 
     await expect(service.checkOut(10, 7)).rejects.toMatchObject({ code: "CHECK_OUT_NOT_AVAILABLE" })
 

@@ -7,6 +7,35 @@ const pool = new Pool({
 })
 
 const SQL = `
+CREATE OR REPLACE FUNCTION workhub_prevent_reservation_conflicts()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.status IN ('confirmada', 'activa') AND NEW.space_id IS NOT NULL THEN
+    IF EXISTS (
+      SELECT 1
+      FROM space_blocks sb
+      WHERE sb.space_id = NEW.space_id
+        AND sb.block_date = NEW.reservation_date
+        AND sb.is_active = true
+        AND sb.start_time < NEW.end_time
+        AND sb.end_time > NEW.start_time
+    ) THEN
+      RAISE EXCEPTION 'SPACE_BLOCKED_FOR_RESERVATION'
+        USING ERRCODE = '23514';
+    END IF;
+  END IF;
+
+  IF NEW.status IN ('confirmada', 'activa') AND NEW.parking_spot_id IS NOT NULL AND NEW.vehicle_id IS NULL THEN
+    RAISE EXCEPTION 'PARKING_REQUIRES_VEHICLE'
+      USING ERRCODE = '23514';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION workhub_validate_reservation_checkout()
 RETURNS trigger
 LANGUAGE plpgsql

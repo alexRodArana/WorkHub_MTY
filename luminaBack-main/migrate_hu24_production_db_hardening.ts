@@ -289,7 +289,7 @@ BEGIN
     END IF;
   END IF;
 
-  IF NEW.parking_spot_id IS NOT NULL AND NEW.vehicle_id IS NULL THEN
+  IF NEW.status IN ('confirmada', 'activa') AND NEW.parking_spot_id IS NOT NULL AND NEW.vehicle_id IS NULL THEN
     RAISE EXCEPTION 'PARKING_REQUIRES_VEHICLE'
       USING ERRCODE = '23514';
   END IF;

@@ -362,6 +362,24 @@ export class ReservationRepository {
     }
   }
 
+  async checkOut(reservationId: number, userId: number): Promise<Date | null> {
+    try {
+      const result = await this.db.query<{ check_out_time: Date }>(
+        `SELECT check_out_time
+         FROM workhub_checkout_reservation($1, $2)`,
+        [reservationId, userId]
+      )
+      return result.rows[0]?.check_out_time ?? null
+    } catch (err) {
+      if (err instanceof ReservationError) throw err
+      const dbError = err as { code?: string }
+      if (dbError.code === "P0001") {
+        return null
+      }
+      throw new ReservationError(500, "DATABASE_ERROR", "Error de base de datos")
+    }
+  }
+
   async findEventDetails(id: number): Promise<ReservationEventDetails | null> {
     try {
       const result = await this.db.query<ReservationEventDetails>(
