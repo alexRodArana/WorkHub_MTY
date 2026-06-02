@@ -109,6 +109,20 @@ const adminManagementNavItem = {
   ),
 }
 
+const adminBlocksNavItem = {
+  to: '/admin/bloqueos',
+  label: 'Bloqueos',
+  tourId: 'nav-admin-blocks',
+  icon: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M7 8h10" />
+      <path d="M7 12h6" />
+      <path d="m15 16 2 2 4-4" />
+    </svg>
+  ),
+}
+
 const guardNavItem = {
   to: '/guardia',
   label: 'Guardia',
@@ -134,7 +148,7 @@ export default function AppShell({ title, subtitle, children, action, noscroll }
   const navItems = isGuard
     ? [guardNavItem]
     : isAdmin
-      ? [adminDashboardNavItem, adminManagementNavItem]
+      ? [adminDashboardNavItem, adminManagementNavItem, adminBlocksNavItem]
       : baseNavItems
 
   useEffect(() => {

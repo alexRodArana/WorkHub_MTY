@@ -519,6 +519,21 @@ describe("ReservationService", () => {
     })
   })
 
+  it("finalizes a confirmed reservation on check-out", async () => {
+    vi.mocked(reservationRepository.findById).mockResolvedValue(makeReservation({
+      status: "confirmada",
+      check_in_time: null,
+    }))
+
+    const result = await service.checkOut(10, 7)
+
+    expect(result.check_out_time).toBeInstanceOf(Date)
+    expect(reservationRepository.update).toHaveBeenCalledWith(10, {
+      status: "finalizada",
+      check_out_time: expect.any(Date),
+    })
+  })
+
   it("finalizes an active parking-only reservation on check-out", async () => {
     vi.mocked(reservationRepository.findById).mockResolvedValue(makeReservation({
       space_id: null,
@@ -536,8 +551,8 @@ describe("ReservationService", () => {
     })
   })
 
-  it("rejects check-out when the reservation is not active", async () => {
-    vi.mocked(reservationRepository.findById).mockResolvedValue(makeReservation({ status: "confirmada" }))
+  it("rejects check-out when the reservation is already closed", async () => {
+    vi.mocked(reservationRepository.findById).mockResolvedValue(makeReservation({ status: "finalizada" }))
 
     await expect(service.checkOut(10, 7)).rejects.toMatchObject({ code: "CHECK_OUT_NOT_AVAILABLE" })
 

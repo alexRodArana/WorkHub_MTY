@@ -6,6 +6,7 @@ import { getSession } from '../../services/tokenStore'
 import { useReservationRealtime } from '../../hooks/useReservationRealtime'
 import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner'
 import AppShell from '../Layout/AppShell'
+import { mapReservationError } from '../../utils/reservationValidator'
 import {
   STATUS_LABEL,
   formatDate,
@@ -225,7 +226,7 @@ export function MyReservationsPage(): JSX.Element {
         return
       }
 
-      setError('No se pudo liberar el espacio. Inténtalo de nuevo.')
+      setError(mapReservationError(result.error))
       return
     }
 

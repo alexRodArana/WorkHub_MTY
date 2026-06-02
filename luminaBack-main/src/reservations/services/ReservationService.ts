@@ -337,8 +337,8 @@ export class ReservationService {
       throw new ReservationError(403, "FORBIDDEN", "No autorizado para liberar esta reservación")
     }
 
-    if (reservation.status !== "activa" || reservation.check_out_time) {
-      throw new ReservationError(422, "CHECK_OUT_NOT_AVAILABLE", "Solo puedes hacer check-out de una reserva activa")
+    if (!["confirmada", "activa"].includes(reservation.status) || reservation.check_out_time) {
+      throw new ReservationError(422, "CHECK_OUT_NOT_AVAILABLE", "Solo puedes liberar una reserva confirmada o activa")
     }
 
     const checkOutTime = new Date()

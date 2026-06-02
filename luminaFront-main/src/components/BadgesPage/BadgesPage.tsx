@@ -15,6 +15,11 @@ function formatEarnedDate(isoStr: string): string {
   return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+function clampPercentage(value: number | null | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0
+  return Math.max(0, Math.min(100, Math.round(value)))
+}
+
 export function BadgesPage(): JSX.Element {
   const navigate = useNavigate()
   const [streak, setStreak] = useState<StreakInfo | null>(null)
@@ -96,6 +101,15 @@ export function BadgesPage(): JSX.Element {
             </span>
             <h3 id="badge-detail-title">{selectedBadge.name}</h3>
             <p>{selectedBadge.description}</p>
+            <div className={styles.badgeModalProgress} aria-label={`Adopción de ${selectedBadge.name}: ${clampPercentage(selectedBadge.earned_percentage)}%`}>
+              <div className={styles.progressHeader}>
+                <span>Adopción del badge</span>
+                <strong>{clampPercentage(selectedBadge.earned_percentage)}%</strong>
+              </div>
+              <div className={styles.progressTrack}>
+                <span style={{ width: `${clampPercentage(selectedBadge.earned_percentage)}%` }} />
+              </div>
+            </div>
             <dl className={styles.badgeDetailGrid}>
               <div>
                 <dt>Conseguida</dt>
@@ -150,6 +164,7 @@ export function BadgesPage(): JSX.Element {
           <div className={styles.badgeGrid}>
             {sectionBadges.map((badge) => {
               const earned = badge.earned_at !== null
+              const badgeProgress = clampPercentage(badge.earned_percentage)
               return (
                 <article
                   key={badge.id}
@@ -173,6 +188,15 @@ export function BadgesPage(): JSX.Element {
                     />
                   </div>
                   <strong className={styles.badgeName}>{badge.name}</strong>
+                  <div className={styles.badgeProgressWrap} aria-label={`Adopción: ${badgeProgress}%`}>
+                    <div className={styles.progressHeader}>
+                      <span>Adopción</span>
+                      <strong>{badgeProgress}%</strong>
+                    </div>
+                    <div className={styles.progressTrack}>
+                      <span style={{ width: `${badgeProgress}%` }} />
+                    </div>
+                  </div>
                 </article>
               )
             })}

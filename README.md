@@ -356,7 +356,7 @@ Contexto del chatbot por rol:
 
 ### Check-out
 
-1. Una reserva `activa` muestra el botón `Check-out`.
+1. Una reserva abierta muestra el botón `Check-out`.
 2. El usuario puede liberar la reserva inmediatamente, aunque el check-in haya ocurrido segundos antes.
 3. El backend cambia la reserva a `finalizada`.
 4. El espacio deja de contar como ocupado.
@@ -370,7 +370,7 @@ Contexto del chatbot por rol:
 4. Define motivo de bloqueo.
 5. Confirma el bloqueo.
 6. El bloqueo se refleja en tiempo real para usuarios.
-7. Los bloqueos activos pueden liberarse desde la misma vista.
+7. Los bloqueos activos se consultan y liberan desde `/admin/bloqueos`.
 
 ### Guardia
 
@@ -637,7 +637,7 @@ El archivo `luminaFront-main/vercel.json` redirige todas las rutas hacia `index.
 
 Validación local más reciente:
 
-- Backend tests: `40 passed`.
+- Backend tests: `41 passed`.
 - Frontend tests: `24 passed`.
 - Backend build: OK.
 - Frontend lint: OK.

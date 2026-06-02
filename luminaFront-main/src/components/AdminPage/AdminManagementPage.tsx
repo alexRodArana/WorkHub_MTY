@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../Layout/AppShell'
 import { FloorMap } from '../NewReservationPage/FloorMap/FloorMap'
-import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner'
-import { blockSpace, fetchAdminOverview, unblockSpace } from '../../services/reservationService'
+import { blockSpace, fetchAdminOverview } from '../../services/reservationService'
 import { getSession } from '../../services/tokenStore'
 import { useReservationRealtime } from '../../hooks/useReservationRealtime'
 import { PRIORITY_CATEGORY_LABELS } from '../../data/floorLayouts'
@@ -191,24 +190,6 @@ export function AdminManagementPage(): JSX.Element {
     setError(null)
   }
 
-  async function handleUnblock(blockId: number) {
-    if (!token) return
-    setSaving(true)
-    setError(null)
-    setMessage(null)
-    const result = await unblockSpace(token, blockId)
-    setSaving(false)
-
-    if (!result.success) {
-      if (result.unauthorized) navigate('/login', { replace: true })
-      else setError('No se pudo liberar el bloqueo.')
-      return
-    }
-
-    setMessage('Espacio liberado para nuevas reservas.')
-    await refresh()
-  }
-
   return (
     <AppShell title="Gestión" subtitle="Bloqueo de espacios por fecha y horario">
       <div className={styles.page}>
@@ -323,34 +304,6 @@ export function AdminManagementPage(): JSX.Element {
             )}
           </aside>
         </div>
-
-        <section className={styles.blockPanel} data-tour="management-blocks">
-          <div className={styles.cardHeader}>
-            <span>Bloqueos del día</span>
-            <strong>{dateBlocks.length}</strong>
-          </div>
-
-          {loading ? (
-            <div className={styles.loadingWrap}><LoadingSpinner /></div>
-          ) : dateBlocks.length === 0 ? (
-            <p className={styles.hint}>No hay espacios bloqueados para esta fecha.</p>
-          ) : (
-            <div className={styles.blockList}>
-              {dateBlocks.map((block) => (
-                <div key={block.id} className={styles.blockItem}>
-                  <div>
-                    <strong>{block.space_number}</strong>
-                    <span>{block.floor_name} · {block.start_time} - {block.end_time}</span>
-                    <small>{block.reason || 'Sin motivo registrado'}</small>
-                  </div>
-                  <button type="button" onClick={() => void handleUnblock(block.id)} disabled={saving}>
-                    Liberar
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
 
       </div>
     </AppShell>

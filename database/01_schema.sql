@@ -411,8 +411,8 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
   IF NEW.status = 'finalizada' THEN
-    IF OLD.status <> 'activa' THEN
-      RAISE EXCEPTION 'CHECK_OUT_REQUIRES_ACTIVE_RESERVATION'
+    IF OLD.status NOT IN ('confirmada', 'activa') THEN
+      RAISE EXCEPTION 'CHECK_OUT_REQUIRES_OPEN_RESERVATION'
         USING ERRCODE = '23514';
     END IF;
 
@@ -439,7 +439,7 @@ BEGIN
          updated_at = NOW()
    WHERE r.id = p_reservation_id
      AND r.user_id = p_user_id
-     AND r.status = 'activa'
+     AND r.status IN ('confirmada', 'activa')
      AND r.check_out_time IS NULL
   RETURNING r.id, r.check_out_time
        INTO reservation_id, check_out_time;

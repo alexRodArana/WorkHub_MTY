@@ -7,6 +7,7 @@ import { fetchMyReservations, checkInReservation, checkOutReservation, cancelRes
 import { fetchMyStats } from '../../services/gamificationService'
 import { getSession } from '../../services/tokenStore'
 import { useReservationRealtime } from '../../hooks/useReservationRealtime'
+import { mapReservationError } from '../../utils/reservationValidator'
 import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner'
 import AppShell from '../Layout/AppShell'
 import {
@@ -249,7 +250,7 @@ export function DashboardPage(): JSX.Element {
 
     if (!result.success) {
       if (result.unauthorized) { navigate('/login', { replace: true }); return }
-      setCheckOutError('No se pudo liberar el espacio.')
+      setCheckOutError(mapReservationError(result.error))
       return
     }
 
