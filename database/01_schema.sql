@@ -416,11 +416,6 @@ BEGIN
         USING ERRCODE = '23514';
     END IF;
 
-    IF NEW.space_id IS NULL THEN
-      RAISE EXCEPTION 'CHECK_OUT_REQUIRES_WORKSPACE_RESERVATION'
-        USING ERRCODE = '23514';
-    END IF;
-
     IF NEW.check_out_time IS NULL THEN
       NEW.check_out_time = NOW();
     END IF;
@@ -445,7 +440,6 @@ BEGIN
    WHERE r.id = p_reservation_id
      AND r.user_id = p_user_id
      AND r.status = 'activa'
-     AND r.space_id IS NOT NULL
      AND r.check_out_time IS NULL
   RETURNING r.id, r.check_out_time
        INTO reservation_id, check_out_time;

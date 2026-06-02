@@ -1,7 +1,7 @@
 .page {
   position: relative;
-  display: grid;
-  grid-template-rows: auto auto auto;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   min-height: 100%;
   height: auto;
@@ -101,20 +101,24 @@
 .managementWorkspace {
   position: relative;
   z-index: 2;
-  display: flex;
-  align-items: stretch;
-  gap: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
   min-height: 0;
+}
+
+.managementWorkspaceOpen {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
 }
 
 .mapPanel {
   position: relative;
   z-index: 2;
   display: flex;
-  flex: 1;
   min-width: 0;
-  min-height: 460px;
-  height: clamp(500px, 66vh, 760px);
+  min-height: 520px;
+  height: clamp(520px, 64vh, 760px);
   overflow: hidden;
   border-radius: 18px;
 }
@@ -122,19 +126,17 @@
 .selectionPanel {
   position: relative;
   z-index: 3;
-  width: 0;
-  overflow: hidden;
-  flex-shrink: 0;
-  transition: width 280ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: none;
+  min-width: 0;
 }
 
 .selectionPanelOpen {
-  width: 350px;
+  display: block;
 }
 
 .selectionCard {
-  width: 328px;
-  margin-left: 16px;
+  width: 100%;
+  margin-left: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -207,8 +209,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: min(34vh, 360px);
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
   padding: 16px;
   border-radius: 18px;
 }
@@ -542,15 +544,18 @@
   }
 
   .managementWorkspace {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 14px;
+  }
+
+  .managementWorkspaceOpen {
+    grid-template-columns: 1fr;
   }
 
   .selectionPanel,
   .selectionPanelOpen {
     width: 100%;
     overflow: visible;
-    transition: none;
   }
 
   .selectionPanel:not(.selectionPanelOpen) {
@@ -567,7 +572,6 @@
   .page {
     height: auto;
     min-height: auto;
-    grid-template-rows: auto;
   }
 
   .mapPanel {

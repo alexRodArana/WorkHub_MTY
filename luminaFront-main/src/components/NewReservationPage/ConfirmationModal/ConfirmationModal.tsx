@@ -161,7 +161,7 @@ export function ConfirmationModal({
           )}
           {includesParking && !parkingEligible && (
             <p className={styles.parkingHint}>
-              Solo disponible con más de 24 horas de anticipación
+              Selecciona fecha y hora para asignar estacionamiento.
             </p>
           )}
         </div>

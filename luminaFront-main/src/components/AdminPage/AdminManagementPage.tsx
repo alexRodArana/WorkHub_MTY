@@ -234,7 +234,7 @@ export function AdminManagementPage(): JSX.Element {
         {error && <div className={styles.errorMsg}>{error}</div>}
         {message && <div className={styles.successMsg}>{message}</div>}
 
-        <div className={styles.managementWorkspace}>
+        <div className={`${styles.managementWorkspace} ${selectedSpace ? styles.managementWorkspaceOpen : ''}`}>
           <section className={styles.mapPanel} data-tour="management-map">
             <FloorMap
               floorId={null}

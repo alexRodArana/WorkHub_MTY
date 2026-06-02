@@ -421,6 +421,28 @@ describe("ReservationService", () => {
     })
   })
 
+  it("allows same-day parking reservations without a 24 hour lead time", async () => {
+    const today = new Date().toISOString().split("T")[0]
+    vi.mocked(reservationRepository.create).mockResolvedValue(makeReservationResult({
+      space_id: null,
+      reservation_date: today,
+      start_time: "23:00",
+      end_time: "23:30",
+      requiere_estacionamiento: true,
+    }))
+
+    const result = await service.createReservation({
+      reservation_date: today,
+      start_time: "23:00",
+      end_time: "23:30",
+      requiere_estacionamiento: true,
+    }, 7)
+
+    expect(result.requiere_estacionamiento).toBe(true)
+    expect(reservationRepository.hasOverlappingParkingForUser).toHaveBeenCalledWith(7, today, "23:00", "23:30")
+    expect(parkingRepository.assignSpot).toHaveBeenCalledWith(10, today, "23:00", "23:30")
+  })
+
   it("rejects requests without workspace and without parking", async () => {
     await expect(service.createReservation({
       reservation_date: FUTURE_DATE,
@@ -484,6 +506,23 @@ describe("ReservationService", () => {
 
   it("finalizes an active workspace reservation on check-out", async () => {
     vi.mocked(reservationRepository.findById).mockResolvedValue(makeReservation({
+      status: "activa",
+      check_in_time: new Date("2099-06-01T09:00:00Z"),
+    }))
+
+    const result = await service.checkOut(10, 7)
+
+    expect(result.check_out_time).toBeInstanceOf(Date)
+    expect(reservationRepository.update).toHaveBeenCalledWith(10, {
+      status: "finalizada",
+      check_out_time: expect.any(Date),
+    })
+  })
+
+  it("finalizes an active parking-only reservation on check-out", async () => {
+    vi.mocked(reservationRepository.findById).mockResolvedValue(makeReservation({
+      space_id: null,
+      parking_spot_id: 12,
       status: "activa",
       check_in_time: new Date("2099-06-01T09:00:00Z"),
     }))

@@ -39,7 +39,7 @@ La base de datos está preparada para Supabase/PostgreSQL y el despliegue está 
 - Registro de vehículos por usuario.
 - Selección de vehículo para reservas con estacionamiento.
 - Check-in de reservas de escritorio.
-- Check-out anticipado para liberar espacios antes de la hora final.
+- Check-out inmediato para liberar reservas activas de escritorio o estacionamiento.
 - Vista de reservas activas e historial.
 - Mapa interactivo por piso con escritorios, salas, zonas y ocupación.
 - Hover contextual con información del espacio, piso, ocupante, foto y horario.
@@ -47,6 +47,7 @@ La base de datos está preparada para Supabase/PostgreSQL y el despliegue está 
 - Recomendaciones de espacios usando Gemini.
 - Resaltado visual de recomendaciones en el mapa.
 - Chatbot con Gemini y contexto real autorizado por rol.
+- Exportación administrativa en XLSX con formato ejecutivo.
 - Onboarding interactivo para usuarios nuevos.
 - Incentivos contextuales para martes de tacos y jueves de barista.
 - Gamificación con badges, rachas, porcentaje de adopción y detalle modal.
@@ -134,6 +135,11 @@ El guardia no tiene acceso a dashboard, perfil, reservas, logros ni administraci
 - Vite
 - React Router
 - CSS Modules
+- ExcelJS para reportes XLSX formales
+- Servicios HTTP con Fetch API
+- Server-Sent Events para actualizaciones en tiempo real
+- Cache operativo en servicios de datos
+- Rendering optimista en flujos críticos
 - Vitest
 - Testing Library
 - JSDOM
@@ -147,6 +153,9 @@ El guardia no tiene acceso a dashboard, perfil, reservas, logros ni administraci
 - JWT con `jsonwebtoken`
 - `bcrypt` para contraseñas
 - `express-rate-limit`
+- CORS configurable por ambiente
+- Integración con Google Generative Language API para Gemini
+- Server-Sent Events para eventos de reservas y bloqueos
 - Vitest
 - Supertest
 
@@ -160,6 +169,8 @@ El guardia no tiene acceso a dashboard, perfil, reservas, logros ni administraci
 - Stored procedures
 - Funciones de mantenimiento
 - Publicación opcional para Supabase Realtime
+- Extensiones `btree_gist` y `pg_trgm`
+- Migraciones TypeScript ejecutables con `ts-node`
 
 ### IA
 
@@ -173,6 +184,7 @@ El guardia no tiene acceso a dashboard, perfil, reservas, logros ni administraci
 - Render para backend.
 - Supabase para PostgreSQL.
 - GitHub como repositorio fuente.
+- `render.yaml` y `vercel.json` para configuración de despliegue.
 
 ## Arquitectura
 
@@ -272,8 +284,8 @@ Optimización y consistencia:
 - Constraint para exigir vehículo cuando se asigna estacionamiento.
 - Trigger para evitar reservas sobre espacios bloqueados.
 - Trigger para evitar bloqueos sobre espacios ya reservados.
-- Trigger para validar transición de check-out.
-- Función `workhub_checkout_reservation`.
+- Trigger para validar transición de check-out sin exigir espera ni escritorio.
+- Función `workhub_checkout_reservation` para liberar reservas activas de escritorio o estacionamiento.
 - Función `workhub_expire_finished_reservations`.
 
 ## IA con Gemini
@@ -329,7 +341,7 @@ Contexto del chatbot por rol:
 5. El sistema consulta disponibilidad.
 6. El mapa muestra espacios disponibles, ocupados, bloqueados y recomendados por IA.
 7. El usuario selecciona un espacio o continúa con estacionamiento según el tipo elegido.
-8. Si la reserva requiere estacionamiento, debe seleccionar o registrar vehículo.
+8. Si la reserva requiere estacionamiento, debe seleccionar o registrar vehículo. No existe anticipación mínima de 24 horas para pedir cajón.
 9. El backend crea la reserva.
 10. El mapa y listados se actualizan en tiempo real.
 
@@ -345,7 +357,7 @@ Contexto del chatbot por rol:
 ### Check-out
 
 1. Una reserva `activa` muestra el botón `Check-out`.
-2. El usuario puede liberar el espacio antes de la hora final.
+2. El usuario puede liberar la reserva inmediatamente, aunque el check-in haya ocurrido segundos antes.
 3. El backend cambia la reserva a `finalizada`.
 4. El espacio deja de contar como ocupado.
 5. Se emite evento en tiempo real para actualizar mapa y listados.
@@ -472,6 +484,7 @@ npx ts-node migrate_hu22_vehicles_room_names_admin_search.ts
 npx ts-node migrate_hu23_operational_quality.ts
 npx ts-node migrate_hu24_production_db_hardening.ts
 npx ts-node migrate_hu25_final_checkout_db_optimizations.ts
+npx ts-node migrate_hu26_checkout_parking_immediacy.ts
 ```
 
 Seeds demo:
@@ -624,8 +637,8 @@ El archivo `luminaFront-main/vercel.json` redirige todas las rutas hacia `index.
 
 Validación local más reciente:
 
-- Backend tests: `38 passed`.
-- Frontend tests: `22 passed`.
+- Backend tests: `40 passed`.
+- Frontend tests: `24 passed`.
 - Backend build: OK.
 - Frontend lint: OK.
 - Frontend build: OK.
@@ -685,6 +698,8 @@ Cobertura funcional principal:
 - Las reservas `finalizada`, `cancelada` y `no_show` no bloquean disponibilidad.
 - Las reservas `confirmada` y `activa` sí bloquean disponibilidad.
 - Las reservas de estacionamiento requieren vehículo.
+- Las reservas de estacionamiento pueden crearse el mismo día; no hay regla de anticipación de 24 horas.
+- El check-out puede ejecutarse en cualquier momento después de que la reserva esté `activa`.
 - Si el usuario tiene varios vehículos, debe seleccionar cuál usará.
 - El chatbot no responde con información fuera del contexto autorizado.
 - Las recomendaciones no se cachean como resultado final porque deben generarse con Gemini en cada solicitud.

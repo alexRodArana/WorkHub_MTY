@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
+import type { Cell, Row, Worksheet } from 'exceljs'
 import AppShell from '../Layout/AppShell'
 import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner'
 import { fetchAdminOverview, fetchAuditLogs, searchUsers } from '../../services/reservationService'
@@ -18,11 +19,22 @@ const STATUS_LABELS: Record<AdminKpiOverview['status_breakdown'][number]['status
   no_show: 'No show',
 }
 
+const STATUS_EXPORT_LABELS: Record<AdminReservationDetail['status'], string> = {
+  confirmada: 'Confirmada',
+  activa: 'En uso',
+  finalizada: 'Finalizada',
+  cancelada: 'Cancelada',
+  no_show: 'No presentó',
+}
+
 const RESERVATION_TYPE_LABELS: Record<AdminKpiOverview['reservation_type_breakdown'][number]['type'], string> = {
   desk_only: 'Solo escritorio',
   desk_parking: 'Escritorio + estacionamiento',
   parking_only: 'Solo estacionamiento',
 }
+
+type ReportCell = string | number
+type ReportRow = ReportCell[]
 
 type DetailKey =
   | `kpi:${string}`
@@ -53,6 +65,123 @@ function formatMinutes(value: number): string {
   const hours = Math.floor(value / 60)
   const minutes = Math.round(value % 60)
   return minutes > 0 ? `${hours} h ${minutes} min` : `${hours} h`
+}
+
+function formatReportDate(value: string): string {
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return value
+  return new Date(year, month - 1, day).toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+function formatGeneratedAt(): string {
+  return new Date().toLocaleString('es-MX', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function formatTimeLabel(value: string): string {
+  return value.slice(0, 5)
+}
+
+function getReservationUserName(reservation: AdminReservationDetail): string {
+  return `${reservation.first_name} ${reservation.last_name}`.trim()
+}
+
+function getReservationSpaceLabel(reservation: AdminReservationDetail): string {
+  if (reservation.type === 'parking_only') return 'No aplica'
+  return reservation.display_name || reservation.space_number || 'Sin espacio'
+}
+
+function getReservationFloorLabel(reservation: AdminReservationDetail): string {
+  if (reservation.type === 'parking_only') return 'No aplica'
+  return reservation.floor_name || 'Sin piso'
+}
+
+function getReservationParkingLabel(reservation: AdminReservationDetail): string {
+  return [reservation.parking_zone_name, reservation.parking_spot_number].filter(Boolean).join(' - ') || 'Sin estacionamiento'
+}
+
+function getReservationVehicleLabel(reservation: AdminReservationDetail): string {
+  return [reservation.vehicle_label, reservation.vehicle_plate].filter(Boolean).join(' - ') || 'Sin vehículo'
+}
+
+const REPORT_COLUMN_COUNT = 13
+
+const REPORT_COLORS = {
+  primary: 'FF7500C0',
+  primaryDark: 'FF520083',
+  primarySoft: 'FFF4EAFF',
+  text: 'FF18151F',
+  muted: 'FF5C5268',
+  border: 'FFE8DEF8',
+  white: 'FFFFFFFF',
+  success: 'FFE8F8F3',
+  warning: 'FFFFF4D8',
+}
+
+function setThinBorder(cell: Cell): void {
+  cell.border = {
+    top: { style: 'thin', color: { argb: REPORT_COLORS.border } },
+    left: { style: 'thin', color: { argb: REPORT_COLORS.border } },
+    bottom: { style: 'thin', color: { argb: REPORT_COLORS.border } },
+    right: { style: 'thin', color: { argb: REPORT_COLORS.border } },
+  }
+}
+
+function styleMergedRow(row: Row, fillArgb: string, fontColor: string): void {
+  row.height = 24
+  row.eachCell({ includeEmpty: true }, (cell) => {
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: fillArgb },
+    }
+    cell.font = { bold: true, color: { argb: fontColor } }
+    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
+    setThinBorder(cell)
+  })
+}
+
+function addMergedTitleRow(sheet: Worksheet, title: string, fillArgb = REPORT_COLORS.primary): Row {
+  const row = sheet.addRow([title])
+  sheet.mergeCells(row.number, 1, row.number, REPORT_COLUMN_COUNT)
+  styleMergedRow(row, fillArgb, REPORT_COLORS.white)
+  return row
+}
+
+function addReportTable(sheet: Worksheet, title: string, headers: ReportRow, rows: ReportRow[]): void {
+  addMergedTitleRow(sheet, title, REPORT_COLORS.primaryDark)
+
+  const headerRow = sheet.addRow(headers)
+  headerRow.eachCell({ includeEmpty: true }, (cell) => {
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: REPORT_COLORS.primarySoft },
+    }
+    cell.font = { bold: true, color: { argb: REPORT_COLORS.primaryDark } }
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
+    setThinBorder(cell)
+  })
+
+  rows.forEach((values) => {
+    const dataRow = sheet.addRow(values)
+    dataRow.eachCell({ includeEmpty: true }, (cell) => {
+      cell.font = { color: { argb: REPORT_COLORS.text } }
+      cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true }
+      setThinBorder(cell)
+    })
+  })
+
+  sheet.addRow([])
 }
 
 function initials(firstName: string, lastName: string): string {
@@ -390,42 +519,172 @@ export function AdminPage(): JSX.Element {
       .slice(0, 120)
   }, [detailFloor, detailQuery, detailStatus, detailType, expandedKey, overview])
 
-  function exportOverviewCsv(): void {
+  async function exportOverviewXlsx(): Promise<void> {
     if (!overview) return
-    const rows = [
-      ['metric', 'value'],
-      ['date', overview.date],
-      ['total_reservations', overview.total_reservations],
-      ['occupancy_rate', percent(overview.occupancy_rate)],
-      ['parking_rate', percent(overview.parking_rate)],
-      ['active_reservations', overview.active_reservations],
-      ['unique_users', overview.unique_users],
-      ['cancelled_reservations', overview.cancelled_reservations],
-      ['no_show_reservations', overview.no_show_reservations],
-      [],
-      ['reservation_code', 'user', 'email', 'type', 'space', 'floor', 'parking', 'vehicle', 'status', 'start', 'end'],
-      ...overview.reservations_detail.map((reservation) => [
-        reservation.reservation_code,
-        `${reservation.first_name} ${reservation.last_name}`,
-        reservation.email,
-        RESERVATION_TYPE_LABELS[reservation.type],
-        reservation.display_name || reservation.space_number,
-        reservation.floor_name,
-        [reservation.parking_zone_name, reservation.parking_spot_number].filter(Boolean).join(' '),
-        [reservation.vehicle_label, reservation.vehicle_plate].filter(Boolean).join(' '),
-        reservation.status,
-        reservation.start_time,
-        reservation.end_time,
-      ]),
+    const ExcelJS = await import('exceljs')
+    const workbook = new ExcelJS.Workbook()
+    workbook.creator = 'WorkHub MTY'
+    workbook.company = 'WorkHub MTY'
+    workbook.subject = 'Reporte administrativo de reservas'
+    workbook.title = `Reporte WorkHub MTY ${overview.date}`
+    workbook.created = new Date()
+
+    const sheet = workbook.addWorksheet('Reporte administrativo', {
+      views: [{ state: 'frozen', ySplit: 5 }],
+      properties: { defaultRowHeight: 22 },
+    })
+
+    sheet.columns = [
+      { key: 'a', width: 22 },
+      { key: 'b', width: 20 },
+      { key: 'c', width: 24 },
+      { key: 'd', width: 28 },
+      { key: 'e', width: 22 },
+      { key: 'f', width: 26 },
+      { key: 'g', width: 22 },
+      { key: 'h', width: 18 },
+      { key: 'i', width: 26 },
+      { key: 'j', width: 28 },
+      { key: 'k', width: 18 },
+      { key: 'l', width: 16 },
+      { key: 'm', width: 16 },
     ]
-    const csv = rows
-      .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
-      .join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+
+    const titleRow = addMergedTitleRow(sheet, 'Reporte WorkHub MTY - Dashboard administrativo')
+    titleRow.height = 30
+    titleRow.getCell(1).font = { bold: true, size: 16, color: { argb: REPORT_COLORS.white } }
+
+    const metadataRows: ReportRow[] = [
+      ['Fecha analizada', formatReportDate(overview.date)],
+      ['Generado el', formatGeneratedAt()],
+    ]
+    metadataRows.forEach((values) => {
+      const row = sheet.addRow(values)
+      row.getCell(1).font = { bold: true, color: { argb: REPORT_COLORS.primaryDark } }
+      row.getCell(2).font = { color: { argb: REPORT_COLORS.text } }
+      row.eachCell({ includeEmpty: true }, setThinBorder)
+    })
+    sheet.addRow([])
+
+    addReportTable(sheet, 'Resumen ejecutivo', ['Indicador', 'Valor', 'Descripción'], [
+      ['Reservas totales', overview.total_reservations, 'Reservas registradas para la fecha seleccionada'],
+      ['Reservas confirmadas', overview.confirmed_reservations, 'Reservas pendientes de uso o check-in'],
+      ['Reservas en uso', overview.active_reservations, 'Reservas con check-in realizado'],
+      ['Reservas finalizadas', overview.finalized_reservations, 'Reservas concluidas'],
+      ['Reservas canceladas', overview.cancelled_reservations, 'Reservas canceladas por usuarios o administración'],
+      ['No presentó', overview.no_show_reservations, 'Reservas marcadas como no show'],
+      ['Usuarios únicos', overview.unique_users, 'Personas distintas con reserva'],
+      ['Espacios ocupados', `${overview.occupied_spaces} de ${overview.total_spaces}`, 'Espacios con ocupación en el día'],
+      ['Ocupación general', percent(overview.occupancy_rate), 'Porcentaje de espacios ocupados'],
+      ['Uso de estacionamiento', percent(overview.parking_rate), 'Porcentaje de reservas con estacionamiento'],
+      ['Tasa de check-in', percent(overview.check_in_rate), 'Proporción de reservas usadas correctamente'],
+      ['Tasa de cancelación', percent(overview.cancellation_rate), 'Proporción de reservas canceladas'],
+      ['Tasa de no show', percent(overview.no_show_rate), 'Proporción de reservas donde el usuario no se presentó'],
+      ['Duración promedio', formatMinutes(overview.average_duration_minutes), 'Duración promedio de las reservas'],
+      ['Áreas bloqueadas', overview.blocked_area_count, 'Áreas completas no disponibles'],
+      ['Espacios bloqueados', overview.blocked_space_count, 'Espacios individuales no disponibles'],
+    ])
+
+    addReportTable(sheet, 'Distribución por estado', ['Estado', 'Cantidad'], overview.status_breakdown.map((item) => [
+      STATUS_EXPORT_LABELS[item.status],
+      item.count,
+    ]))
+
+    addReportTable(sheet, 'Distribución por tipo de reserva', ['Tipo de reserva', 'Cantidad'], overview.reservation_type_breakdown.map((item) => [
+      RESERVATION_TYPE_LABELS[item.type],
+      item.count,
+    ]))
+
+    addReportTable(sheet, 'Ocupación por piso', ['Piso', 'Espacios totales', 'Espacios ocupados', 'Ocupación'], overview.by_floor.map((floor) => [
+      floor.floor_name,
+      floor.total_spaces,
+      floor.occupied_spaces,
+      percent(floor.occupancy_rate),
+    ]))
+
+    addReportTable(sheet, 'Ocupación por categoría', ['Categoría', 'Espacios totales', 'Espacios ocupados', 'Ocupación'], overview.by_category.map((category) => [
+      PRIORITY_CATEGORY_LABELS[category.priority_category] ?? category.priority_category,
+      category.total_spaces,
+      category.occupied_spaces,
+      percent(category.occupancy_rate),
+    ]))
+
+    addReportTable(sheet, 'Demanda por hora', ['Hora', 'Reservas'], overview.hourly_distribution.map((item) => [
+      formatTimeLabel(item.hour),
+      item.reservations,
+    ]))
+
+    addReportTable(sheet, 'Usuarios con más reservas', ['Usuario', 'Correo', 'Reservas'], overview.top_users.map((user) => [
+      `${user.first_name} ${user.last_name}`.trim(),
+      user.email,
+      user.reservations,
+    ]))
+
+    addReportTable(sheet, 'Espacios más reservados', ['Espacio', 'Piso', 'Reservas'], overview.top_spaces.map((space) => [
+      space.display_name || space.space_number,
+      space.floor_name,
+      space.reservations,
+    ]))
+
+    addReportTable(sheet, 'Espacios con menor uso', ['Espacio', 'Piso', 'Reservas', 'Última reserva'], overview.underused_spaces.map((space) => [
+      space.display_name || space.space_number,
+      space.floor_name,
+      space.reservations,
+      space.last_reservation_date ? formatReportDate(space.last_reservation_date) : 'Sin registro',
+    ]))
+
+    addReportTable(sheet, 'Bloqueos de espacios', ['Espacio', 'Piso', 'Horario', 'Motivo', 'Estado'], overview.blocked_spaces.map((block) => [
+      block.space_number,
+      block.floor_name,
+      `${formatTimeLabel(block.start_time)} - ${formatTimeLabel(block.end_time)}`,
+      block.reason || 'Sin motivo registrado',
+      block.is_active ? 'Activo' : 'Inactivo',
+    ]))
+
+    addReportTable(sheet, 'Detalle de reservas', [
+      'Código de reserva',
+      'Fecha',
+      'Usuario',
+      'Correo',
+      'Departamento',
+      'Tipo de reserva',
+      'Espacio',
+      'Piso',
+      'Estacionamiento',
+      'Vehículo',
+      'Estado',
+      'Hora de inicio',
+      'Hora de fin',
+    ], overview.reservations_detail.map((reservation) => [
+      reservation.reservation_code,
+      formatReportDate(reservation.reservation_date),
+      getReservationUserName(reservation),
+      reservation.email,
+      reservation.department || 'Sin departamento',
+      RESERVATION_TYPE_LABELS[reservation.type],
+      getReservationSpaceLabel(reservation),
+      getReservationFloorLabel(reservation),
+      getReservationParkingLabel(reservation),
+      getReservationVehicleLabel(reservation),
+      STATUS_EXPORT_LABELS[reservation.status],
+      formatTimeLabel(reservation.start_time),
+      formatTimeLabel(reservation.end_time),
+    ]))
+
+    sheet.eachRow((row) => {
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.alignment = { ...cell.alignment, vertical: cell.alignment?.vertical ?? 'middle' }
+      })
+    })
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `workhub-kpis-${overview.date}.csv`
+    link.download = `workhub-reporte-administrativo-${overview.date}.xlsx`
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -708,8 +967,8 @@ export function AdminPage(): JSX.Element {
             <span>Fecha</span>
             <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
           </label>
-          <button type="button" className={styles.exportBtn} onClick={exportOverviewCsv} disabled={!overview}>
-            Exportar CSV
+          <button type="button" className={styles.exportBtn} onClick={() => void exportOverviewXlsx()} disabled={!overview}>
+            Exportar XLSX
           </button>
         </div>
 

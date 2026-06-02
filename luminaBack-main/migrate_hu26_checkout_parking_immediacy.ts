@@ -7,30 +7,6 @@ const pool = new Pool({
 })
 
 const SQL = `
-ALTER TABLE reservations
-  DROP CONSTRAINT IF EXISTS chk_reservation_status;
-
-ALTER TABLE reservations
-  ADD CONSTRAINT chk_reservation_status
-  CHECK (status IN ('confirmada', 'activa', 'finalizada', 'cancelada', 'no_show'));
-
-CREATE INDEX IF NOT EXISTS idx_reservations_checkout_lookup
-  ON reservations (id, user_id, status, check_out_time)
-  WHERE status = 'activa' AND check_out_time IS NULL;
-
-CREATE INDEX IF NOT EXISTS idx_reservations_user_active_current
-  ON reservations (user_id, reservation_date, start_time, end_time)
-  INCLUDE (status, space_id, parking_spot_id, vehicle_id)
-  WHERE status IN ('confirmada', 'activa');
-
-CREATE INDEX IF NOT EXISTS idx_reservations_admin_status_daily
-  ON reservations (reservation_date, status)
-  INCLUDE (user_id, space_id, parking_spot_id, vehicle_id, start_time, end_time);
-
-CREATE INDEX IF NOT EXISTS idx_reservations_ai_history_completed
-  ON reservations (user_id, reservation_date DESC, space_id, status)
-  WHERE space_id IS NOT NULL AND status IN ('confirmada', 'activa', 'finalizada');
-
 CREATE OR REPLACE FUNCTION workhub_validate_reservation_checkout()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -86,29 +62,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION workhub_expire_finished_reservations()
-RETURNS INTEGER
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  affected_rows INTEGER;
-BEGIN
-  UPDATE reservations
-     SET status = 'no_show',
-         updated_at = NOW()
-   WHERE status = 'confirmada'
-     AND space_id IS NOT NULL
-     AND (reservation_date + end_time) < NOW();
-
-  GET DIAGNOSTICS affected_rows = ROW_COUNT;
-  RETURN affected_rows;
-END;
-$$;
-
 ANALYZE reservations;
-ANALYZE spaces;
-ANALYZE user_badges;
-ANALYZE parking_spots;
 `
 
 async function main(): Promise<void> {
@@ -116,11 +70,6 @@ async function main(): Promise<void> {
 
   const result = await pool.query(`
     SELECT json_build_object(
-      'reservation_status_constraint', (
-        SELECT COUNT(*)::int
-        FROM pg_constraint
-        WHERE conname = 'chk_reservation_status'
-      ),
       'checkout_function', (
         SELECT COUNT(*)::int
         FROM pg_proc
@@ -136,7 +85,7 @@ async function main(): Promise<void> {
   `)
 
   console.log(JSON.stringify({
-    migration: "hu25_final_checkout_db_optimizations",
+    migration: "hu26_checkout_parking_immediacy",
     summary: result.rows[0]?.summary,
   }, null, 2))
 }
@@ -146,7 +95,7 @@ main()
     await pool.end()
   })
   .catch(async (error) => {
-    console.error("HU25 final checkout DB optimizations failed:", error)
+    console.error("HU26 checkout parking immediacy migration failed:", error)
     await pool.end()
     process.exit(1)
   })

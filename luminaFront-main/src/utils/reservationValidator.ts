@@ -38,7 +38,6 @@ const ERROR_MESSAGES: Record<ReservationErrorCode, string> = {
   CHECK_IN_NOT_AVAILABLE_YET: 'El check-in estará disponible 15 minutos antes de la hora de inicio.',
   CHECK_IN_WINDOW_CLOSED: 'La ventana de check-in ya cerró para esta reserva.',
   CHECK_IN_OUTSIDE_ALLOWED_NETWORK: 'El check-in solo está disponible dentro de la red de la oficina.',
-  PARKING_TOO_LATE: 'El estacionamiento solo puede solicitarse con al menos 24 horas de anticipación.',
   PARKING_UNAVAILABLE: 'No hay lugares de estacionamiento disponibles para ese horario.',
   PARKING_CONFLICT: 'Ya tienes estacionamiento reservado en ese horario.',
   VEHICLE_REQUIRED: 'Agrega un vehículo antes de reservar estacionamiento.',

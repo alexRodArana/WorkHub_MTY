@@ -116,15 +116,6 @@ export class ReservationService {
       throw new ReservationError(400, "INVALID_DATE", "La fecha de reservación no puede ser en el pasado")
     }
 
-    // Validate parking 24h rule
-    if (requiresParking) {
-      const reservationStartMs = this.toWallClockTimestamp(reservation_date, start_time)
-      const nowMs = this.getCurrentWallClockTime()
-      if (reservationStartMs - nowMs < 24 * 60 * 60 * 1000) {
-        throw new ReservationError(422, "PARKING_TOO_LATE", "El estacionamiento solo puede solicitarse con al menos 24 horas de anticipación")
-      }
-    }
-
     const resolvedSpaceId = hasSpaceId ? space_id as number : null
 
     if (hasSpaceId) {
@@ -344,10 +335,6 @@ export class ReservationService {
 
     if (reservation.user_id !== userId) {
       throw new ReservationError(403, "FORBIDDEN", "No autorizado para liberar esta reservación")
-    }
-
-    if (reservation.space_id === null) {
-      throw new ReservationError(422, "CHECK_OUT_NOT_AVAILABLE", "Las reservas solo de estacionamiento no requieren check-out")
     }
 
     if (reservation.status !== "activa" || reservation.check_out_time) {
