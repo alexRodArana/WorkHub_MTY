@@ -152,6 +152,15 @@ describe('reservationService', () => {
     expect((spy.mock.calls[0][1]?.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`)
   })
 
+  it('supports admin overview ranges for dashboard exports', async () => {
+    const spy = mockFetch(200, { date: '2099-06-01', date_from: '2099-06-01', date_to: '2099-06-30', blocked_areas: [] })
+
+    await fetchAdminOverview(TOKEN, { date_from: '2099-06-01', date_to: '2099-06-30' })
+
+    expect(String(spy.mock.calls[0][0])).toContain('date_from=2099-06-01')
+    expect(String(spy.mock.calls[0][0])).toContain('date_to=2099-06-30')
+  })
+
   it('posts area blocks for administrators', async () => {
     const spy = mockFetch(201, { id: 1 })
 

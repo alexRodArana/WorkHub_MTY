@@ -120,6 +120,8 @@ function makeReservation(overrides: Partial<Reservation> = {}): Reservation {
 function makeAdminOverview(overrides: Partial<AdminKpiOverview> = {}): AdminKpiOverview {
   return {
     date: FUTURE_DATE,
+    date_from: FUTURE_DATE,
+    date_to: FUTURE_DATE,
     total_reservations: 12,
     active_reservations: 3,
     confirmed_reservations: 8,

@@ -47,8 +47,45 @@ type DetailKey =
   | 'panel:hours'
   | 'panel:users'
 
+type AdminPeriodMode = 'day' | 'week' | 'month' | 'range'
+
+interface AdminPeriodRange {
+  date_from: string
+  date_to: string
+  label: string
+}
+
+const PERIOD_OPTIONS: Array<{ value: AdminPeriodMode; label: string }> = [
+  { value: 'day', label: 'Día' },
+  { value: 'week', label: 'Semana' },
+  { value: 'month', label: 'Mes' },
+  { value: 'range', label: 'Rango' },
+]
+
 function today(): string {
-  return new Date().toISOString().slice(0, 10)
+  const value = new Date()
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function parseIsoDate(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, (month || 1) - 1, day || 1)
+}
+
+function toIsoDate(value: Date): string {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function addDays(value: Date, days: number): Date {
+  const next = new Date(value)
+  next.setDate(next.getDate() + days)
+  return next
 }
 
 function percent(value: number): string {
@@ -75,6 +112,36 @@ function formatReportDate(value: string): string {
     month: 'long',
     year: 'numeric',
   })
+}
+
+function formatPeriodLabel(dateFrom: string, dateTo: string): string {
+  if (dateFrom === dateTo) return formatReportDate(dateFrom)
+  return `${formatReportDate(dateFrom)} - ${formatReportDate(dateTo)}`
+}
+
+function getAdminPeriodRange(mode: AdminPeriodMode, anchorDate: string, rangeStart: string, rangeEnd: string): AdminPeriodRange {
+  if (mode === 'week') {
+    const baseDate = parseIsoDate(anchorDate)
+    const mondayOffset = (baseDate.getDay() + 6) % 7
+    const start = toIsoDate(addDays(baseDate, -mondayOffset))
+    const end = toIsoDate(addDays(parseIsoDate(start), 6))
+    return { date_from: start, date_to: end, label: `Semana: ${formatPeriodLabel(start, end)}` }
+  }
+
+  if (mode === 'month') {
+    const [year, month] = anchorDate.split('-').map(Number)
+    const start = `${year}-${String(month).padStart(2, '0')}-01`
+    const end = toIsoDate(new Date(year, month, 0))
+    return { date_from: start, date_to: end, label: `Mes: ${formatPeriodLabel(start, end)}` }
+  }
+
+  if (mode === 'range') {
+    const start = rangeStart <= rangeEnd ? rangeStart : rangeEnd
+    const end = rangeStart <= rangeEnd ? rangeEnd : rangeStart
+    return { date_from: start, date_to: end, label: `Rango: ${formatPeriodLabel(start, end)}` }
+  }
+
+  return { date_from: anchorDate, date_to: anchorDate, label: `Día: ${formatReportDate(anchorDate)}` }
 }
 
 function formatGeneratedAt(): string {
@@ -210,6 +277,9 @@ function reservationMatchesKey(reservation: AdminReservationDetail, key: DetailK
 export function AdminPage(): JSX.Element {
   const navigate = useNavigate()
   const [date, setDate] = useState(today)
+  const [periodMode, setPeriodMode] = useState<AdminPeriodMode>('day')
+  const [rangeStart, setRangeStart] = useState(today)
+  const [rangeEnd, setRangeEnd] = useState(today)
   const [overview, setOverview] = useState<AdminKpiOverview | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -224,6 +294,10 @@ export function AdminPage(): JSX.Element {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([])
 
   const token = getSession()?.access_token
+  const periodRange = useMemo(
+    () => getAdminPeriodRange(periodMode, date, rangeStart, rangeEnd),
+    [date, periodMode, rangeEnd, rangeStart]
+  )
 
   useEffect(() => {
     if (!token) {
@@ -233,7 +307,7 @@ export function AdminPage(): JSX.Element {
 
     setLoading(true)
     setError(null)
-    fetchAdminOverview(token, date).then((overviewResult) => {
+    fetchAdminOverview(token, periodRange).then((overviewResult) => {
       setLoading(false)
       if (!overviewResult.success) {
         if (overviewResult.unauthorized) navigate('/login', { replace: true })
@@ -242,7 +316,7 @@ export function AdminPage(): JSX.Element {
       }
       setOverview(overviewResult.data)
     })
-  }, [date, navigate, token])
+  }, [navigate, periodRange, token])
 
   useEffect(() => {
     if (!error) return
@@ -335,10 +409,10 @@ export function AdminPage(): JSX.Element {
     return [
       {
         key: 'total',
-        label: 'Reservas del día',
+        label: 'Reservas del periodo',
         value: overview.total_reservations.toString(),
         detail: `${overview.confirmed_reservations} confirmadas · ${overview.active_reservations} en uso · ${overview.finalized_reservations} finalizadas`,
-        description: 'Mide la demanda total operativa para la fecha seleccionada.',
+        description: 'Mide la demanda total operativa para el periodo seleccionado.',
       },
       {
         key: 'occupancy',
@@ -373,7 +447,7 @@ export function AdminPage(): JSX.Element {
         label: 'Estacionamiento',
         value: percent(overview.parking_rate),
         detail: `${overview.parking_reservations} cajones reservados`,
-        description: 'Porcentaje de reservas del día que usan estacionamiento.',
+        description: 'Porcentaje de reservas del periodo que usan estacionamiento.',
       },
       {
         key: 'central-parking',
@@ -387,7 +461,7 @@ export function AdminPage(): JSX.Element {
         label: 'Vehículos',
         value: new Set(overview.reservations_detail.filter((item) => item.vehicle_id !== null).map((item) => item.vehicle_id)).size.toString(),
         detail: 'Vehículos únicos en reservas',
-        description: 'Vehículos registrados y asociados a reservas de estacionamiento del día.',
+        description: 'Vehículos registrados y asociados a reservas de estacionamiento del periodo.',
       },
       {
         key: 'parking-only',
@@ -414,7 +488,7 @@ export function AdminPage(): JSX.Element {
         key: 'duration',
         label: 'Duración media',
         value: formatMinutes(overview.average_duration_minutes),
-        detail: 'Promedio de las reservas del día',
+        detail: 'Promedio de las reservas del periodo',
         description: 'Ayuda a detectar uso parcial, jornadas completas y ventanas de alta rotación.',
       },
       {
@@ -443,7 +517,7 @@ export function AdminPage(): JSX.Element {
         label: 'Piso más activo',
         value: busiestFloor?.floor_name ?? '--',
         detail: busiestFloor ? percent(busiestFloor.occupancy_rate) : 'Sin datos suficientes',
-        description: 'Piso con mayor ocupación relativa en la fecha seleccionada.',
+        description: 'Piso con mayor ocupación relativa en el periodo seleccionado.',
       },
       {
         key: 'blocked',
@@ -526,7 +600,7 @@ export function AdminPage(): JSX.Element {
     workbook.creator = 'WorkHub MTY'
     workbook.company = 'WorkHub MTY'
     workbook.subject = 'Reporte administrativo de reservas'
-    workbook.title = `Reporte WorkHub MTY ${overview.date}`
+    workbook.title = `Reporte WorkHub MTY ${periodRange.label}`
     workbook.created = new Date()
 
     const sheet = workbook.addWorksheet('Reporte administrativo', {
@@ -555,7 +629,9 @@ export function AdminPage(): JSX.Element {
     titleRow.getCell(1).font = { bold: true, size: 16, color: { argb: REPORT_COLORS.white } }
 
     const metadataRows: ReportRow[] = [
-      ['Fecha analizada', formatReportDate(overview.date)],
+      ['Periodo analizado', periodRange.label],
+      ['Desde', formatReportDate(periodRange.date_from)],
+      ['Hasta', formatReportDate(periodRange.date_to)],
       ['Generado el', formatGeneratedAt()],
     ]
     metadataRows.forEach((values) => {
@@ -567,14 +643,14 @@ export function AdminPage(): JSX.Element {
     sheet.addRow([])
 
     addReportTable(sheet, 'Resumen ejecutivo', ['Indicador', 'Valor', 'Descripción'], [
-      ['Reservas totales', overview.total_reservations, 'Reservas registradas para la fecha seleccionada'],
+      ['Reservas totales', overview.total_reservations, 'Reservas registradas para el periodo seleccionado'],
       ['Reservas confirmadas', overview.confirmed_reservations, 'Reservas pendientes de uso o check-in'],
       ['Reservas en uso', overview.active_reservations, 'Reservas con check-in realizado'],
       ['Reservas finalizadas', overview.finalized_reservations, 'Reservas concluidas'],
       ['Reservas canceladas', overview.cancelled_reservations, 'Reservas canceladas por usuarios o administración'],
       ['No presentó', overview.no_show_reservations, 'Reservas marcadas como no show'],
       ['Usuarios únicos', overview.unique_users, 'Personas distintas con reserva'],
-      ['Espacios ocupados', `${overview.occupied_spaces} de ${overview.total_spaces}`, 'Espacios con ocupación en el día'],
+      ['Espacios ocupados', `${overview.occupied_spaces} de ${overview.total_spaces}`, 'Espacios con ocupación en el periodo'],
       ['Ocupación general', percent(overview.occupancy_rate), 'Porcentaje de espacios ocupados'],
       ['Uso de estacionamiento', percent(overview.parking_rate), 'Porcentaje de reservas con estacionamiento'],
       ['Tasa de check-in', percent(overview.check_in_rate), 'Proporción de reservas usadas correctamente'],
@@ -684,7 +760,7 @@ export function AdminPage(): JSX.Element {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `workhub-reporte-administrativo-${overview.date}.xlsx`
+    link.download = `workhub-reporte-administrativo-${periodRange.date_from}-${periodRange.date_to}.xlsx`
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -771,13 +847,14 @@ export function AdminPage(): JSX.Element {
 
   async function refresh() {
     if (!token) return
-    const result = await fetchAdminOverview(token, date)
+    const result = await fetchAdminOverview(token, periodRange)
     if (result.success) setOverview(result.data)
   }
 
   useReservationRealtime((event) => {
     const isAreaEvent = event.type.startsWith('area_block.')
-    if (isAreaEvent || !event.reservation_date || event.reservation_date === date) {
+    const eventDate = event.reservation_date
+    if (isAreaEvent || !eventDate || (eventDate >= periodRange.date_from && eventDate <= periodRange.date_to)) {
       void refresh()
     }
   }, Boolean(token))
@@ -795,7 +872,7 @@ export function AdminPage(): JSX.Element {
             <small>{selectedKpi.detail}</small>
           </div>
           <div className={styles.detailMetricGrid}>
-            <div><span>Fecha</span><strong>{date}</strong></div>
+            <div><span>Periodo</span><strong>{periodRange.label}</strong></div>
             <div><span>Reservas activas</span><strong>{overview.active_reservations}</strong></div>
             <div><span>Ocupación</span><strong>{percent(overview.occupancy_rate)}</strong></div>
             <div><span>Estacionamiento</span><strong>{overview.parking_reservations}</strong></div>
@@ -807,7 +884,7 @@ export function AdminPage(): JSX.Element {
     if (expandedKey === 'panel:health') {
       return (
         <>
-          <p>Lectura combinada de capacidad, estacionamiento y presión de demanda para la fecha seleccionada.</p>
+          <p>Lectura combinada de capacidad, estacionamiento y presión de demanda para el periodo seleccionado.</p>
           <div className={styles.detailMetricGrid}>
             <div><span>Espacios totales</span><strong>{overview.total_spaces}</strong></div>
             <div><span>Ocupados</span><strong>{overview.occupied_spaces}</strong></div>
@@ -919,7 +996,7 @@ export function AdminPage(): JSX.Element {
     if (expandedKey === 'panel:users') {
       return (
         <>
-          <p>Usuarios con mayor actividad en la fecha seleccionada.</p>
+          <p>Usuarios con mayor actividad en el periodo seleccionado.</p>
           <div className={styles.detailList}>
             {overview.top_users.map((user) => (
               <div key={user.user_id}>
@@ -963,10 +1040,59 @@ export function AdminPage(): JSX.Element {
               placeholder="Nombre, correo, área..."
             />
           </label>
-          <label>
-            <span>Fecha</span>
-            <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-          </label>
+          <div className={styles.periodControl}>
+            <span>Periodo</span>
+            <div className={styles.periodTabs} role="group" aria-label="Periodo del dashboard">
+              {PERIOD_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={periodMode === option.value ? styles.periodTabActive : undefined}
+                  aria-pressed={periodMode === option.value}
+                  onClick={() => setPeriodMode(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {periodMode === 'range' ? (
+            <div className={styles.rangeFields}>
+              <label>
+                <span>Desde</span>
+                <input
+                  type="date"
+                  value={rangeStart}
+                  onChange={(event) => {
+                    if (event.target.value) setRangeStart(event.target.value)
+                  }}
+                />
+              </label>
+              <label>
+                <span>Hasta</span>
+                <input
+                  type="date"
+                  value={rangeEnd}
+                  onChange={(event) => {
+                    if (event.target.value) setRangeEnd(event.target.value)
+                  }}
+                />
+              </label>
+            </div>
+          ) : (
+            <label className={styles.periodInput}>
+              <span>{periodMode === 'month' ? 'Mes' : periodMode === 'week' ? 'Semana base' : 'Fecha'}</span>
+              <input
+                type={periodMode === 'month' ? 'month' : 'date'}
+                value={periodMode === 'month' ? date.slice(0, 7) : date}
+                onChange={(event) => {
+                  if (!event.target.value) return
+                  setDate(periodMode === 'month' ? `${event.target.value}-01` : event.target.value)
+                }}
+              />
+            </label>
+          )}
+          <small className={styles.periodSummary}>{periodRange.label}</small>
           <button type="button" className={styles.exportBtn} onClick={() => void exportOverviewXlsx()} disabled={!overview}>
             Exportar XLSX
           </button>
@@ -1065,7 +1191,7 @@ export function AdminPage(): JSX.Element {
                 </div>
                 <div className={styles.statusList}>
                   {overview.status_breakdown.length === 0 ? (
-                    <p className={styles.emptyState}>Sin reservas para esta fecha.</p>
+                    <p className={styles.emptyState}>Sin reservas para este periodo.</p>
                   ) : overview.status_breakdown.map((item) => {
                     const ratio = statusTotal > 0 ? item.count / statusTotal : 0
                     return (
@@ -1204,7 +1330,7 @@ export function AdminPage(): JSX.Element {
               <article className={styles.panel}>
                 <div className={styles.panelHeader}>
                   <h3>Espacios más usados</h3>
-                  <span>Últimos 30 días</span>
+                  <span>Periodo</span>
                 </div>
                 <div className={styles.detailList}>
                   {overview.top_spaces.map((space) => (
@@ -1218,7 +1344,7 @@ export function AdminPage(): JSX.Element {
               <article className={styles.panel}>
                 <div className={styles.panelHeader}>
                   <h3>Espacios subutilizados</h3>
-                  <span>Últimos 30 días</span>
+                  <span>Periodo</span>
                 </div>
                 <div className={styles.detailList}>
                   {overview.underused_spaces.map((space) => (

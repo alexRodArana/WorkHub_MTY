@@ -796,7 +796,7 @@ export class ReservationRepository {
     ]))
   }
 
-  async getAdminOverview(date: string): Promise<AdminKpiOverview> {
+  async getAdminOverview(dateFrom: string, dateTo = dateFrom): Promise<AdminKpiOverview> {
     const [totals, byFloor, byCategory, areaBlocks, spaceBlocks, statusBreakdown, hourlyDistribution, topUsers, topSpaces, underusedSpaces, adminDetails] = await Promise.all([
       this.db.query<{
         total_reservations: string
@@ -815,10 +815,10 @@ export class ReservationRepository {
         total_spaces: string
         occupied_spaces: string
       }>(
-        `WITH daily_reservations AS (
+        `WITH period_reservations AS (
            SELECT user_id, space_id, parking_spot_id, requiere_estacionamiento, status, start_time, end_time
            FROM reservations
-           WHERE reservation_date = $1
+           WHERE reservation_date BETWEEN $1::date AND $2::date
          )
          SELECT
            COUNT(*) FILTER (WHERE status IN ('confirmada', 'activa', 'finalizada', 'no_show'))::text AS total_reservations,
@@ -836,8 +836,8 @@ export class ReservationRepository {
            COUNT(DISTINCT user_id) FILTER (WHERE status IN ('confirmada', 'activa', 'finalizada'))::text AS unique_users,
            (SELECT COUNT(*) FROM spaces WHERE is_active = true AND visual_only = false)::text AS total_spaces,
            COUNT(DISTINCT space_id) FILTER (WHERE status IN ('confirmada', 'activa') AND space_id IS NOT NULL)::text AS occupied_spaces
-         FROM daily_reservations`,
-        [date]
+         FROM period_reservations`,
+        [dateFrom, dateTo]
       ),
       this.db.query<{
         floor_id: number
@@ -852,12 +852,12 @@ export class ReservationRepository {
          FROM floors f
          LEFT JOIN spaces s ON s.floor_id = f.id AND s.is_active = true AND s.visual_only = false
          LEFT JOIN reservations r ON r.space_id = s.id
-          AND r.reservation_date = $1
+          AND r.reservation_date BETWEEN $1::date AND $2::date
           AND r.status IN ('confirmada', 'activa')
          WHERE f.is_active = true
          GROUP BY f.id, f.name
          ORDER BY f.floor_number`,
-        [date]
+        [dateFrom, dateTo]
       ),
       this.db.query<{
         priority_category: PriorityCategory
@@ -869,34 +869,34 @@ export class ReservationRepository {
                 COUNT(DISTINCT r.space_id)::text AS occupied_spaces
          FROM spaces s
          LEFT JOIN reservations r ON r.space_id = s.id
-          AND r.reservation_date = $1
+          AND r.reservation_date BETWEEN $1::date AND $2::date
           AND r.status IN ('confirmada', 'activa')
          WHERE s.is_active = true
            AND s.visual_only = false
            AND s.priority_category IS NOT NULL
          GROUP BY s.priority_category
          ORDER BY s.priority_category`,
-        [date]
+        [dateFrom, dateTo]
       ),
       this.findAreaBlocks(),
-      this.findSpaceBlocks(date),
+      this.findSpaceBlocks(dateFrom, dateTo),
       this.db.query<{ status: ReservationStatus; count: string }>(
         `SELECT status, COUNT(*)::text AS count
          FROM reservations
-         WHERE reservation_date = $1
+         WHERE reservation_date BETWEEN $1::date AND $2::date
          GROUP BY status
          ORDER BY status`,
-        [date]
+        [dateFrom, dateTo]
       ),
       this.db.query<{ hour: string; reservations: string }>(
         `SELECT to_char(date_trunc('hour', start_time::time), 'HH24:MI') AS hour,
                 COUNT(*)::text AS reservations
          FROM reservations
-         WHERE reservation_date = $1
+         WHERE reservation_date BETWEEN $1::date AND $2::date
            AND status IN ('confirmada', 'activa')
          GROUP BY date_trunc('hour', start_time::time)
          ORDER BY date_trunc('hour', start_time::time)`,
-        [date]
+        [dateFrom, dateTo]
       ),
       this.db.query<{
         user_id: number
@@ -912,12 +912,12 @@ export class ReservationRepository {
                 COUNT(*)::text AS reservations
          FROM reservations r
          JOIN users u ON u.id = r.user_id
-         WHERE r.reservation_date = $1
+         WHERE r.reservation_date BETWEEN $1::date AND $2::date
            AND r.status IN ('confirmada', 'activa')
          GROUP BY u.id, u.first_name, u.last_name, u.email
          ORDER BY COUNT(*) DESC, u.first_name
          LIMIT 5`,
-        [date]
+        [dateFrom, dateTo]
       ),
       this.db.query<{
         space_id: number
@@ -934,13 +934,13 @@ export class ReservationRepository {
          FROM reservations r
          JOIN spaces s ON s.id = r.space_id
          JOIN floors f ON f.id = s.floor_id
-         WHERE r.reservation_date BETWEEN ($1::date - INTERVAL '30 days') AND $1::date
+         WHERE r.reservation_date BETWEEN $1::date AND $2::date
            AND r.status IN ('confirmada', 'activa', 'no_show')
            AND r.space_id IS NOT NULL
          GROUP BY s.id, s.space_number, s.display_name, f.name
          ORDER BY COUNT(r.id) DESC, s.space_number
          LIMIT 8`,
-        [date]
+        [dateFrom, dateTo]
       ),
       this.db.query<{
         space_id: number
@@ -959,14 +959,14 @@ export class ReservationRepository {
          FROM spaces s
          JOIN floors f ON f.id = s.floor_id
          LEFT JOIN reservations r ON r.space_id = s.id
-          AND r.reservation_date BETWEEN ($1::date - INTERVAL '30 days') AND $1::date
+          AND r.reservation_date BETWEEN $1::date AND $2::date
           AND r.status IN ('confirmada', 'activa', 'no_show')
          WHERE s.is_active = true
            AND COALESCE(s.visual_only, false) = false
          GROUP BY s.id, s.space_number, s.display_name, f.name
          ORDER BY COUNT(r.id) ASC, MAX(r.reservation_date) NULLS FIRST, s.space_number
          LIMIT 8`,
-        [date]
+        [dateFrom, dateTo]
       ),
       this.db.query<AdminReservationDetail>(
         `SELECT r.id AS reservation_id,
@@ -1003,10 +1003,10 @@ export class ReservationRepository {
          LEFT JOIN parking_spots ps ON ps.id = r.parking_spot_id
          LEFT JOIN parking_zones pz ON pz.id = ps.zone_id
          LEFT JOIN user_vehicles uv ON uv.id = r.vehicle_id
-         WHERE r.reservation_date = $1
-         ORDER BY r.start_time, u.first_name, u.last_name
+         WHERE r.reservation_date BETWEEN $1::date AND $2::date
+         ORDER BY r.reservation_date, r.start_time, u.first_name, u.last_name
          LIMIT 500`,
-        [date]
+        [dateFrom, dateTo]
       ),
     ])
 
@@ -1031,7 +1031,9 @@ export class ReservationRepository {
     const occupiedSpaces = Number(total.occupied_spaces)
 
     return {
-      date,
+      date: dateFrom,
+      date_from: dateFrom,
+      date_to: dateTo,
       total_reservations: Number(total.total_reservations),
       active_reservations: Number(total.active_reservations),
       confirmed_reservations: Number(total.confirmed_reservations),
@@ -1211,7 +1213,7 @@ export class ReservationRepository {
     return result.rows.length > 0
   }
 
-  async findSpaceBlocks(date?: string): Promise<SpaceBlock[]> {
+  async findSpaceBlocks(date?: string, endDate?: string): Promise<SpaceBlock[]> {
     const result = await this.db.query<SpaceBlock>(
       `SELECT sb.id,
               sb.space_id,
@@ -1228,9 +1230,13 @@ export class ReservationRepository {
        JOIN spaces s ON s.id = sb.space_id
        JOIN floors f ON f.id = s.floor_id
        WHERE sb.is_active = true
-         AND ($1::date IS NULL OR sb.block_date = $1::date)
+         AND (
+           $1::date IS NULL
+           OR ($2::date IS NULL AND sb.block_date = $1::date)
+           OR ($2::date IS NOT NULL AND sb.block_date BETWEEN $1::date AND $2::date)
+         )
        ORDER BY sb.block_date, sb.start_time, f.floor_number, s.space_number`,
-      [date ?? null]
+      [date ?? null, endDate ?? null]
     )
 
     return result.rows.map((row) => ({

@@ -125,13 +125,43 @@
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(117, 0, 192, 0.08);
-  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
 .vehicleCard:hover {
-  transform: translateY(-1px);
-  border-color: rgba(161, 0, 255, 0.18);
-  box-shadow: 0 12px 24px rgba(70, 0, 115, 0.08);
+  transform: translateY(-2px);
+  border-color: rgba(161, 0, 255, 0.24);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 28px rgba(70, 0, 115, 0.1);
+}
+
+.vehicleCard:focus-visible {
+  outline: none;
+  border-color: rgba(161, 0, 255, 0.42);
+  box-shadow: 0 0 0 3px rgba(161, 0, 255, 0.12), 0 14px 28px rgba(70, 0, 115, 0.1);
+}
+
+.vehicleCardDefault {
+  border-color: rgba(0, 140, 114, 0.26);
+  background: linear-gradient(135deg, rgba(0, 201, 167, 0.12), rgba(161, 0, 255, 0.08));
+  box-shadow: 0 14px 28px rgba(0, 140, 114, 0.08);
+}
+
+.vehicleCardDefault:hover {
+  border-color: rgba(0, 140, 114, 0.34);
+  background: linear-gradient(135deg, rgba(0, 201, 167, 0.16), rgba(161, 0, 255, 0.1));
+}
+
+.vehicleCardSaving {
+  opacity: 0.72;
+  cursor: wait;
+}
+
+.vehicleCardMain {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .vehicleCard strong,
@@ -157,6 +187,27 @@
   color: #6b6380;
   font-size: 0.8rem;
   font-weight: 700;
+}
+
+.vehicleStatusRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.vehicleHint {
+  width: max-content;
+  max-width: 100%;
+  margin-top: 0 !important;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(117, 0, 192, 0.07);
+  color: #7500c0 !important;
+  font-size: 0.72rem !important;
+  font-weight: 900 !important;
+  line-height: 1.1;
 }
 
 .vehicleActions button,
@@ -192,6 +243,12 @@
   color: #006f5d;
   border-color: rgba(0, 140, 114, 0.24);
   cursor: default;
+}
+
+.vehicleStatusRow .defaultChip {
+  min-height: 28px;
+  height: auto;
+  padding: 5px 9px;
 }
 
 .dangerBtn {
@@ -448,6 +505,27 @@
   border-color: rgba(161, 0, 255, 0.14);
 }
 
+:global([data-theme='dark']) .vehicleCard:hover {
+  background: rgba(161, 0, 255, 0.12);
+  border-color: rgba(161, 0, 255, 0.24);
+}
+
+:global([data-theme='dark']) .vehicleCardDefault {
+  border-color: rgba(0, 190, 154, 0.32);
+  background: linear-gradient(135deg, rgba(0, 190, 154, 0.16), rgba(161, 0, 255, 0.12));
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.24);
+}
+
+:global([data-theme='dark']) .vehicleCardDefault:hover {
+  border-color: rgba(0, 190, 154, 0.42);
+  background: linear-gradient(135deg, rgba(0, 190, 154, 0.2), rgba(161, 0, 255, 0.16));
+}
+
+:global([data-theme='dark']) .vehicleHint {
+  background: rgba(161, 0, 255, 0.14);
+  color: #d9b4ff !important;
+}
+
 :global([data-theme='dark']) .vehicleForm input {
   border-color: rgba(161, 0, 255, 0.18);
   background: rgba(21, 28, 38, 0.9);
@@ -493,6 +571,10 @@
     justify-content: flex-start;
   }
 
+  .vehicleActions button {
+    flex: 1 1 120px;
+  }
+
   .photoActions {
     width: 100%;
   }
@@ -507,11 +589,15 @@
 @media (prefers-reduced-motion: reduce) {
   .primaryBtn,
   .ghostBtn,
-  .disabledBtn {
+  .disabledBtn,
+  .vehicleCard,
+  .vehicleActions button {
     transition: none;
   }
 
-  .primaryBtn:hover:not(:disabled) {
+  .primaryBtn:hover:not(:disabled),
+  .vehicleCard:hover,
+  .vehicleActions button:hover:not(:disabled) {
     transform: none;
   }
 

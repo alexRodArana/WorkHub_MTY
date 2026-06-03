@@ -252,6 +252,8 @@ export interface CheckInResult {
 
 export interface AdminKpiOverview {
   date: string
+  date_from: string
+  date_to: string
   total_reservations: number
   active_reservations: number
   confirmed_reservations: number

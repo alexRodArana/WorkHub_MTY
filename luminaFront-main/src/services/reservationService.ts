@@ -266,12 +266,27 @@ export async function askReservationAssistant(
   }
 }
 
+type AdminOverviewPeriod = string | {
+  date?: string
+  date_from?: string
+  date_to?: string
+}
+
+function adminOverviewParams(period: AdminOverviewPeriod): URLSearchParams {
+  if (typeof period === 'string') return new URLSearchParams({ date: period })
+  const params = new URLSearchParams()
+  if (period.date_from) params.set('date_from', period.date_from)
+  if (period.date_to) params.set('date_to', period.date_to)
+  if (!period.date_from && !period.date_to && period.date) params.set('date', period.date)
+  return params
+}
+
 export async function fetchAdminOverview(
   token: string,
-  date: string
+  period: AdminOverviewPeriod
 ): Promise<ServiceResult<AdminKpiOverview>> {
   try {
-    const params = new URLSearchParams({ date })
+    const params = adminOverviewParams(period)
     const cacheKey = scopedCacheKey(token, `admin:${params.toString()}`)
     const cached = getCached<AdminKpiOverview>(cacheKey)
     if (cached) return { success: true, data: cached }

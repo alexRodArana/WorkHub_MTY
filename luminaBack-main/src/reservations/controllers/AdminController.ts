@@ -25,10 +25,18 @@ export class AdminController {
 
   async getOverview(req: Request, res: Response): Promise<void> {
     try {
-      const date = typeof req.query.date === "string"
+      const fallbackDate = typeof req.query.date === "string"
         ? req.query.date
         : new Date().toISOString().slice(0, 10)
-      res.json(await this.reservationRepository.getAdminOverview(date))
+      const dateFrom = typeof req.query.date_from === "string" ? req.query.date_from : fallbackDate
+      const dateTo = typeof req.query.date_to === "string" ? req.query.date_to : dateFrom
+
+      if (!isIsoDate(dateFrom) || !isIsoDate(dateTo) || dateTo < dateFrom) {
+        res.status(400).json({ error: "INVALID_DATE_RANGE", message: "Rango de fechas inválido" })
+        return
+      }
+
+      res.json(await this.reservationRepository.getAdminOverview(dateFrom, dateTo))
     } catch (err) {
       this.handleError(err, res)
     }

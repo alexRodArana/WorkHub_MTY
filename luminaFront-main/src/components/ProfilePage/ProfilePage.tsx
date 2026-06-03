@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../Layout/AppShell'
 import { LoadingSpinner } from '../LoadingSpinner/LoadingSpinner'
@@ -208,6 +208,17 @@ export function ProfilePage(): JSX.Element {
     setMessage('Vehículo principal actualizado.')
   }
 
+  function selectDefaultVehicle(vehicle: UserVehicle): void {
+    if (vehicle.is_default || vehicleSavingId !== null) return
+    void handleDefaultVehicle(vehicle.id)
+  }
+
+  function handleVehicleCardKeyDown(event: KeyboardEvent<HTMLElement>, vehicle: UserVehicle): void {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    selectDefaultVehicle(vehicle)
+  }
+
   async function handleDeleteVehicle(vehicleId: number): Promise<void> {
     const token = getSession()?.access_token
     if (!token) return
@@ -338,18 +349,31 @@ export function ProfilePage(): JSX.Element {
                 {vehicles.length === 0 ? (
                   <p className={styles.vehicleEmpty}>Agrega un vehículo para poder reservar estacionamiento.</p>
                 ) : vehicles.map((vehicle) => (
-                  <article key={vehicle.id} className={styles.vehicleCard}>
-                    <div>
+                  <article
+                    key={vehicle.id}
+                    className={`${styles.vehicleCard} ${vehicle.is_default ? styles.vehicleCardDefault : ''} ${vehicleSavingId === vehicle.id ? styles.vehicleCardSaving : ''}`}
+                    role="button"
+                    tabIndex={vehicleSavingId === null ? 0 : -1}
+                    aria-pressed={vehicle.is_default}
+                    aria-label={`${vehicle.alias || vehicle.plate}. ${vehicle.is_default ? 'Vehículo principal' : 'Marcar como vehículo principal'}`}
+                    onClick={() => selectDefaultVehicle(vehicle)}
+                    onKeyDown={(event) => handleVehicleCardKeyDown(event, vehicle)}
+                  >
+                    <div className={styles.vehicleCardMain}>
                       <strong>{vehicle.alias || [vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehículo'}</strong>
                       <span>{vehicle.plate}{vehicle.color ? ` · ${vehicle.color}` : ''}</span>
                       {(vehicle.make || vehicle.model) && <small>{[vehicle.make, vehicle.model].filter(Boolean).join(' ')}</small>}
+                      <div className={styles.vehicleStatusRow}>
+                        {vehicleSavingId === vehicle.id ? (
+                          <span className={styles.vehicleHint}>Actualizando...</span>
+                        ) : vehicle.is_default ? (
+                          <span className={styles.defaultChip}>Principal</span>
+                        ) : (
+                          <span className={styles.vehicleHint}>Toca la tarjeta para hacerlo principal</span>
+                        )}
+                      </div>
                     </div>
-                    <div className={styles.vehicleActions}>
-                      {vehicle.is_default ? (
-                        <span className={styles.defaultChip}>Principal</span>
-                      ) : (
-                        <button type="button" onClick={() => void handleDefaultVehicle(vehicle.id)} disabled={vehicleSavingId !== null}>Principal</button>
-                      )}
+                    <div className={styles.vehicleActions} onClick={(event) => event.stopPropagation()}>
                       <button type="button" onClick={() => startEditingVehicle(vehicle)} disabled={vehicleSavingId !== null}>Editar</button>
                       <button type="button" className={styles.dangerBtn} onClick={() => void handleDeleteVehicle(vehicle.id)} disabled={vehicleSavingId !== null}>Eliminar</button>
                     </div>
