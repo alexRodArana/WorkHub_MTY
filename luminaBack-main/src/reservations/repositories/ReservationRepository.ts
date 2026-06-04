@@ -975,11 +975,7 @@ export class ReservationRepository {
                 r.start_time::text AS start_time,
                 r.end_time::text AS end_time,
                 r.status,
-                CASE
-                  WHEN r.space_id IS NULL THEN 'parking_only'
-                  WHEN r.parking_spot_id IS NOT NULL OR r.requiere_estacionamiento = true THEN 'desk_parking'
-                  ELSE 'desk_only'
-                END AS type,
+                workhub_reservation_type(r.space_id, r.parking_spot_id, r.requiere_estacionamiento) AS type,
                 u.id AS user_id,
                 u.first_name,
                 u.last_name,

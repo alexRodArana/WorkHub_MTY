@@ -243,6 +243,49 @@ describe("ReservationController integration", () => {
     expect(reservationService.checkOut).toHaveBeenCalledWith(22, 7)
   })
 
+  it("publishes a realtime check-out event with floor and parking context", async () => {
+    const checkOutTime = new Date("2099-06-01T09:45:00.000Z")
+    const repository = {
+      addAuditLog: vi.fn().mockResolvedValue(undefined),
+      findEventDetails: vi.fn().mockResolvedValue({
+        reservation_id: 22,
+        reservation_date: "2099-06-01",
+        floor_id: 9,
+        space_id: 55,
+        parking: true,
+      }),
+    } as unknown as ReservationRepository
+    const eventHub = { publish: vi.fn() }
+    const checkoutController = new ReservationController(
+      reservationService,
+      repository,
+      {} as StreakRepository,
+      {} as BadgeService,
+      eventHub as never
+    )
+    vi.mocked(reservationService.checkOut).mockResolvedValue({ check_out_time: checkOutTime })
+    const response = makeResponse()
+
+    await checkoutController.checkOut(makeRequest({ params: { id: "22" } }), response)
+
+    expect(response.statusCodeValue).toBe(200)
+    expect(repository.addAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+      actorUserId: 7,
+      action: "reservation.checked_out",
+      entityType: "reservation",
+      entityId: 22,
+    }))
+    expect(eventHub.publish).toHaveBeenCalledWith({
+      type: "reservation.checked_out",
+      actor_user_id: 7,
+      reservation_id: 22,
+      reservation_date: "2099-06-01",
+      floor_id: 9,
+      space_id: 55,
+      parking: true,
+    })
+  })
+
   it("answers assistant questions with the authenticated user context", async () => {
     vi.mocked(reservationService.answerAssistantQuestion).mockResolvedValue({
       answer: "Te recomiendo PB-21.",
@@ -271,6 +314,39 @@ describe("ReservationController integration", () => {
 })
 
 describe("AdminController", () => {
+  it("loads KPI overview for explicit date ranges", async () => {
+    const repository = {
+      getAdminOverview: vi.fn().mockResolvedValue({
+        date: "2099-06-01",
+        date_from: "2099-06-01",
+        date_to: "2099-06-30",
+      }),
+    } as unknown as ReservationRepository
+    const response = makeResponse()
+
+    await new AdminController(repository).getOverview(makeRequest({
+      query: { date_from: "2099-06-01", date_to: "2099-06-30" },
+    }), response)
+
+    expect(response.statusCodeValue).toBe(200)
+    expect(repository.getAdminOverview).toHaveBeenCalledWith("2099-06-01", "2099-06-30")
+  })
+
+  it("rejects invalid KPI overview ranges before hitting the database", async () => {
+    const repository = {
+      getAdminOverview: vi.fn(),
+    } as unknown as ReservationRepository
+    const response = makeResponse()
+
+    await new AdminController(repository).getOverview(makeRequest({
+      query: { date_from: "2099-06-30", date_to: "2099-06-01" },
+    }), response)
+
+    expect(response.statusCodeValue).toBe(400)
+    expect(response.body).toMatchObject({ error: "INVALID_DATE_RANGE" })
+    expect(repository.getAdminOverview).not.toHaveBeenCalled()
+  })
+
   it("blocks an area through the repository", async () => {
     const repository = {
       blockArea: vi.fn().mockResolvedValue({

@@ -130,6 +130,18 @@ describe('reservationService', () => {
     expect((spy.mock.calls[0][1]?.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`)
   })
 
+  it('surfaces check-out availability errors from the API', async () => {
+    mockFetch(409, { error: 'CHECK_OUT_NOT_AVAILABLE', message: 'No se pudo liberar el espacio' })
+
+    const result = await checkOutReservation(22, TOKEN)
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toBe('CHECK_OUT_NOT_AVAILABLE')
+      expect(result.unauthorized).toBe(false)
+    }
+  })
+
   it('fetches AI recommendations with the same filter contract', async () => {
     const spy = mockFetch(200, { predicted_occupancy: 0.5, prediction_label: 'media', recommendations: [] })
 
