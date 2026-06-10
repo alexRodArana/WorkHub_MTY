@@ -121,6 +121,8 @@ El guardia no tiene acceso a vistas de empleado ni administrador.
 
 El proyecto incluye un seed principal deterministico para presentar WorkHub MTY como producto con datos realistas: perfiles, fotos tipo avatar, vehiculos, reservas, estacionamientos, badges y bloqueos administrativos. Este es el seed oficial que debe ejecutarse en produccion para tener los perfiles de demostracion reales.
 
+En produccion, el backend ejecuta este seed automaticamente antes de iniciar el servidor mediante `npm start`. Esto asegura que cuentas como `lucia.moreno@lumina.demo` existan en la base real usada por Render.
+
 Ejecutar seed de demo:
 
 ```bash

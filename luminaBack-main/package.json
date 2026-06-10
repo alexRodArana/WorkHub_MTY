@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "npm run db:seed && node dist/index.js",
     "dev": "ts-node src/index.ts",
     "db:migrate:hu27": "ts-node migrate_hu27_final_performance_quality.ts",
     "db:seed": "ts-node seed.ts",
