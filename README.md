@@ -360,7 +360,7 @@ DATABASE_URL=postgresql://...
 JWT_SECRET=...
 JWT_ALGORITHM=HS256
 JWT_EXPIRES_IN=3600
-FRONTEND_ORIGIN=http://localhost:5173
+ALLOWED_ORIGINS=http://localhost:5173,https://tu-frontend.vercel.app
 AI_PROVIDER=gemini
 GEMINI_API_KEY=...
 GEMINI_MODEL=gemini-2.5-flash-lite
@@ -376,6 +376,8 @@ VITE_API_URL=http://localhost:3000
 VITE_SUPABASE_URL=https://...
 VITE_SUPABASE_PUBLISHABLE_KEY=...
 ```
+
+En Vercel se recomienda configurar `VITE_API_URL=https://workhub-mty.onrender.com`. Si se omite, el frontend desplegado usa ese backend de produccion como fallback.
 
 Nunca subir `.env` reales al repositorio.
 
@@ -561,7 +563,7 @@ Configuracion esperada:
 - Root: `luminaFront-main`
 - Build command: `npm run build`
 - Output directory: `dist`
-- Environment variables: las del frontend.
+- Environment variables: las del frontend, especialmente `VITE_API_URL`.
 
 ### Supabase
 
