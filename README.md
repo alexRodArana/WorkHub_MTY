@@ -141,10 +141,10 @@ Credenciales demo:
 
 Datos incluidos por el seed:
 
-- 16 usuarios demo activos.
-- 13 empleados con perfil, foto y vehiculo.
+- 32 usuarios demo activos.
+- 29 empleados con perfil, foto tipo stock y vehiculo.
 - Usuarios con multiples vehiculos para validar seleccion de principal.
-- 50 reservas demo con estados `confirmada`, `activa`, `finalizada`, `cancelada` y `no_show`.
+- 106 reservas demo con estados `confirmada`, `activa`, `finalizada`, `cancelada` y `no_show`.
 - Reservas de tipo escritorio, escritorio con estacionamiento y solo estacionamiento.
 - 2 bloqueos administrativos activos.
 - Badges precargadas en usuarios seleccionados.

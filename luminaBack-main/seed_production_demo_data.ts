@@ -33,6 +33,7 @@ type DemoUser = {
   department: string
   role: DemoRole
   color: string
+  photo_id?: number
   vehicles?: DemoVehicle[]
   scenario?: "badge_unlock"
 }
@@ -56,50 +57,98 @@ const pool = new Pool({
 })
 
 const demoUsers: DemoUser[] = [
-  { email: "ana.garcia@lumina.demo", first_name: "Ana", last_name: "Garcia", employee_id: "DEMO-101", department: "People", role: "employee", color: "#a100ff", vehicles: [
+  { email: "ana.garcia@lumina.demo", first_name: "Ana", last_name: "Garcia", employee_id: "DEMO-101", department: "People", role: "employee", color: "#a100ff", photo_id: 5, vehicles: [
     { alias: "Mini Cooper personal", plate: "NL-AG-218", make: "Mini", model: "Cooper S", color: "Blanco", is_default: true },
     { alias: "SUV familiar", plate: "NL-AG-772", make: "Mazda", model: "CX-5", color: "Azul" },
   ] },
-  { email: "diego.martinez@lumina.demo", first_name: "Diego", last_name: "Martinez", employee_id: "DEMO-102", department: "Technology", role: "employee", color: "#00a98e", vehicles: [
+  { email: "diego.martinez@lumina.demo", first_name: "Diego", last_name: "Martinez", employee_id: "DEMO-102", department: "Technology", role: "employee", color: "#00a98e", photo_id: 12, vehicles: [
     { alias: "Tesla oficina", plate: "NL-DM-310", make: "Tesla", model: "Model 3", color: "Negro", is_default: true },
   ] },
-  { email: "sofia.lopez@lumina.demo", first_name: "Sofia", last_name: "Lopez", employee_id: "DEMO-103", department: "Operations", role: "employee", color: "#ff7a45", vehicles: [
+  { email: "sofia.lopez@lumina.demo", first_name: "Sofia", last_name: "Lopez", employee_id: "DEMO-103", department: "Operations", role: "employee", color: "#ff7a45", photo_id: 32, vehicles: [
     { alias: "Camioneta", plate: "NL-SL-641", make: "Toyota", model: "RAV4", color: "Gris", is_default: true },
   ] },
-  { email: "mateo.hernandez@lumina.demo", first_name: "Mateo", last_name: "Hernandez", employee_id: "DEMO-104", department: "Finance", role: "employee", color: "#4f46e5", vehicles: [
+  { email: "mateo.hernandez@lumina.demo", first_name: "Mateo", last_name: "Hernandez", employee_id: "DEMO-104", department: "Finance", role: "employee", color: "#4f46e5", photo_id: 14, vehicles: [
     { alias: "Sedan diario", plate: "NL-MH-552", make: "Honda", model: "Civic", color: "Plata", is_default: true },
     { alias: "Auto fin de semana", plate: "NL-MH-984", make: "BMW", model: "Serie 3", color: "Azul" },
   ] },
-  { email: "valeria.torres@lumina.demo", first_name: "Valeria", last_name: "Torres", employee_id: "DEMO-105", department: "Marketing", role: "employee", color: "#d946ef", vehicles: [
+  { email: "valeria.torres@lumina.demo", first_name: "Valeria", last_name: "Torres", employee_id: "DEMO-105", department: "Marketing", role: "employee", color: "#d946ef", photo_id: 47, vehicles: [
     { alias: "Kia principal", plate: "NL-VT-447", make: "Kia", model: "Forte", color: "Rojo", is_default: true },
   ] },
-  { email: "camila.ramirez@lumina.demo", first_name: "Camila", last_name: "Ramirez", employee_id: "DEMO-106", department: "Legal", role: "employee", color: "#0284c7", vehicles: [
+  { email: "camila.ramirez@lumina.demo", first_name: "Camila", last_name: "Ramirez", employee_id: "DEMO-106", department: "Legal", role: "employee", color: "#0284c7", photo_id: 29, vehicles: [
     { alias: "Hyundai azul", plate: "NL-CR-703", make: "Hyundai", model: "Tucson", color: "Azul", is_default: true },
   ] },
-  { email: "luis.vargas@lumina.demo", first_name: "Luis", last_name: "Vargas", employee_id: "DEMO-107", department: "Sales", role: "employee", color: "#16a34a", vehicles: [
+  { email: "luis.vargas@lumina.demo", first_name: "Luis", last_name: "Vargas", employee_id: "DEMO-107", department: "Sales", role: "employee", color: "#16a34a", photo_id: 52, vehicles: [
     { alias: "Pickup", plate: "NL-LV-119", make: "Ford", model: "Maverick", color: "Gris", is_default: true },
   ] },
-  { email: "fernanda.navarro@lumina.demo", first_name: "Fernanda", last_name: "Navarro", employee_id: "DEMO-108", department: "Product", role: "employee", color: "#ea580c", vehicles: [
+  { email: "fernanda.navarro@lumina.demo", first_name: "Fernanda", last_name: "Navarro", employee_id: "DEMO-108", department: "Product", role: "employee", color: "#ea580c", photo_id: 44, vehicles: [
     { alias: "Nissan principal", plate: "NL-FN-430", make: "Nissan", model: "Sentra", color: "Blanco", is_default: true },
   ] },
-  { email: "javier.cortes@lumina.demo", first_name: "Javier", last_name: "Cortes", employee_id: "DEMO-109", department: "Support", role: "employee", color: "#7c3aed", vehicles: [
+  { email: "javier.cortes@lumina.demo", first_name: "Javier", last_name: "Cortes", employee_id: "DEMO-109", department: "Support", role: "employee", color: "#7c3aed", photo_id: 60, vehicles: [
     { alias: "Jetta", plate: "NL-JC-815", make: "Volkswagen", model: "Jetta", color: "Negro", is_default: true },
   ] },
-  { email: "renata.morales@lumina.demo", first_name: "Renata", last_name: "Morales", employee_id: "DEMO-110", department: "Design", role: "employee", color: "#db2777", vehicles: [
+  { email: "renata.morales@lumina.demo", first_name: "Renata", last_name: "Morales", employee_id: "DEMO-110", department: "Design", role: "employee", color: "#db2777", photo_id: 48, vehicles: [
     { alias: "Audi compacto", plate: "NL-RM-604", make: "Audi", model: "A3", color: "Blanco", is_default: true },
   ] },
-  { email: "pablo.santos@lumina.demo", first_name: "Pablo", last_name: "Santos", employee_id: "DEMO-111", department: "Data", role: "employee", color: "#0891b2", vehicles: [
+  { email: "pablo.santos@lumina.demo", first_name: "Pablo", last_name: "Santos", employee_id: "DEMO-111", department: "Data", role: "employee", color: "#0891b2", photo_id: 33, vehicles: [
     { alias: "Mazda gris", plate: "NL-PS-274", make: "Mazda", model: "3", color: "Gris", is_default: true },
   ] },
-  { email: "mariana.flores@lumina.demo", first_name: "Mariana", last_name: "Flores", employee_id: "DEMO-112", department: "HR", role: "employee", color: "#65a30d", vehicles: [
+  { email: "mariana.flores@lumina.demo", first_name: "Mariana", last_name: "Flores", employee_id: "DEMO-112", department: "HR", role: "employee", color: "#65a30d", photo_id: 24, vehicles: [
     { alias: "Corolla", plate: "NL-MF-931", make: "Toyota", model: "Corolla", color: "Plata", is_default: true },
   ] },
-  { email: "lucia.moreno@lumina.demo", first_name: "Lucia", last_name: "Moreno", employee_id: "DEMO-113", department: "Innovation", role: "employee", color: "#f59e0b", scenario: "badge_unlock", vehicles: [
+  { email: "lucia.moreno@lumina.demo", first_name: "Lucia", last_name: "Moreno", employee_id: "DEMO-113", department: "Innovation", role: "employee", color: "#f59e0b", photo_id: 55, scenario: "badge_unlock", vehicles: [
     { alias: "Auto de presentacion", plate: "NL-LM-500", make: "Cupra", model: "Formentor", color: "Gris", is_default: true },
   ] },
-  { email: "admin.demo@lumina.demo", first_name: "Admin", last_name: "Demo", employee_id: "DEMO-ADM", department: "Workplace", role: "admin", color: "#7500c0" },
-  { email: "guardia.demo@lumina.demo", first_name: "Guardia", last_name: "Demo", employee_id: "DEMO-GRD", department: "Security", role: "guard", color: "#334155" },
-  { email: "guardia@lumina.demo", first_name: "Guardia", last_name: "Estacionamiento", employee_id: "DEMO-GRD-2", department: "Security", role: "guard", color: "#475569" },
+  { email: "andrea.reyes@lumina.demo", first_name: "Andrea", last_name: "Reyes", employee_id: "DEMO-114", department: "Strategy", role: "employee", color: "#0ea5e9", photo_id: 26, vehicles: [
+    { alias: "Versa oficina", plate: "NL-AR-214", make: "Nissan", model: "Versa", color: "Azul", is_default: true },
+  ] },
+  { email: "roberto.silva@lumina.demo", first_name: "Roberto", last_name: "Silva", employee_id: "DEMO-115", department: "Cloud", role: "employee", color: "#2563eb", photo_id: 65, vehicles: [
+    { alias: "Bronco Sport", plate: "NL-RS-732", make: "Ford", model: "Bronco Sport", color: "Verde", is_default: true },
+  ] },
+  { email: "daniela.castillo@lumina.demo", first_name: "Daniela", last_name: "Castillo", employee_id: "DEMO-116", department: "Procurement", role: "employee", color: "#9333ea", photo_id: 28, vehicles: [
+    { alias: "Swift rojo", plate: "NL-DC-611", make: "Suzuki", model: "Swift", color: "Rojo", is_default: true },
+  ] },
+  { email: "emilio.rivera@lumina.demo", first_name: "Emilio", last_name: "Rivera", employee_id: "DEMO-117", department: "Architecture", role: "employee", color: "#0f766e", photo_id: 67, vehicles: [
+    { alias: "Passat", plate: "NL-ER-903", make: "Volkswagen", model: "Passat", color: "Negro", is_default: true },
+  ] },
+  { email: "isabella.cruz@lumina.demo", first_name: "Isabella", last_name: "Cruz", employee_id: "DEMO-118", department: "Analytics", role: "employee", color: "#be185d", photo_id: 30, vehicles: [
+    { alias: "Seat Leon", plate: "NL-IC-387", make: "Seat", model: "Leon", color: "Blanco", is_default: true },
+  ] },
+  { email: "nicolas.medina@lumina.demo", first_name: "Nicolas", last_name: "Medina", employee_id: "DEMO-119", department: "Cybersecurity", role: "employee", color: "#0369a1", photo_id: 68, vehicles: [
+    { alias: "Kicks", plate: "NL-NM-419", make: "Nissan", model: "Kicks", color: "Gris", is_default: true },
+  ] },
+  { email: "paola.ortega@lumina.demo", first_name: "Paola", last_name: "Ortega", employee_id: "DEMO-120", department: "Change", role: "employee", color: "#7e22ce", photo_id: 36, vehicles: [
+    { alias: "CX-30", plate: "NL-PO-508", make: "Mazda", model: "CX-30", color: "Rojo", is_default: true },
+  ] },
+  { email: "santiago.mendez@lumina.demo", first_name: "Santiago", last_name: "Mendez", employee_id: "DEMO-121", department: "Engineering", role: "employee", color: "#15803d", photo_id: 61, vehicles: [
+    { alias: "Civic turbo", plate: "NL-SM-826", make: "Honda", model: "Civic", color: "Azul", is_default: true },
+  ] },
+  { email: "elena.vazquez@lumina.demo", first_name: "Elena", last_name: "Vazquez", employee_id: "DEMO-122", department: "Experience", role: "employee", color: "#c026d3", photo_id: 25, vehicles: [
+    { alias: "Creta", plate: "NL-EV-204", make: "Hyundai", model: "Creta", color: "Blanco", is_default: true },
+  ] },
+  { email: "ricardo.gomez@lumina.demo", first_name: "Ricardo", last_name: "Gomez", employee_id: "DEMO-123", department: "Delivery", role: "employee", color: "#b45309", photo_id: 69, vehicles: [
+    { alias: "Hilux", plate: "NL-RG-745", make: "Toyota", model: "Hilux", color: "Gris", is_default: true },
+  ] },
+  { email: "karla.rios@lumina.demo", first_name: "Karla", last_name: "Rios", employee_id: "DEMO-124", department: "Talent", role: "employee", color: "#e11d48", photo_id: 31, vehicles: [
+    { alias: "Rio", plate: "NL-KR-512", make: "Kia", model: "Rio", color: "Plata", is_default: true },
+  ] },
+  { email: "hugo.paredes@lumina.demo", first_name: "Hugo", last_name: "Paredes", employee_id: "DEMO-125", department: "Operations", role: "employee", color: "#0d9488", photo_id: 70, vehicles: [
+    { alias: "Golf", plate: "NL-HP-667", make: "Volkswagen", model: "Golf", color: "Negro", is_default: true },
+  ] },
+  { email: "monica.salas@lumina.demo", first_name: "Monica", last_name: "Salas", employee_id: "DEMO-126", department: "Finance", role: "employee", color: "#a21caf", photo_id: 21, vehicles: [
+    { alias: "Yaris", plate: "NL-MS-129", make: "Toyota", model: "Yaris", color: "Blanco", is_default: true },
+  ] },
+  { email: "arturo.ibarra@lumina.demo", first_name: "Arturo", last_name: "Ibarra", employee_id: "DEMO-127", department: "Sales", role: "employee", color: "#4338ca", photo_id: 64, vehicles: [
+    { alias: "Mustang", plate: "NL-AI-976", make: "Ford", model: "Mustang", color: "Azul", is_default: true },
+  ] },
+  { email: "gabriela.nunez@lumina.demo", first_name: "Gabriela", last_name: "Nunez", employee_id: "DEMO-128", department: "Product", role: "employee", color: "#db2777", photo_id: 45, vehicles: [
+    { alias: "Ibiza", plate: "NL-GN-384", make: "Seat", model: "Ibiza", color: "Rojo", is_default: true },
+  ] },
+  { email: "oscar.delgado@lumina.demo", first_name: "Oscar", last_name: "Delgado", employee_id: "DEMO-129", department: "Support", role: "employee", color: "#047857", photo_id: 66, vehicles: [
+    { alias: "Sentra gris", plate: "NL-OD-258", make: "Nissan", model: "Sentra", color: "Gris", is_default: true },
+  ] },
+  { email: "admin.demo@lumina.demo", first_name: "Admin", last_name: "Demo", employee_id: "DEMO-ADM", department: "Workplace", role: "admin", color: "#7500c0", photo_id: 13 },
+  { email: "guardia.demo@lumina.demo", first_name: "Guardia", last_name: "Demo", employee_id: "DEMO-GRD", department: "Security", role: "guard", color: "#334155", photo_id: 53 },
+  { email: "guardia@lumina.demo", first_name: "Guardia", last_name: "Estacionamiento", employee_id: "DEMO-GRD-2", department: "Security", role: "guard", color: "#475569", photo_id: 54 },
 ]
 
 const workSlots = [
@@ -111,10 +160,10 @@ const workSlots = [
   { start: "16:00", end: "18:00" },
 ]
 
-function profilePhotoDataUri(user: DemoUser): string {
-  const initials = `${user.first_name[0] ?? ""}${user.last_name[0] ?? ""}`.toUpperCase()
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="${user.color}"/><stop offset="1" stop-color="#18151f"/></linearGradient></defs><rect width="160" height="160" rx="48" fill="url(#g)"/><circle cx="122" cy="34" r="34" fill="rgba(255,255,255,.12)"/><text x="80" y="91" text-anchor="middle" dominant-baseline="middle" fill="white" font-family="Arial, sans-serif" font-size="52" font-weight="800">${initials}</text></svg>`
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
+function profilePhotoUrl(user: DemoUser): string {
+  const fallbackId = Number(user.employee_id.replace(/\D/g, "")) || 1
+  const photoId = user.photo_id ?? ((fallbackId % 70) + 1)
+  return `https://i.pravatar.cc/160?img=${photoId}`
 }
 
 function dateWithOffset(days: number): string {
@@ -148,7 +197,7 @@ async function ensureRole(client: PoolClient, role: DemoRole): Promise<number> {
 
 async function ensureUser(client: PoolClient, user: DemoUser, passwordHash: string): Promise<number> {
   const existing = await client.query<{ id: number }>("SELECT id FROM users WHERE email = $1", [user.email])
-  const photo = profilePhotoDataUri(user)
+  const photo = profilePhotoUrl(user)
 
   if (existing.rows[0]) {
     await client.query(

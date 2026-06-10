@@ -13,11 +13,11 @@ npx ts-node seed_production_demo_data.ts
 
 Resultado validado:
 
-- 16 usuarios demo activos.
-- 13 empleados con perfil, foto y vehiculo registrado.
+- 32 usuarios demo activos.
+- 29 empleados con perfil, foto tipo stock y vehiculo registrado.
 - 2 usuarios guardia.
 - 1 administrador.
-- 50 reservas demo.
+- 106 reservas demo.
 - Reservas de escritorio, escritorio con estacionamiento y solo estacionamiento.
 - Estados variados: confirmada, activa, finalizada, cancelada y no_show.
 - 2 bloqueos administrativos activos.
@@ -316,4 +316,3 @@ Mensaje:
 7. Gestion de bloqueos.
 8. Vista guardia.
 9. Chatbot por rol.
-
