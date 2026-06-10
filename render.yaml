@@ -3,7 +3,7 @@ services:
     name: workhub-mty-api
     runtime: node
     rootDir: luminaBack-main
-    buildCommand: npm ci --include=dev && npm run build
+    buildCommand: npm ci --include=dev && npm run build && npm run db:seed
     startCommand: npm start
     healthCheckPath: /health
     autoDeploy: true

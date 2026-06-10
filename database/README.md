@@ -8,7 +8,8 @@ Estos archivos recrean la base de datos de Supabase para correr WorkHub MTY desd
 - `02_seed_static.sql`: catalogos e inventario estatico exportado desde Supabase: roles, edificio, pisos, espacios, estacionamientos y badges.
 - `export_static_seed.cjs`: script para volver a exportar `02_seed_static.sql` desde la base configurada en `luminaBack-main/.env`.
 - `render-vercel-env.example`: variables requeridas para Render, Vercel y Supabase.
-- `../luminaBack-main/seed_production_demo_data.ts`: crea usuarios demo, vehiculos y reservas de prueba.
+- `../luminaBack-main/seed.ts`: seed principal/oficial de producto. Crea usuarios, perfiles, vehiculos, reservas, badges y bloqueos para la demo real.
+- `../luminaBack-main/seed_production_demo_data.ts`: implementacion detallada del seed principal.
 
 ## Orden de restauracion
 
@@ -19,15 +20,15 @@ psql "$DATABASE_URL" -f database/01_schema.sql
 psql "$DATABASE_URL" -f database/02_seed_static.sql
 ```
 
-Despues, si quieres datos demo para probar la app:
+Despues, ejecuta el seed principal para dejar la app lista para presentacion y uso de demo:
 
 ```bash
 cd luminaBack-main
 npm install
-npx ts-node seed_production_demo_data.ts
+npm run db:seed
 ```
 
-El seed demo es idempotente: actualiza cuentas demo existentes y crea reservas faltantes sin borrar datos de usuarios reales.
+El seed principal es deterministico: actualiza las cuentas `@lumina.demo`, reinicia solo sus datos dependientes y no borra usuarios reales fuera de ese dominio.
 
 ## Variables minimas
 

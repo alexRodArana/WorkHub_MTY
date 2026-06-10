@@ -119,13 +119,13 @@ El guardia no tiene acceso a vistas de empleado ni administrador.
 
 ## Demo de Producto
 
-El proyecto incluye un seed deterministico para presentar WorkHub MTY como producto con datos realistas: perfiles, fotos tipo avatar, vehiculos, reservas, estacionamientos, badges y bloqueos administrativos.
+El proyecto incluye un seed principal deterministico para presentar WorkHub MTY como producto con datos realistas: perfiles, fotos tipo avatar, vehiculos, reservas, estacionamientos, badges y bloqueos administrativos. Este es el seed oficial que debe ejecutarse en produccion para tener los perfiles de demostracion reales.
 
 Ejecutar seed de demo:
 
 ```bash
 cd luminaBack-main
-npx ts-node seed_production_demo_data.ts
+npm run db:seed
 ```
 
 Credenciales demo:
@@ -409,6 +409,20 @@ Para aplicar la migracion final de performance y calidad:
 ```bash
 cd luminaBack-main
 npm run db:migrate:hu27
+```
+
+Para dejar la base lista con la semilla principal de producto:
+
+```bash
+cd luminaBack-main
+npm run db:seed
+```
+
+Para aplicar optimizaciones finales y despues sembrar los datos oficiales:
+
+```bash
+cd luminaBack-main
+npm run db:setup
 ```
 
 La migracion `hu27` es idempotente y aplica:
