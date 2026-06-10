@@ -13,6 +13,7 @@ La infraestructura recomendada es Vercel para frontend, Render para backend y Su
 
 - [Caracteristicas](#caracteristicas)
 - [Roles](#roles)
+- [Demo de Producto](#demo-de-producto)
 - [Arquitectura](#arquitectura)
 - [Stack Tecnologico](#stack-tecnologico)
 - [Estructura](#estructura)
@@ -23,6 +24,7 @@ La infraestructura recomendada es Vercel para frontend, Render para backend y Su
 - [Instalacion Local](#instalacion-local)
 - [Migraciones](#migraciones)
 - [Pruebas](#pruebas)
+- [Evidencia y Casos de Prueba](#evidencia-y-casos-de-prueba)
 - [Deploy](#deploy)
 - [Operacion](#operacion)
 
@@ -114,6 +116,55 @@ Permisos:
 - Usar chatbot con contexto limitado a estacionamiento.
 
 El guardia no tiene acceso a vistas de empleado ni administrador.
+
+## Demo de Producto
+
+El proyecto incluye un seed deterministico para presentar WorkHub MTY como producto con datos realistas: perfiles, fotos tipo avatar, vehiculos, reservas, estacionamientos, badges y bloqueos administrativos.
+
+Ejecutar seed de demo:
+
+```bash
+cd luminaBack-main
+npx ts-node seed_production_demo_data.ts
+```
+
+Credenciales demo:
+
+| Rol | Correo | Contrasena | Uso recomendado |
+|---|---|---|---|
+| Empleado principal | `ana.garcia@lumina.demo` | `WorkHubDemo123!` | Dashboard, mapa, checkout, perfil, vehiculos y badges |
+| Empleado para badge en vivo | `lucia.moreno@lumina.demo` | `WorkHubDemo123!` | Crear quinta reserva para desbloquear `Cafecito en la Mano` |
+| Administrador | `admin.demo@lumina.demo` | `WorkHubDemo123!` | KPIs, XLSX, gestion de bloqueos y busqueda |
+| Guardia | `guardia.demo@lumina.demo` | `WorkHubDemo123!` | Estacionamientos reservados del dia |
+
+Datos incluidos por el seed:
+
+- 16 usuarios demo activos.
+- 13 empleados con perfil, foto y vehiculo.
+- Usuarios con multiples vehiculos para validar seleccion de principal.
+- 50 reservas demo con estados `confirmada`, `activa`, `finalizada`, `cancelada` y `no_show`.
+- Reservas de tipo escritorio, escritorio con estacionamiento y solo estacionamiento.
+- 2 bloqueos administrativos activos.
+- Badges precargadas en usuarios seleccionados.
+- Usuario `lucia.moreno@lumina.demo` preparado para desbloquear una badge durante la presentacion.
+
+Guia completa de presentacion:
+
+```text
+docs/demo/DEMO_PRODUCTO_WORKHUB_MTY.md
+```
+
+Matriz extendida de casos de prueba de demo:
+
+```text
+docs/demo/CASOS_PRUEBA_DEMO_WORKHUB_MTY.md
+```
+
+Screenshots por caso de prueba:
+
+```text
+docs/demo/screenshots/
+```
 
 ## Arquitectura
 
@@ -415,6 +466,51 @@ Cobertura incluida:
 - Ruteo por rol.
 - Utilidades de parking.
 - Integracion de nueva reserva.
+
+## Evidencia y Casos de Prueba
+
+El repositorio incluye documentacion y evidencia visual para presentar y validar el sistema:
+
+| Entregable | Ruta |
+|---|---|
+| Guia de demo de producto | `docs/demo/DEMO_PRODUCTO_WORKHUB_MTY.md` |
+| Matriz extendida de casos de prueba | `docs/demo/CASOS_PRUEBA_DEMO_WORKHUB_MTY.md` |
+| Screenshots por caso de prueba | `docs/demo/screenshots/` |
+| Informe formal de Calidad M5 | `Informe_Formal_Calidad_M5_WorkHub_MTY.pdf` |
+| Documento base editable de Calidad M5 | `Calidad_M5_WorkHub_MTY.md` |
+
+Casos de prueba cubiertos en la evidencia:
+
+- Login por rol.
+- Dashboard del empleado.
+- Nueva reserva con mapa, avatares y recomendaciones IA.
+- Mis reservas y checkout.
+- Logros y badges.
+- Perfil y vehiculos.
+- Dashboard administrativo con KPIs.
+- Gestion administrativa de bloqueos.
+- Bloqueos activos.
+- Vista guardia de estacionamiento.
+- Responsividad movil.
+
+Para regenerar capturas locales:
+
+```bash
+mkdir -p /tmp/workhub-browser
+cd /tmp/workhub-browser
+npm init -y
+npm install playwright
+npx playwright install chromium
+
+cd /ruta/a/WorkHub\ MTY
+node scripts/capture_m5_screenshots.mjs
+```
+
+Para regenerar el PDF de Calidad M5:
+
+```bash
+python3 scripts/build_m5_quality_report.py
+```
 
 ## Deploy
 

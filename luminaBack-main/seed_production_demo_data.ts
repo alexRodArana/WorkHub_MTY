@@ -4,8 +4,9 @@
  * Run:
  *   npx ts-node seed_production_demo_data.ts
  *
- * The script is idempotent for the demo accounts below: it updates their
- * profile/password and creates missing reservations without deleting user data.
+ * The script is deterministic for the demo accounts below: it updates their
+ * profile/password and resets only demo-owned vehicles, reservations and badges
+ * so every product presentation starts from the same clean scenario.
  */
 
 import "dotenv/config"
@@ -13,7 +14,16 @@ import bcrypt from "bcrypt"
 import { Pool, PoolClient } from "pg"
 
 type DemoRole = "employee" | "admin" | "guard"
-type ReservationStatus = "confirmada" | "activa" | "cancelada" | "no_show"
+type ReservationStatus = "confirmada" | "activa" | "finalizada" | "cancelada" | "no_show"
+
+type DemoVehicle = {
+  alias: string
+  plate: string
+  make: string
+  model: string
+  color: string
+  is_default?: boolean
+}
 
 type DemoUser = {
   email: string
@@ -23,6 +33,8 @@ type DemoUser = {
   department: string
   role: DemoRole
   color: string
+  vehicles?: DemoVehicle[]
+  scenario?: "badge_unlock"
 }
 
 type SeedReservationPlan = {
@@ -44,18 +56,47 @@ const pool = new Pool({
 })
 
 const demoUsers: DemoUser[] = [
-  { email: "ana.garcia@lumina.demo", first_name: "Ana", last_name: "Garcia", employee_id: "DEMO-101", department: "People", role: "employee", color: "#a100ff" },
-  { email: "diego.martinez@lumina.demo", first_name: "Diego", last_name: "Martinez", employee_id: "DEMO-102", department: "Technology", role: "employee", color: "#00a98e" },
-  { email: "sofia.lopez@lumina.demo", first_name: "Sofia", last_name: "Lopez", employee_id: "DEMO-103", department: "Operations", role: "employee", color: "#ff7a45" },
-  { email: "mateo.hernandez@lumina.demo", first_name: "Mateo", last_name: "Hernandez", employee_id: "DEMO-104", department: "Finance", role: "employee", color: "#4f46e5" },
-  { email: "valeria.torres@lumina.demo", first_name: "Valeria", last_name: "Torres", employee_id: "DEMO-105", department: "Marketing", role: "employee", color: "#d946ef" },
-  { email: "camila.ramirez@lumina.demo", first_name: "Camila", last_name: "Ramirez", employee_id: "DEMO-106", department: "Legal", role: "employee", color: "#0284c7" },
-  { email: "luis.vargas@lumina.demo", first_name: "Luis", last_name: "Vargas", employee_id: "DEMO-107", department: "Sales", role: "employee", color: "#16a34a" },
-  { email: "fernanda.navarro@lumina.demo", first_name: "Fernanda", last_name: "Navarro", employee_id: "DEMO-108", department: "Product", role: "employee", color: "#ea580c" },
-  { email: "javier.cortes@lumina.demo", first_name: "Javier", last_name: "Cortes", employee_id: "DEMO-109", department: "Support", role: "employee", color: "#7c3aed" },
-  { email: "renata.morales@lumina.demo", first_name: "Renata", last_name: "Morales", employee_id: "DEMO-110", department: "Design", role: "employee", color: "#db2777" },
-  { email: "pablo.santos@lumina.demo", first_name: "Pablo", last_name: "Santos", employee_id: "DEMO-111", department: "Data", role: "employee", color: "#0891b2" },
-  { email: "mariana.flores@lumina.demo", first_name: "Mariana", last_name: "Flores", employee_id: "DEMO-112", department: "HR", role: "employee", color: "#65a30d" },
+  { email: "ana.garcia@lumina.demo", first_name: "Ana", last_name: "Garcia", employee_id: "DEMO-101", department: "People", role: "employee", color: "#a100ff", vehicles: [
+    { alias: "Mini Cooper personal", plate: "NL-AG-218", make: "Mini", model: "Cooper S", color: "Blanco", is_default: true },
+    { alias: "SUV familiar", plate: "NL-AG-772", make: "Mazda", model: "CX-5", color: "Azul" },
+  ] },
+  { email: "diego.martinez@lumina.demo", first_name: "Diego", last_name: "Martinez", employee_id: "DEMO-102", department: "Technology", role: "employee", color: "#00a98e", vehicles: [
+    { alias: "Tesla oficina", plate: "NL-DM-310", make: "Tesla", model: "Model 3", color: "Negro", is_default: true },
+  ] },
+  { email: "sofia.lopez@lumina.demo", first_name: "Sofia", last_name: "Lopez", employee_id: "DEMO-103", department: "Operations", role: "employee", color: "#ff7a45", vehicles: [
+    { alias: "Camioneta", plate: "NL-SL-641", make: "Toyota", model: "RAV4", color: "Gris", is_default: true },
+  ] },
+  { email: "mateo.hernandez@lumina.demo", first_name: "Mateo", last_name: "Hernandez", employee_id: "DEMO-104", department: "Finance", role: "employee", color: "#4f46e5", vehicles: [
+    { alias: "Sedan diario", plate: "NL-MH-552", make: "Honda", model: "Civic", color: "Plata", is_default: true },
+    { alias: "Auto fin de semana", plate: "NL-MH-984", make: "BMW", model: "Serie 3", color: "Azul" },
+  ] },
+  { email: "valeria.torres@lumina.demo", first_name: "Valeria", last_name: "Torres", employee_id: "DEMO-105", department: "Marketing", role: "employee", color: "#d946ef", vehicles: [
+    { alias: "Kia principal", plate: "NL-VT-447", make: "Kia", model: "Forte", color: "Rojo", is_default: true },
+  ] },
+  { email: "camila.ramirez@lumina.demo", first_name: "Camila", last_name: "Ramirez", employee_id: "DEMO-106", department: "Legal", role: "employee", color: "#0284c7", vehicles: [
+    { alias: "Hyundai azul", plate: "NL-CR-703", make: "Hyundai", model: "Tucson", color: "Azul", is_default: true },
+  ] },
+  { email: "luis.vargas@lumina.demo", first_name: "Luis", last_name: "Vargas", employee_id: "DEMO-107", department: "Sales", role: "employee", color: "#16a34a", vehicles: [
+    { alias: "Pickup", plate: "NL-LV-119", make: "Ford", model: "Maverick", color: "Gris", is_default: true },
+  ] },
+  { email: "fernanda.navarro@lumina.demo", first_name: "Fernanda", last_name: "Navarro", employee_id: "DEMO-108", department: "Product", role: "employee", color: "#ea580c", vehicles: [
+    { alias: "Nissan principal", plate: "NL-FN-430", make: "Nissan", model: "Sentra", color: "Blanco", is_default: true },
+  ] },
+  { email: "javier.cortes@lumina.demo", first_name: "Javier", last_name: "Cortes", employee_id: "DEMO-109", department: "Support", role: "employee", color: "#7c3aed", vehicles: [
+    { alias: "Jetta", plate: "NL-JC-815", make: "Volkswagen", model: "Jetta", color: "Negro", is_default: true },
+  ] },
+  { email: "renata.morales@lumina.demo", first_name: "Renata", last_name: "Morales", employee_id: "DEMO-110", department: "Design", role: "employee", color: "#db2777", vehicles: [
+    { alias: "Audi compacto", plate: "NL-RM-604", make: "Audi", model: "A3", color: "Blanco", is_default: true },
+  ] },
+  { email: "pablo.santos@lumina.demo", first_name: "Pablo", last_name: "Santos", employee_id: "DEMO-111", department: "Data", role: "employee", color: "#0891b2", vehicles: [
+    { alias: "Mazda gris", plate: "NL-PS-274", make: "Mazda", model: "3", color: "Gris", is_default: true },
+  ] },
+  { email: "mariana.flores@lumina.demo", first_name: "Mariana", last_name: "Flores", employee_id: "DEMO-112", department: "HR", role: "employee", color: "#65a30d", vehicles: [
+    { alias: "Corolla", plate: "NL-MF-931", make: "Toyota", model: "Corolla", color: "Plata", is_default: true },
+  ] },
+  { email: "lucia.moreno@lumina.demo", first_name: "Lucia", last_name: "Moreno", employee_id: "DEMO-113", department: "Innovation", role: "employee", color: "#f59e0b", scenario: "badge_unlock", vehicles: [
+    { alias: "Auto de presentacion", plate: "NL-LM-500", make: "Cupra", model: "Formentor", color: "Gris", is_default: true },
+  ] },
   { email: "admin.demo@lumina.demo", first_name: "Admin", last_name: "Demo", employee_id: "DEMO-ADM", department: "Workplace", role: "admin", color: "#7500c0" },
   { email: "guardia.demo@lumina.demo", first_name: "Guardia", last_name: "Demo", employee_id: "DEMO-GRD", department: "Security", role: "guard", color: "#334155" },
   { email: "guardia@lumina.demo", first_name: "Guardia", last_name: "Estacionamiento", employee_id: "DEMO-GRD-2", department: "Security", role: "guard", color: "#475569" },
@@ -131,38 +172,49 @@ async function ensureUserRole(client: PoolClient, userId: number, roleId: number
   await client.query("INSERT INTO user_roles (user_id, role_id, assigned_at) VALUES ($1, $2, NOW())", [userId, roleId])
 }
 
-async function ensureVehicle(client: PoolClient, userId: number, user: DemoUser, sequence: number): Promise<number | null> {
-  if (user.role !== "employee") return null
-
-  const plate = `DEMO-${String(100 + sequence).slice(-3)}`
+function fallbackVehicle(sequence: number): DemoVehicle {
   const makes = ["Toyota", "Honda", "Nissan", "Mazda", "Kia", "Hyundai"]
   const models = ["Corolla", "Civic", "Sentra", "CX-30", "Forte", "Elantra"]
   const colors = ["Blanco", "Gris", "Negro", "Azul", "Rojo", "Plata"]
 
-  await client.query("UPDATE user_vehicles SET is_default = false, updated_at = NOW() WHERE user_id = $1", [userId])
+  return {
+    alias: "Demo principal",
+    plate: `DEMO-${String(100 + sequence).slice(-3)}`,
+    make: makes[sequence % makes.length],
+    model: models[sequence % models.length],
+    color: colors[sequence % colors.length],
+    is_default: true,
+  }
+}
 
-  const result = await client.query<{ id: number }>(
-    `INSERT INTO user_vehicles (user_id, alias, plate, make, model, color, is_default, is_active, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, true, true, NOW(), NOW())
-     ON CONFLICT (user_id, plate)
-     DO UPDATE SET alias = EXCLUDED.alias,
-                   make = EXCLUDED.make,
-                   model = EXCLUDED.model,
-                   color = EXCLUDED.color,
-                   is_default = true,
-                   is_active = true,
-                   updated_at = NOW()
-     RETURNING id`,
-    [
-      userId,
-      "Demo principal",
-      plate,
-      makes[sequence % makes.length],
-      models[sequence % models.length],
-      colors[sequence % colors.length],
-    ]
-  )
-  return result.rows[0].id
+async function ensureVehicles(client: PoolClient, userId: number, user: DemoUser, sequence: number): Promise<number | null> {
+  if (user.role !== "employee") return null
+
+  await client.query("UPDATE user_vehicles SET is_default = false, updated_at = NOW() WHERE user_id = $1", [userId])
+  const vehicles = user.vehicles?.length ? user.vehicles : [fallbackVehicle(sequence)]
+  let defaultVehicleId: number | null = null
+
+  for (let index = 0; index < vehicles.length; index++) {
+    const vehicle = vehicles[index]
+    const isDefault = vehicle.is_default === true || (index === 0 && !vehicles.some((v) => v.is_default))
+    const result = await client.query<{ id: number }>(
+      `INSERT INTO user_vehicles (user_id, alias, plate, make, model, color, is_default, is_active, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW(), NOW())
+       ON CONFLICT (user_id, plate)
+       DO UPDATE SET alias = EXCLUDED.alias,
+                     make = EXCLUDED.make,
+                     model = EXCLUDED.model,
+                     color = EXCLUDED.color,
+                     is_default = EXCLUDED.is_default,
+                     is_active = true,
+                     updated_at = NOW()
+       RETURNING id`,
+      [userId, vehicle.alias, vehicle.plate, vehicle.make, vehicle.model, vehicle.color, isDefault]
+    )
+    if (isDefault) defaultVehicleId = result.rows[0].id
+  }
+
+  return defaultVehicleId
 }
 
 async function getFloorIds(client: PoolClient): Promise<number[]> {
@@ -287,8 +339,8 @@ async function ensureReservation(
     [userId, date, plan.start, plan.end, plan.parkingOnly === true]
   )
 
-  const checkInTime = status === "activa" ? new Date() : null
-  const checkOutTime = status === "no_show" || status === "cancelada" ? null : null
+  const checkInTime = status === "activa" || status === "finalizada" ? new Date(`${date}T${plan.start}:00`) : null
+  const checkOutTime = status === "finalizada" ? new Date(`${date}T${plan.end}:00`) : null
 
   if (existing.rows[0]) {
     await client.query(
@@ -331,6 +383,28 @@ function buildReservationPlans(users: DemoUser[]): SeedReservationPlan[] {
   const plans: SeedReservationPlan[] = []
 
   employees.forEach((user, index) => {
+    if (user.scenario === "badge_unlock") {
+      const historicalSlots = [
+        { dateOffset: -8, start: "09:00", end: "11:00", floorIndex: 0 },
+        { dateOffset: -6, start: "10:00", end: "12:00", floorIndex: 1 },
+        { dateOffset: -4, start: "11:00", end: "13:00", floorIndex: 2 },
+        { dateOffset: -2, start: "13:00", end: "15:00", floorIndex: 3 },
+      ]
+
+      historicalSlots.forEach((slot) => {
+        plans.push({
+          email: user.email,
+          dateOffset: slot.dateOffset,
+          start: slot.start,
+          end: slot.end,
+          floorIndex: slot.floorIndex,
+          parking: false,
+          status: "finalizada",
+        })
+      })
+      return
+    }
+
     const slot = workSlots[index % workSlots.length]
     plans.push({
       email: user.email,
@@ -385,6 +459,109 @@ function buildReservationPlans(users: DemoUser[]): SeedReservationPlan[] {
   return plans
 }
 
+async function resetDemoScenarioData(client: PoolClient, userIds: number[]): Promise<void> {
+  if (userIds.length === 0) return
+
+  await client.query("DELETE FROM reservations WHERE user_id = ANY($1::int[])", [userIds])
+  await client.query("DELETE FROM user_badges WHERE user_id = ANY($1::int[])", [userIds])
+  await client.query("DELETE FROM user_streaks WHERE user_id = ANY($1::int[])", [userIds])
+  await client.query("DELETE FROM user_vehicles WHERE user_id = ANY($1::int[])", [userIds])
+  await client.query("DELETE FROM space_blocks WHERE reason LIKE 'Demo:%'")
+}
+
+async function awardBadges(client: PoolClient, userId: number, badgeKeys: string[]): Promise<void> {
+  if (badgeKeys.length === 0) return
+
+  await client.query(
+    `INSERT INTO user_badges (user_id, badge_id, earned_at)
+     SELECT $1, b.id, NOW() - ((ROW_NUMBER() OVER (ORDER BY b.id))::text || ' days')::interval
+     FROM badges b
+     WHERE b.key = ANY($2::text[])
+     ON CONFLICT DO NOTHING`,
+    [userId, badgeKeys]
+  )
+}
+
+async function awardDemoBadges(client: PoolClient, userIds: Map<string, number>): Promise<void> {
+  const badgePlan: Array<{ email: string; keys: string[] }> = [
+    {
+      email: "ana.garcia@lumina.demo",
+      keys: ["bienvenido_colega", "cafecito_en_la_mano", "diez_de_diez", "ciudadano_del_edificio"],
+    },
+    {
+      email: "diego.martinez@lumina.demo",
+      keys: ["bienvenido_colega", "cafecito_en_la_mano", "la_misma_silla"],
+    },
+    {
+      email: "sofia.lopez@lumina.demo",
+      keys: ["bienvenido_colega", "cafecito_en_la_mano"],
+    },
+    {
+      email: "mateo.hernandez@lumina.demo",
+      keys: ["bienvenido_colega", "planificador_de_elite"],
+    },
+    {
+      email: "valeria.torres@lumina.demo",
+      keys: ["bienvenido_colega"],
+    },
+    {
+      email: "lucia.moreno@lumina.demo",
+      keys: ["bienvenido_colega"],
+    },
+  ]
+
+  for (const plan of badgePlan) {
+    const userId = userIds.get(plan.email)
+    if (userId) await awardBadges(client, userId, plan.keys)
+  }
+}
+
+async function ensureDemoBlocks(client: PoolClient): Promise<number> {
+  const blocks = [
+    { dateOffset: 0, start: "12:00", end: "14:00", reason: "Demo: limpieza ejecutiva de sala" },
+    { dateOffset: 1, start: "09:00", end: "11:00", reason: "Demo: mantenimiento preventivo" },
+  ]
+  let created = 0
+
+  for (let index = 0; index < blocks.length; index++) {
+    const block = blocks[index]
+    const blockDate = dateWithOffset(block.dateOffset)
+    const candidate = await client.query<{ id: number }>(
+      `SELECT s.id
+       FROM spaces s
+       JOIN floors f ON f.id = s.floor_id
+       WHERE s.is_active = true
+         AND COALESCE(s.visual_only, false) = false
+         AND s.priority_category IN ('escritorio', 'colaborativo')
+         AND NOT EXISTS (
+           SELECT 1
+           FROM reservations r
+           WHERE r.space_id = s.id
+             AND r.reservation_date = $1
+             AND r.status IN ('confirmada', 'activa')
+             AND r.start_time < $3
+             AND r.end_time > $2
+         )
+       ORDER BY f.floor_number, s.priority_category DESC, s.space_number
+       OFFSET $4
+       LIMIT 1`,
+      [blockDate, block.start, block.end, index]
+    )
+
+    const spaceId = candidate.rows[0]?.id
+    if (!spaceId) continue
+
+    await client.query(
+      `INSERT INTO space_blocks (space_id, block_date, start_time, end_time, reason, is_active, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())`,
+      [spaceId, blockDate, block.start, block.end, block.reason]
+    )
+    created++
+  }
+
+  return created
+}
+
 async function main(): Promise<void> {
   const client = await pool.connect()
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10)
@@ -393,6 +570,7 @@ async function main(): Promise<void> {
   let created = 0
   let updated = 0
   let skipped = 0
+  let blocksCreated = 0
 
   try {
     await client.query("BEGIN")
@@ -402,8 +580,16 @@ async function main(): Promise<void> {
       const roleId = await ensureRole(client, user.role)
       const userId = await ensureUser(client, user, passwordHash)
       await ensureUserRole(client, userId, roleId)
-      const vehicleId = await ensureVehicle(client, userId, user, index)
       userIds.set(user.email, userId)
+    }
+
+    await resetDemoScenarioData(client, Array.from(userIds.values()))
+
+    for (let index = 0; index < demoUsers.length; index++) {
+      const user = demoUsers[index]
+      const userId = userIds.get(user.email)
+      if (!userId) continue
+      const vehicleId = await ensureVehicles(client, userId, user, index)
       vehicleIds.set(user.email, vehicleId)
     }
 
@@ -422,6 +608,9 @@ async function main(): Promise<void> {
       if (result === "skipped") skipped++
     }
 
+    await awardDemoBadges(client, userIds)
+    blocksCreated = await ensureDemoBlocks(client)
+
     await client.query("COMMIT")
 
     console.log("Production-like demo data ready.")
@@ -430,6 +619,7 @@ async function main(): Promise<void> {
       reservations_created: created,
       reservations_updated: updated,
       reservations_skipped: skipped,
+      blocks_created: blocksCreated,
       password: DEMO_PASSWORD,
     }, null, 2))
   } catch (error) {
