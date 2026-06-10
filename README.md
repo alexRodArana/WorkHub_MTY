@@ -121,7 +121,7 @@ El guardia no tiene acceso a vistas de empleado ni administrador.
 
 El proyecto incluye un seed principal deterministico para presentar WorkHub MTY como producto con datos realistas: perfiles, fotos tipo avatar, vehiculos, reservas, estacionamientos, badges y bloqueos administrativos. Este es el seed oficial que debe ejecutarse en produccion para tener los perfiles de demostracion reales.
 
-En produccion, el backend ejecuta este seed automaticamente antes de iniciar el servidor mediante `npm start`. Esto asegura que cuentas como `lucia.moreno@lumina.demo` existan en la base real usada por Render.
+En produccion, el backend ejecuta `db:setup` automaticamente antes de iniciar el servidor mediante `npm start`. Ese flujo aplica las migraciones idempotentes de checkout/performance y despues ejecuta el seed oficial, por lo que cuentas como `lucia.moreno@lumina.demo` existen en la base real usada por Render.
 
 Ejecutar seed de demo:
 
@@ -406,10 +406,11 @@ URLs locales comunes:
 
 Las migraciones viven en `luminaBack-main/migrate_*.ts`.
 
-Para aplicar la migracion final de performance y calidad:
+Para aplicar las migraciones finales de checkout, performance y calidad:
 
 ```bash
 cd luminaBack-main
+npm run db:migrate:hu25
 npm run db:migrate:hu27
 ```
 
@@ -420,15 +421,17 @@ cd luminaBack-main
 npm run db:seed
 ```
 
-Para aplicar optimizaciones finales y despues sembrar los datos oficiales:
+Para aplicar migraciones finales y despues sembrar los datos oficiales:
 
 ```bash
 cd luminaBack-main
 npm run db:setup
 ```
 
-La migracion `hu27` es idempotente y aplica:
+Las migraciones `hu25` y `hu27` son idempotentes. En conjunto aplican:
 
+- Constraint actualizado para estados de reserva, incluyendo `finalizada`.
+- Stored procedure `workhub_checkout_reservation`.
 - Indices para checkout, dashboard, mapa, parking y busqueda.
 - Limpieza de multiples vehiculos principales.
 - Indice unico parcial para vehiculo principal activo.
@@ -545,7 +548,7 @@ El backend usa `render.yaml`.
 Configuracion esperada:
 
 - Root: `luminaBack-main`
-- Build command: `npm install && npm run build`
+- Build command: `npm ci --include=dev && npm run build`
 - Start command: `npm start`
 - Environment variables: las del backend.
 
@@ -565,7 +568,7 @@ Configuracion esperada:
 Antes o durante el deploy:
 
 1. Configurar `DATABASE_URL` en Render.
-2. Ejecutar migraciones.
+2. Ejecutar `npm run db:setup` o permitir que `npm start` lo ejecute automaticamente.
 3. Verificar datos base, espacios, badges y usuarios demo si aplica.
 4. Validar que `workhub_checkout_reservation` exista.
 5. Validar que `workhub_reservation_type` exista.
@@ -579,7 +582,7 @@ Checklist recomendado antes de presentar o pasar a produccion:
 - `npm test` en frontend.
 - `npm run lint` en frontend.
 - `npm run build` en frontend.
-- `npm run db:migrate:hu27` aplicado correctamente.
+- `npm run db:setup` aplicado correctamente.
 - Login probado con empleado, administrador y guardia.
 - Nueva reserva probada en los tres modos.
 - Check-out probado en reserva confirmada y activa.

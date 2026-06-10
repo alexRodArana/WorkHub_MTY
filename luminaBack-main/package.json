@@ -5,12 +5,13 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "npm run db:seed && node dist/index.js",
+    "start": "npm run db:setup && node dist/index.js",
     "dev": "ts-node src/index.ts",
+    "db:migrate:hu25": "ts-node migrate_hu25_final_checkout_db_optimizations.ts",
     "db:migrate:hu27": "ts-node migrate_hu27_final_performance_quality.ts",
     "db:seed": "ts-node seed.ts",
     "db:seed:demo": "ts-node seed_production_demo_data.ts",
-    "db:setup": "npm run db:migrate:hu27 && npm run db:seed",
+    "db:setup": "npm run db:migrate:hu25 && npm run db:migrate:hu27 && npm run db:seed",
     "test": "vitest run --pool=forks",
     "test:watch": "vitest"
   },

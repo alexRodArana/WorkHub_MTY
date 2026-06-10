@@ -20,15 +20,15 @@ psql "$DATABASE_URL" -f database/01_schema.sql
 psql "$DATABASE_URL" -f database/02_seed_static.sql
 ```
 
-Despues, ejecuta el seed principal para dejar la app lista para presentacion y uso de demo:
+Despues, ejecuta las migraciones finales y el seed principal para dejar la app lista para presentacion y uso de demo:
 
 ```bash
 cd luminaBack-main
 npm install
-npm run db:seed
+npm run db:setup
 ```
 
-El seed principal es deterministico: actualiza las cuentas `@lumina.demo`, reinicia solo sus datos dependientes y no borra usuarios reales fuera de ese dominio.
+`db:setup` aplica migraciones idempotentes de checkout, performance y calidad antes del seed. El seed principal es deterministico: actualiza las cuentas `@lumina.demo`, reinicia solo sus datos dependientes y no borra usuarios reales fuera de ese dominio.
 
 ## Variables minimas
 

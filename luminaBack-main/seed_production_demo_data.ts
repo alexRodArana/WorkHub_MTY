@@ -123,6 +123,18 @@ function dateWithOffset(days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
+async function ensureProductionSeedCompatibility(client: PoolClient): Promise<void> {
+  // Legacy production databases may still reject the checkout status used by the demo seed.
+  await client.query(`
+    ALTER TABLE reservations
+      DROP CONSTRAINT IF EXISTS chk_reservation_status;
+
+    ALTER TABLE reservations
+      ADD CONSTRAINT chk_reservation_status
+      CHECK (status IN ('confirmada', 'activa', 'finalizada', 'cancelada', 'no_show'));
+  `)
+}
+
 async function ensureRole(client: PoolClient, role: DemoRole): Promise<number> {
   const existing = await client.query<{ id: number }>("SELECT id FROM roles WHERE name = $1", [role])
   if (existing.rows[0]) return existing.rows[0].id
@@ -574,6 +586,7 @@ async function main(): Promise<void> {
 
   try {
     await client.query("BEGIN")
+    await ensureProductionSeedCompatibility(client)
 
     for (let index = 0; index < demoUsers.length; index++) {
       const user = demoUsers[index]
