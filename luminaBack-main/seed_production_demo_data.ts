@@ -47,6 +47,8 @@ type SeedReservationPlan = {
   parking: boolean
   parkingOnly?: boolean
   status?: ReservationStatus
+  gracePeriodMinutes?: number
+  reservationCode?: string
 }
 
 const DEMO_PASSWORD = "WorkHubDemo123!"
@@ -402,6 +404,7 @@ async function ensureReservation(
 
   const checkInTime = status === "activa" || status === "finalizada" ? new Date(`${date}T${plan.start}:00`) : null
   const checkOutTime = status === "finalizada" ? new Date(`${date}T${plan.end}:00`) : null
+  const gracePeriodMinutes = plan.gracePeriodMinutes ?? 15
 
   if (existing.rows[0]) {
     await client.query(
@@ -411,10 +414,11 @@ async function ensureReservation(
            check_out_time = $4,
            requiere_estacionamiento = $5,
            vehicle_id = $6,
+           grace_period_minutes = $7,
            parking_spot_id = NULL,
            updated_at = NOW()
        WHERE id = $1`,
-      [existing.rows[0].id, status, checkInTime, checkOutTime, requiresParking, requiresParking ? vehicleId : null]
+      [existing.rows[0].id, status, checkInTime, checkOutTime, requiresParking, requiresParking ? vehicleId : null, gracePeriodMinutes]
     )
     if (requiresParking) {
       await assignParkingIfNeeded(client, existing.rows[0].id, date, plan.start, plan.end, sequence)
@@ -422,15 +426,15 @@ async function ensureReservation(
     return "updated"
   }
 
-  const code = await uniqueReservationCode(client, 500000 + sequence)
+  const code = plan.reservationCode ?? await uniqueReservationCode(client, 500000 + sequence)
   const created = await client.query<{ id: number }>(
     `INSERT INTO reservations
        (user_id, space_id, reservation_date, start_time, end_time, status,
         check_in_time, check_out_time, grace_period_minutes, created_at, updated_at,
         reservation_code, requiere_estacionamiento, vehicle_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 15, NOW(), NOW(), $9, $10, $11)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW(), $10, $11, $12)
      RETURNING id`,
-    [userId, spaceId, date, plan.start, plan.end, status, checkInTime, checkOutTime, code, requiresParking, requiresParking ? vehicleId : null]
+    [userId, spaceId, date, plan.start, plan.end, status, checkInTime, checkOutTime, gracePeriodMinutes, code, requiresParking, requiresParking ? vehicleId : null]
   )
 
   if (requiresParking) {
@@ -512,6 +516,7 @@ function buildReservationPlans(users: DemoUser[]): SeedReservationPlan[] {
 
   plans.push(
     { email: "ana.garcia@lumina.demo", dateOffset: 0, start: "08:00", end: "09:00", floorIndex: 0, parking: false, status: "no_show" },
+    { email: "ana.garcia@lumina.demo", dateOffset: 0, start: "23:00", end: "23:59", floorIndex: 0, parking: false, status: "confirmada", gracePeriodMinutes: 1440, reservationCode: "DEMOCHK1" },
     { email: "diego.martinez@lumina.demo", dateOffset: 0, start: "17:00", end: "18:00", floorIndex: 1, parking: false, status: "cancelada" },
     { email: "sofia.lopez@lumina.demo", dateOffset: 1, start: "08:00", end: "10:00", parking: true, parkingOnly: true },
     { email: "luis.vargas@lumina.demo", dateOffset: 0, start: "18:00", end: "20:00", parking: true, parkingOnly: true }

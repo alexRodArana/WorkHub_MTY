@@ -17,7 +17,7 @@ Resultado validado:
 - 29 empleados con perfil, foto tipo stock y vehiculo registrado.
 - 2 usuarios guardia.
 - 1 administrador.
-- 106 reservas demo.
+- 107 reservas demo.
 - Reservas de escritorio, escritorio con estacionamiento y solo estacionamiento.
 - Estados variados: confirmada, activa, finalizada, cancelada y no_show.
 - 2 bloqueos administrativos activos.
