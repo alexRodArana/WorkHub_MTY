@@ -17,7 +17,7 @@ Usuario
   v
 Frontend React
   |
-  | REST API + Server-Sent Events
+  | REST API 
   v
 Backend Express
   |
@@ -36,8 +36,6 @@ Plataformas y servicios usados:
 - Backend: Node.js, Express, TypeScript, JWT, bcrypt, CORS y rate limiting.
 - Base de datos: PostgreSQL, recomendado con Supabase.
 - IA: Google Gemini API para recomendaciones de espacios y chatbot.
-- Tiempo real: Server-Sent Events para actualizar ocupacion y reservas sin recargar la pagina.
-- Despliegue recomendado: Vercel para frontend, Render para backend y Supabase/PostgreSQL para base de datos.
 
 La autenticacion usa JWT y el acceso se controla por rol. El backend arma el contexto permitido para cada usuario antes de consultar Gemini, por lo que el frontend no expone secretos de IA ni calcula recomendaciones finales.
 
@@ -68,66 +66,31 @@ Flujo principal de uso:
 5. El administrador puede revisar indicadores, exportar reportes y gestionar bloqueos.
 6. El guardia puede consultar los estacionamientos reservados del dia.
 
-Credenciales demo incluidas por el seed:
+Credenciales demo:
 
 | Rol | Correo | Contrasena | Uso recomendado |
 |---|---|---|---|
 | Empleado principal | `ana.garcia@lumina.demo` | `WorkHubDemo123!` | Dashboard, mapa, checkout, perfil, vehiculos y badges. |
-| Empleado para badge en vivo | `lucia.moreno@lumina.demo` | `WorkHubDemo123!` | Crear una quinta reserva para desbloquear una badge durante la demo. |
 | Administrador | `admin.demo@lumina.demo` | `WorkHubDemo123!` | KPIs, reportes XLSX, bloqueos y busqueda de usuarios. |
 | Guardia | `guardia.demo@lumina.demo` | `WorkHubDemo123!` | Consulta de estacionamientos reservados del dia. |
-
-Para ejecutar el proyecto en local:
-
-```bash
-cd luminaBack-main
-npm install
-npm run dev
-```
-
-```bash
-cd luminaFront-main
-npm install
-npm run dev
-```
 
 URLs locales:
 
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:3000`
 
-Para preparar la base de datos con migraciones y datos demo:
-
-```bash
-cd luminaBack-main
-npm run db:setup
-```
-
 Variables principales que deben configurarse:
 
 - Backend: `DATABASE_URL`, `JWT_SECRET`, `JWT_ALGORITHM`, `JWT_EXPIRES_IN`, `ALLOWED_ORIGINS`, `GEMINI_API_KEY`, `GEMINI_MODEL`.
 - Frontend: `VITE_API_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`.
 
-Consideraciones importantes:
-
-- No subir archivos `.env` reales al repositorio.
-- Verificar que `VITE_API_URL` apunte al backend correcto.
-- Verificar que `ALLOWED_ORIGINS` incluya la URL real del frontend.
-- Gemini debe estar configurado para probar recomendaciones y chatbot.
-- Las credenciales demo son para pruebas y presentacion, no para uso final en produccion.
-
 ## Enlaces clave
 
 | Recurso | Enlace o ruta | Notas |
 |---|---|---|
-| Repositorio | Este repositorio | No se documenta una URL remota en el README actual. |
-| Frontend local | `http://localhost:5173` | Disponible al ejecutar `npm run dev` en `luminaFront-main`. |
-| Backend local | `http://localhost:3000` | Disponible al ejecutar `npm run dev` en `luminaBack-main`. |
-| Backend desplegado | `https://workhub-mty.onrender.com` | Documentado como backend de produccion/fallback. |
-| Frontend desplegado | Pendiente | No se documenta una URL final de Vercel. |
-| Configuracion Vercel | `luminaFront-main/vercel.json` | Configuracion del frontend para despliegue. |
-| Configuracion Render | `render.yaml` | Configuracion del backend para despliegue. |
-| Restauracion de base de datos | `database/README.md` | Instrucciones para recrear la base de datos. |
-| Guia de demo | `docs/demo/DEMO_PRODUCTO_WORKHUB_MTY.md` | Guia para presentar el producto. |
-| Casos de prueba demo | `docs/demo/CASOS_PRUEBA_DEMO_WORKHUB_MTY.md` | Matriz de validacion funcional. |
-| Evidencia visual | `docs/demo/screenshots/` | Capturas usadas para validacion y presentacion. |
+| Frontend local | `http://localhost:5173` | 
+| Backend local | `http://localhost:3000` | 
+| Backend desplegado | `https://workhub-mty.onrender.com` |
+| Frontend desplegado | https://work-hub-mty-six.vercel.app/login | 
+| Configuracion Vercel | `luminaFront-main/vercel.json` | 
+| Configuracion Render | `render.yaml` | 
