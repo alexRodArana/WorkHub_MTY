@@ -86,11 +86,11 @@ Variables principales que deben configurarse:
 
 ## Enlaces clave
 
-| Recurso | Enlace o ruta | Notas |
-|---|---|---|
+| Recurso | Enlace o ruta | 
+|---|---|
 | Frontend local | `http://localhost:5173` | 
 | Backend local | `http://localhost:3000` | 
 | Backend desplegado | `https://workhub-mty.onrender.com` |
-| Frontend desplegado | https://work-hub-mty-six.vercel.app/login | 
+| Frontend desplegado | `https://work-hub-mty-six.vercel.app/login` | 
 | Configuracion Vercel | `luminaFront-main/vercel.json` | 
 | Configuracion Render | `render.yaml` | 
